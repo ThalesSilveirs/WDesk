@@ -1,0 +1,12 @@
+django>=4.2
+djangorestframework
+django-cors-headers
+djangorestframework-simplejwt
+psycopg2-binary
+celery[redis]
+django-environ
+redis
+requests
+drf-spectacular
+gunicorn
+python-decouple

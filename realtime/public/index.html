@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp SaaS - Realtime Dashboard</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; margin: 0; }
+        #setup { padding: 20px; background: #fff; border-bottom: 1px solid #ddd; }
+        #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .message { padding: 10px; border-radius: 8px; max-width: 70%; }
+        .from-me { align-self: flex-end; background: #dcf8c6; }
+        .from-client { align-self: flex-start; background: #fff; border: 1px solid #ddd; }
+        .system { align-self: center; font-size: 0.8em; color: #777; }
+        #input-area { padding: 20px; background: #fff; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #00a884; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="setup">
+    <h3>Realtime Dashboard (Integrado)</h3>
+    <input type="text" id="token" placeholder="Cole seu JWT Token aqui">
+    <button onclick="connect()">Conectar</button>
+    <span id="status" style="margin-left: 10px; color: red;">Desconectado</span>
+</div>
+
+<div id="chat"><div class="system">Insira o token para conectar...</div></div>
+
+<div id="input-area">
+    <input type="text" id="msg-input" placeholder="Teste de interface...">
+    <button onclick="simulateTyping()">Simular Digitando</button>
+</div>
+
+<script>
+    let socket;
+    const chat = document.getElementById('chat');
+
+    function connect() {
+        const token = document.getElementById('token').value;
+        if (!token) return alert("Por favor, cole o token JWT!");
+
+        // Como a página é servida pelo mesmo servidor, podemos usar "/"
+        socket = io({
+            auth: { token: token },
+            transports: ["websocket"]
+        });
+
+        socket.on("connect", () => {
+            document.getElementById('status').innerText = "Conectado";
+            document.getElementById('status').style.color = "green";
+            addMessage("Sistema", "Conectado ao servidor com sucesso!", "system");
+        });
+
+        socket.on("connect_error", (err) => {
+            addMessage("Erro de Conexão", err.message, "system");
+            console.error(err);
+        });
+
+        socket.on("new_message", (data) => {
+            addMessage(data.from_me ? "Você" : "Cliente", data.body, data.from_me ? "from-me" : "from-client");
+        });
+
+        socket.on("user_typing", (data) => {
+            addMessage("Sistema", "Digitando...", "system");
+        });
+    }
+
+    function addMessage(sender, text, type) {
+        const div = document.createElement('div');
+        div.className = `message ${type}`;
+        div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function simulateTyping() {
+        if (!socket) return;
+        socket.emit("typing", { ticket_id: 1, is_typing: true });
+    }
+</script>
+
+</body>
+</html>

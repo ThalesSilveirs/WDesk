@@ -1,0 +1,933 @@
+from rest_framework import viewsets, status, permissions, serializers
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact
+from .serializers import (
+    TicketSerializer, 
+    ConnectionSerializer, 
+    MessageSerializer,
+    MyTokenObtainPairSerializer,
+    CustomerSerializer,
+    CustomerContactSerializer,
+    ContactSerializer,
+    CompanySerializer
+)
+from rest_framework_simplejwt.views import TokenObtainPairView
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import json
+import redis
+from django.conf import settings
+import requests
+import time
+import base64
+import mimetypes
+import re
+import uuid
+
+# Conexão Redis para Pub/Sub
+redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
+class TenantModelViewSet(viewsets.ModelViewSet):
+    """
+    Base ViewSet que filtra os dados pelo company_id do usuário logado.
+    """
+    def get_queryset(self):
+        return self.queryset.filter(company=self.request.user.company)
+
+    def perform_create(self, serializer):
+        serializer.save(company=self.request.user.company)
+
+class CustomerViewSet(TenantModelViewSet):
+    queryset = Customer.objects.all().order_by('name')
+    serializer_class = CustomerSerializer
+
+    @action(detail=True, methods=['post'])
+    def open_ticket(self, request, pk=None):
+        customer = self.get_object()
+        # Busca ou cria um contato para este cliente
+        # Usamos o remote_jid padrão do whatsapp se não existir
+        remote_jid = f"{customer.phone}@s.whatsapp.net"
+        contact, _ = Contact.objects.get_or_create(
+            company=request.user.company,
+            remote_jid=remote_jid,
+            defaults={'name': customer.name, 'customer': customer}
+        )
+        
+        # Se o contato não tinha cliente vinculado, vincula agora
+        if not contact.customer:
+            contact.customer = customer
+            contact.save()
+
+        # Abre o ticket
+        ticket = Ticket.objects.create(
+            company=request.user.company,
+            contact=contact,
+            user=request.user, # Atribui ao usuário que abriu
+            status='open'
+        )
+        
+        return Response(TicketSerializer(ticket).data)
+
+class CustomerContactViewSet(viewsets.ModelViewSet):
+    queryset = CustomerContact.objects.all()
+    serializer_class = CustomerContactSerializer
+
+    def get_queryset(self):
+        return self.queryset.filter(customer__company=self.request.user.company)
+
+class ContactViewSet(TenantModelViewSet):
+    queryset = Contact.objects.all()
+    serializer_class = ContactSerializer
+
+class TicketViewSet(TenantModelViewSet):
+    queryset = Ticket.objects.all().order_by('-updated_at')
+    serializer_class = TicketSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        status_filter = self.request.query_params.get('status_filter')
+        
+        if status_filter == 'mine':
+            return qs.filter(user=self.request.user, status__in=['open', 'pending'])
+        elif status_filter == 'unassigned':
+            return qs.filter(user__isnull=True, status__in=['open', 'pending'])
+        elif status_filter == 'closed':
+            return qs.filter(status='closed')
+        elif status_filter == 'all' and self.request.user.role == 'admin':
+            return qs.filter(status__in=['open', 'pending'])
+        
+        return qs
+
+    @action(detail=True, methods=['post'])
+    def accept(self, request, pk=None):
+        ticket = self.get_object()
+        if ticket.user:
+            return Response({"error": "Ticket já tem um atendente"}, status=400)
+        
+        ticket.user = request.user
+        ticket.save()
+        return Response(TicketSerializer(ticket).data)
+
+    @action(detail=True, methods=['post'])
+    def transfer(self, request, pk=None):
+        ticket = self.get_object()
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response({"error": "Usuário destino não informado"}, status=400)
+            
+        try:
+            new_user = User.objects.get(id=user_id, company=request.user.company)
+            ticket.user = new_user
+            ticket.save()
+            return Response(TicketSerializer(ticket).data)
+        except User.DoesNotExist:
+            return Response({"error": "Usuário não encontrado na sua empresa"}, status=404)
+
+    @action(detail=True, methods=['post'])
+    def close(self, request, pk=None):
+        ticket = self.get_object()
+        resolution = request.data.get('resolution', '')
+        ticket.status = 'closed'
+        ticket.resolution = resolution
+        ticket.save()
+        return Response(TicketSerializer(ticket).data)
+
+    @action(detail=True, methods=['post'])
+    def send_media(self, request, pk=None):
+        ticket = self.get_object()
+        file_obj = request.FILES.get('file')
+        caption = request.data.get('caption', '')
+        
+        if not file_obj:
+            return Response({"error": "Nenhum arquivo enviado"}, status=400)
+
+        # 1. Busca a conexão ativa
+        connection = Connection.objects.filter(company=ticket.company).first()
+        if not connection:
+            return Response({"error": "Nenhuma conexão WhatsApp encontrada"}, status=400)
+
+        # 2. Preparar Base64
+        file_content = file_obj.read()
+        base64_data = base64.b64encode(file_content).decode('utf-8')
+        mime_type, _ = mimetypes.guess_type(file_obj.name)
+        if not mime_type:
+            mime_type = 'application/octet-stream'
+        
+        # 3. Determinar o tipo (Evolution Go espera: image, audio, video, document)
+        evo_type = 'document'
+        if 'image' in mime_type: evo_type = 'image'
+        elif 'audio' in mime_type: evo_type = 'audio'
+        elif 'video' in mime_type: evo_type = 'video'
+
+        # Tenta buscar o token real diretamente no banco da Evolution
+        evo_token = ticket.company.evolution_api_key or settings.EVOLUTION_API_KEY
+        try:
+            import psycopg2
+            conn = psycopg2.connect(dbname="evogo_users", user="postgres", password="postgres", host="db")
+            cur = conn.cursor()
+            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
+            row = cur.fetchone()
+            if row: evo_token = row[0]
+            cur.close()
+            conn.close()
+        except: pass
+
+        evo_url = "http://evolution-go:8080"
+        evo_key = evo_token
+
+        # Estratégia de Blindagem Total para Mídia
+        url = f"{evo_url}/send/media?apikey={evo_key}&instance={connection.instance_name}"
+        headers = {
+            "apikey": evo_key,
+            "ApiKey": evo_key,
+            "api-key": evo_key,
+            "Authorization": f"Bearer {evo_key}",
+            "instance": connection.instance_name
+        }
+        
+        payload = {
+            "instance": connection.instance_name,
+            "number": ticket.contact.remote_jid.split('@')[0],
+            "url": base64_data,
+            "type": evo_type,
+            "caption": caption,
+            "filename": file_obj.name
+        }
+
+        try:
+            response = requests.post(url, json=payload, headers=headers)
+            if response.status_code in [200, 201]:
+                message = Message.objects.create(
+                    ticket=ticket,
+                    user=request.user,
+                    from_me=True,
+                    body=caption or f"Enviou um {evo_type}",
+                    media_url=f"data:{mime_type};base64,{base64_data}", 
+                    media_type=evo_type,
+                    message_id=f"pending_media_{int(time.time())}"
+                )
+                # Atualizar prévia do ticket
+                ticket.last_message = caption or f"📷 Foto" if evo_type == 'image' else (f"🎵 Áudio" if evo_type == 'audio' else f"📄 Documento")
+                ticket.save()
+                
+                return Response(MessageSerializer(message).data)
+            else:
+                return Response({"error": f"Erro Evolution: {response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def send_message(self, request, pk=None):
+        ticket = self.get_object()
+        raw_body = request.data.get('body')
+        
+        # 0. Adiciona Assinatura (Nome | Área:)
+        user = request.user
+        name = user.first_name or user.username
+        signature = f"*{name} | {user.department}:*\n\n" if user.department else f"*{name}:*\n\n"
+        body = signature + raw_body
+        
+        # 1. Busca a conexão ativa para saber qual instância usar
+        connection = Connection.objects.filter(company=ticket.company).first()
+        if not connection:
+            return Response({"error": "Nenhuma conexão WhatsApp encontrada"}, status=400)
+
+        # 2. Salvar mensagem no banco
+        temp_id = f"pending_{ticket.id}_{int(time.time() * 1000)}"
+        message = Message.objects.create(
+            ticket=ticket,
+            user=request.user,
+            from_me=True,
+            body=body,
+            message_id=temp_id
+        )
+
+        # Tenta buscar o token real diretamente no banco da Evolution (fallback definitivo)
+        evo_token = "your-token-here"
+        try:
+            import psycopg2
+            conn = psycopg2.connect(
+                dbname="evogo_users",
+                user="postgres",
+                password="postgres",
+                host="db"
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
+            row = cur.fetchone()
+            if row:
+                evo_token = row[0]
+                print(f"[SEND] Token real recuperado do banco: {evo_token[:5]}...")
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"[SEND] Erro ao buscar token no banco: {str(e)}")
+
+        evo_url = "http://evolution-go:8080"
+        evo_key = evo_token # Usa o token real recuperado
+
+        # Estratégia de Blindagem Total: envia chave e instância em todos os lugares possíveis
+        url = f"{evo_url}/send/text?apikey={evo_key}&instance={connection.instance_name}"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_key,
+            "ApiKey": evo_key,
+            "api-key": evo_key,
+            "Authorization": f"Bearer {evo_key}",
+            "instance": connection.instance_name
+        }
+        
+        # Limpa o remoteJid para enviar apenas números
+        clean_number = ticket.contact.remote_jid.split('@')[0]
+        
+        payload = {
+            "instance": connection.instance_name,
+            "number": clean_number,
+            "text": body
+        }
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=5)
+            if response.status_code in [200, 201]:
+                evolution_data = response.json()
+                message.message_id = evolution_data.get('key', {}).get('id', message.message_id)
+                message.save()
+        except Exception as e:
+            pass
+
+        # Atualizar prévia do ticket
+        ticket.last_message = body
+        ticket.save()
+
+        # 4. Notificar Realtime via Redis Pub/Sub
+        event_payload = {
+            "company_id": str(ticket.company.id),
+            "type": "new_message",
+            "payload": MessageSerializer(message).data
+        }
+        from django.core.serializers.json import DjangoJSONEncoder
+        redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+
+        return Response(MessageSerializer(message).data)
+
+class ConnectionViewSet(TenantModelViewSet):
+    queryset = Connection.objects.all()
+    serializer_class = ConnectionSerializer
+
+    def get_evo_creds(self, company):
+        return {
+            "url": company.evolution_api_url or settings.EVOLUTION_API_URL,
+            "key": company.evolution_api_key or settings.EVOLUTION_API_KEY
+        }
+
+    @action(detail=True, methods=['post'])
+    def connect(self, request, pk=None):
+        connection = self.get_object()
+        creds = self.get_evo_creds(connection.company)
+        # Envia de todas as formas possíveis para garantir autenticação na Evolution GO
+        headers = {
+            "apikey": creds['key'],
+            "ApiKey": creds['key'],
+            "api-key": creds['key'],
+            "Authorization": f"Bearer {creds['key']}",
+            "Content-Type": "application/json"
+        }
+        
+        # 1. Inicia a conexão (POST /instance/connect?apikey=...)
+        url_connect = f"{creds['url']}/instance/connect?apikey={creds['key']}"
+        payload = {"name": connection.instance_name}
+        
+        try:
+            # Tenta iniciar a conexão
+            res_connect = requests.post(url_connect, json=payload, headers=headers)
+            print(f"DEBUG CONNECT: {url_connect} -> {res_connect.status_code} {res_connect.text}")
+            
+            # Tenta múltiplos formatos de URL para o QR Code (Query params e Path)
+            urls_to_try = [
+                f"{creds['url']}/instance/qr?instanceName={connection.instance_name}&apikey={creds['key']}",
+                f"{creds['url']}/instance/qr?instance={connection.instance_name}&apikey={creds['key']}",
+                f"{creds['url']}/instance/qr/{connection.instance_name}"
+            ]
+            
+            response = None
+            for url_qr in urls_to_try:
+                try:
+                    res = requests.get(url_qr, headers=headers)
+                    print(f"DEBUG QR TRY: {url_qr} -> {res.status_code}")
+                    if res.status_code == 200:
+                        response = res
+                        break
+                except:
+                    continue
+
+            if response and response.status_code == 200:
+                data = response.json()
+                qrcode = data.get('base64') or \
+                         data.get('code') or \
+                         data.get('qrcode') or \
+                         data.get('qrcode', {}).get('base64')
+                
+                if qrcode:
+                    if qrcode.startswith('iVBOR'): qrcode = f"data:image/png;base64,{qrcode}"
+                    connection.qrcode = qrcode
+                    connection.status = 'connecting'
+                    connection.save()
+                    return Response({"qrcode": qrcode, "status": connection.status})
+                
+                return Response({"error": "QR Code ainda não disponível. Tente novamente em instantes.", "data": data}, status=400)
+            
+            return Response({"error": f"Erro ao buscar QR Code. Verifique se a instância '{connection.instance_name}' existe na Evolution API."}, status=400)
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    @action(detail=True, methods=['post'])
+    def sync_status(self, request, pk=None):
+        connection = self.get_object()
+        creds = self.get_evo_creds(connection.company)
+        headers = {
+            "apikey": creds['key'], 
+            "ApiKey": creds['key'],
+            "api-key": creds['key'],
+            "Authorization": f"Bearer {creds['key']}"
+        }
+        
+        # Evolution GO Status (Tenta múltiplos formatos: Path e Query Params)
+        urls_to_try = [
+            f"{creds['url']}/instance/status/{connection.instance_name}",
+            f"{creds['url']}/instance/connectionState/{connection.instance_name}",
+            f"{creds['url']}/instance/status?instanceName={connection.instance_name}&apikey={creds['key']}",
+            f"{creds['url']}/instance/status?instance={connection.instance_name}&apikey={creds['key']}",
+            f"{creds['url']}/instance/all" # Fallback para listar todas
+        ]
+        
+        try:
+            response = None
+            for url in urls_to_try:
+                try:
+                    res = requests.get(url, headers=headers)
+                    if res.status_code == 200:
+                        response = res
+                        # Se for o endpoint /instance/all, precisamos filtrar
+                        if "/instance/all" in url:
+                            data_all = res.json()
+                            instances = data_all.get('data', []) if isinstance(data_all, dict) else data_all
+                            target = next((i for i in instances if i.get('name') == connection.instance_name or i.get('instanceName') == connection.instance_name), None)
+                            if target:
+                                # Simula a estrutura esperada para o restante do código
+                                response._content = json.dumps(target).encode('utf-8')
+                                break
+                            else:
+                                response = None # Continua se não achou na lista
+                                continue
+                        break
+                except:
+                    continue
+
+            if response and response.status_code == 200:
+                data = response.json()
+                # Pega o estado de forma case-insensitive
+                raw_state = data.get('instance', {}).get('state') or \
+                            data.get('state') or \
+                            data.get('status') or \
+                            data.get('connectionState', {}).get('state') or \
+                            data.get('connected') # Suporte ao campo booleano do /instance/all
+                
+                # Se for booleano True do campo 'connected', mapeia para 'connected'
+                if raw_state is True: raw_state = "connected"
+                elif raw_state is False: raw_state = "disconnected"
+                
+                state = str(raw_state).lower()
+                
+                if state in ['open', 'connected', 'online']:
+                    connection.status = 'connected'
+                elif state in ['connecting', 'qrcode', 'pairing']:
+                    connection.status = 'connecting'
+                else:
+                    connection.status = 'disconnected'
+                
+                connection.save()
+
+                # --- FORÇAR CONFIGURAÇÃO DE WEBHOOK ---
+                webhook_url = f"http://backend:8000/api/v1/webhooks/evolution"
+                webhook_payload = {
+                    "url": webhook_url,
+                    "enabled": True,
+                    "events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "MESSAGES_DELETE", "SEND_MESSAGE", "CONNECTION_UPDATE", "MESSAGE_UPSERT", "Message"]
+                }
+                
+                # Tenta endpoints de atualização de instância (comum na Evolution GO)
+                webhook_endpoints = [
+                    f"{creds['url']}/instance/update/{connection.instance_name}",
+                    f"{creds['url']}/instance/set/{connection.instance_name}",
+                    f"{creds['url']}/instance/settings/{connection.instance_name}"
+                ]
+                
+                webhook_configured = False
+                for endpoint in webhook_endpoints:
+                    try:
+                        print(f"[SYNC] Tentativa em {endpoint}")
+                        wh_res = requests.post(endpoint, json=webhook_payload, headers=headers, timeout=2)
+                        print(f"[SYNC] Resultado: {wh_res.status_code} | {wh_res.text}")
+                        if wh_res.status_code in [200, 201]:
+                            webhook_configured = True
+                            print(f"[SYNC] Webhook configurado com sucesso via API em {endpoint}")
+                            break
+                    except requests.exceptions.RequestException as e:
+                        print(f"[SYNC] Erro na tentativa de webhook em {endpoint}: {e}")
+
+                if not webhook_configured:
+                    print("[SYNC] API falhou. Tentando atualização direta no banco de dados evogo_users...")
+                    try:
+                        import psycopg2
+                        import os
+                        db_host = os.environ.get('DB_HOST', 'db')
+                        conn = psycopg2.connect(
+                            dbname="evogo_users",
+                            user="postgres",
+                            password="postgres",
+                            host=db_host
+                        )
+                        cur = conn.cursor()
+                        # Lista otimizada de eventos para Evolution GO
+                        event_list = "Message,GroupInfo,Chat,Connection,MESSAGES_UPSERT"
+                        cur.execute("UPDATE instances SET webhook = %s, events = %s WHERE name = %s;", 
+                                    (webhook_url, event_list, connection.instance_name))
+                        conn.commit()
+                        cur.close()
+                        conn.close()
+                        print("[SYNC] Webhook configurado diretamente no banco de dados!")
+                    except Exception as db_e:
+                        print(f"[SYNC] Falha ao atualizar banco de dados diretamente: {db_e}")
+                
+                # --- BUSCAR ID REAL E CONFIGURAR VIA ADVANCED SETTINGS ---
+                try:
+                    all_instances = requests.get(f"{creds['url']}/instance/all", headers=headers, timeout=5).json()
+                    print(f"[SYNC] Buscando: '{connection.instance_name}'")
+                    print(f"[SYNC] Resposta Evolution: {json.dumps(all_instances)[:500]}")
+                    
+                    instances = all_instances.get('data', []) if isinstance(all_instances, dict) else all_instances
+                    instance_id = next((i['id'] for i in instances if str(i.get('name', '')).strip() == connection.instance_name.strip()), None)
+                    
+                    if instance_id:
+                        print(f"[SYNC] ID encontrado: {instance_id}. Configurando Advanced Settings...")
+                        # Usa o token da própria instância para maior chance de sucesso
+                        instance_token = next((i['token'] for i in instances if str(i.get('name', '')).strip() == connection.instance_name.strip()), creds['key'])
+                        
+                        adv_url = f"{creds['url']}/instance/{instance_id}/advanced-settings"
+                        adv_payload = {
+                            "webhook": webhook_url,
+                            "webhook_enabled": True,
+                            "webhook_events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "MESSAGES_DELETE", "SEND_MESSAGE", "CONNECTION_UPDATE", "MESSAGE_UPSERT", "Message"]
+                        }
+                        # Tenta com o token da instância, o token mestre do banco e depois com a chave global
+                        tokens_to_try = [
+                            instance_token, 
+                            creds['key'],
+                            creds['key']
+                        ]
+                        
+                        for tkn in tokens_to_try:
+                            if not tkn: continue
+                            try:
+                                # Usa apenas o token atual para evitar conflitos de headers
+                                current_headers = {
+                                    "apikey": tkn,
+                                    "Authorization": f"Bearer {tkn}",
+                                    "Content-Type": "application/json"
+                                }
+                                res = requests.put(adv_url, json=adv_payload, headers=current_headers, timeout=3)
+                                print(f"[SYNC] PUT Advanced Settings (Token: {tkn[:5]}...) | Status: {res.status_code} | Resposta: {res.text[:100]}")
+                                if res.status_code in [200, 201, 204]: break
+                            except Exception as e:
+                                print(f"[SYNC] Erro ao tentar token {tkn[:5]}: {e}")
+                                continue
+                    else:
+                        print(f"[SYNC] ID não encontrado para a instância {connection.instance_name}")
+                except Exception as e:
+                    print(f"[SYNC] Erro ao buscar ID ou configurar Advanced Settings: {str(e)}")
+                # --------------------------------------------------------
+                # --------------------------------------
+
+                return Response({"status": connection.status, "raw": data})
+            
+            error_msg = f"Falha ao obter status. Tentativas: {[u.split('?')[0] for u in urls_to_try]}. Última resposta: {response.status_code if response else 'Sem resposta'}"
+            return Response({"status": "disconnected", "error": error_msg}, status=400)
+        except Exception as e:
+            return Response({"error": f"Erro interno: {str(e)}"}, status=500)
+
+    @action(detail=True, methods=['post'])
+    def logout(self, request, pk=None):
+        connection = self.get_object()
+        creds = self.get_evo_creds(connection.company)
+        headers = {
+            "apikey": creds['key'], 
+            "ApiKey": creds['key'],
+            "Authorization": f"Bearer {creds['key']}"
+        }
+        
+        # Evolution GO Logout (DELETE /instance/logout?instanceName=...&apikey=...)
+        url = f"{creds['url']}/instance/logout?instanceName={connection.instance_name}&apikey={creds['key']}"
+        
+        try:
+            requests.delete(url, headers=headers)
+            connection.status = 'disconnected'
+            connection.qrcode = None
+            connection.save()
+            return Response({"status": "disconnected"})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    def perform_create(self, serializer):
+        # Ao criar no banco, tentamos criar na Evolution também
+        instance = serializer.save(company=self.request.user.company)
+        creds = self.get_evo_creds(instance.company)
+        
+        url = f"{creds['url']}/instance/create"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": creds['key']
+        }
+        payload = {
+            "name": instance.instance_name,
+            "token": str(uuid.uuid4()), # Token interno da instância
+            "number": "" # Opcional
+        }
+        
+        try:
+            requests.post(url, json=payload, headers=headers)
+        except:
+            pass # Falha silenciosa na criação remota, o usuário pode tentar 'conectar' depois
+
+@method_decorator(csrf_exempt, name='dispatch')
+class WebhookView(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+
+    @action(detail=False, methods=['post', 'get'], url_path='evolution')
+    def evolution(self, request):
+        print(f"\n[WEBHOOK] Incoming {request.method} request")
+        # Log em arquivo para inspeção (dentro do container)
+        try:
+            with open('/app/webhook_debug.json', 'a') as f:
+                f.write(f"[{request.method}] " + json.dumps(request.data) + "\n")
+        except:
+            pass
+
+        if request.method == 'GET':
+            return Response({"status": "active"}, status=200)
+        
+        data = request.data
+        event_type = str(data.get('event') or data.get('eventType') or '').lower().replace('_', '.')
+        instance_name = data.get('instance') or data.get('instanceName')
+        
+        # Log agressivo no stdout (aparece no docker logs)
+        print(f"\n[WEBHOOK RECEIVED] Event: {event_type} | Instance: {instance_name}")
+        
+        # Tratamento de Status da Conexão
+        if event_type in ['connection.update', 'connection_update']:
+            payload_data = data.get('data', {})
+            state = payload_data.get('state') or payload_data.get('status')
+            
+            from django.db.models import Q
+            connection = Connection.objects.filter(Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))).first()
+            
+            if connection:
+                # Normaliza o estado para minúsculo
+                state = str(state).lower()
+                
+                if state in ['open', 'connected', 'online']:
+                    connection.status = 'connected'
+                    connection.qrcode = None
+                elif state in ['close', 'disconnected', 'refused', 'logout']:
+                    connection.status = 'disconnected'
+                elif state in ['connecting', 'qrcode', 'pairing']:
+                    connection.status = 'connecting'
+                
+                connection.save()
+                
+                # Notificar Realtime
+                event_payload = {
+                    "company_id": str(connection.company.id),
+                    "type": "connection_update",
+                    "payload": ConnectionSerializer(connection).data
+                }
+                from django.core.serializers.json import DjangoJSONEncoder
+                redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+                
+                print(f"DEBUG STATUS: Instância {instance_name} atualizada para {connection.status}")
+                return Response({"status": "updated"}, status=200)
+
+        # Aceita formatos variados: Message, messages.upsert, GroupInfo, etc.
+        msg_events = ['message', 'messages.upsert', 'messages_upsert', 'message_upsert', 'message.upsert', 'groupinfo', 'group.info']
+        if event_type in msg_events:
+            payload_data = data.get('data', {})
+            # Evolution v2 e algumas versões Go enviam as mensagens dentro de um array 'messages'
+            # Outras enviam o objeto direto no 'data'
+            messages_list = payload_data.get('messages')
+            if not messages_list:
+                messages_list = [payload_data] if isinstance(payload_data, dict) else []
+            
+            for msg_item in messages_list:
+                if not msg_item: continue
+                
+                info = msg_item.get('Info', {}) or msg_item.get('key', {}) or {}
+                message_content = msg_item.get('Message', {}) or msg_item.get('message', {}) or {}
+                
+                # Salva em arquivo para diagnóstico (bypass permissão logs)
+                with open('/app/webhook_structure.json', 'w') as f:
+                    json.dump(msg_item, f)
+                
+                # Busca exaustiva pelo corpo da mensagem
+                body = message_content.get('conversation') or \
+                       message_content.get('extendedTextMessage', {}).get('text') or \
+                       message_content.get('imageMessage', {}).get('caption') or \
+                       message_content.get('videoMessage', {}).get('caption') or \
+                       msg_item.get('text') or \
+                       msg_item.get('content')
+                
+                remote_jid = info.get('Chat') or \
+                             info.get('Sender') or \
+                             info.get('remoteJid') or \
+                             msg_item.get('key', {}).get('remoteJid')
+                
+                from_me = info.get('IsFromMe', msg_item.get('fromMe', False))
+                msg_id = info.get('ID') or msg_item.get('messageId') or info.get('id')
+                
+                # Busca exaustiva por mídia
+                media_type = None
+                media_url = None
+                
+                if 'imageMessage' in message_content:
+                    media_type = 'image'
+                    media_url = message_content['imageMessage'].get('url') or message_content['imageMessage'].get('base64')
+                elif 'videoMessage' in message_content:
+                    media_type = 'video'
+                    media_url = message_content['videoMessage'].get('url') or message_content['videoMessage'].get('base64')
+                elif 'audioMessage' in message_content:
+                    media_type = 'audio'
+                    media_url = message_content['audioMessage'].get('url') or message_content['audioMessage'].get('base64')
+                elif 'documentMessage' in message_content:
+                    media_type = 'document'
+                    media_url = message_content['documentMessage'].get('url') or message_content['documentMessage'].get('base64')
+                elif 'stickerMessage' in message_content:
+                    media_type = 'image' # Trata figurinha como imagem para exibição simples
+                    media_url = message_content['stickerMessage'].get('url') or message_content['stickerMessage'].get('base64')
+                
+                # Fallback para campos diretos
+                if not media_type:
+                    media_type = msg_item.get('type') or info.get('MediaType') or info.get('Type')
+                if not media_url:
+                    media_url = msg_item.get('url') or msg_item.get('base64')
+                
+                # Normaliza tipos conhecidos da Evolution GO
+                mimetype = message_content.get('imageMessage', {}).get('mimetype') or \
+                           message_content.get('videoMessage', {}).get('mimetype') or \
+                           message_content.get('audioMessage', {}).get('mimetype') or \
+                           message_content.get('documentMessage', {}).get('mimetype') or \
+                           'image/jpeg' # Fallback
+                
+                if media_type:
+                    media_type = str(media_type).lower()
+                    if 'image' in media_type: media_type = 'image'
+                    elif 'video' in media_type: media_type = 'video'
+                    elif 'audio' in media_type: media_type = 'audio'
+                    elif 'document' in media_type: media_type = 'document'
+                
+                # Se for Base64 puro (sem prefixo), adiciona o prefixo para o navegador
+                if media_url and not str(media_url).startswith('http') and not str(media_url).startswith('data:'):
+                    media_url = f"data:{mimetype};base64,{media_url}"
+                
+                if not body and not media_url:
+                    continue
+
+                from django.db.models import Q
+                connection = Connection.objects.filter(Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))).first()
+                if not connection:
+                    print(f"DEBUG: Connection not found for {instance_name}")
+                    continue
+                
+                # 1. Cria/Recupera Contato
+                contact_name = msg_item.get('pushName') or info.get('PushName') or remote_jid.split('@')[0]
+                
+                # Tenta encontrar cliente pelo telefone
+                phone_number = remote_jid.split('@')[0]
+                phone_digits = re.sub(r'\D', '', phone_number)
+                
+                customer = Customer.objects.filter(
+                    company=connection.company,
+                    phone__icontains=phone_digits[-8:]
+                ).first()
+
+                if not customer:
+                    additional_contact = CustomerContact.objects.filter(
+                        customer__company=connection.company,
+                        phone__icontains=phone_digits[-8:]
+                    ).first()
+                    if additional_contact:
+                        customer = additional_contact.customer
+                        contact_name = additional_contact.name
+
+                contact, contact_created = Contact.objects.update_or_create(
+                    remote_jid=remote_jid,
+                    company=connection.company,
+                    defaults={'name': contact_name, 'customer': customer}
+                )
+
+                if contact_created or not contact.profile_pic:
+                    try:
+                        # Busca configurações da empresa com fallback para settings
+                        evo_url = connection.company.evolution_api_url or settings.EVOLUTION_API_URL
+                        evo_key = connection.company.evolution_api_key or settings.EVOLUTION_API_KEY
+                        
+                        pic_url = f"{evo_url}/chat/fetchProfilePictureUrl/{connection.instance_name}"
+                        pic_res = requests.post(pic_url, 
+                            headers={"apikey": evo_key},
+                            json={"number": remote_jid}
+                        )
+                        if pic_res.status_code == 200:
+                            data_pic = pic_res.json()
+                            url = data_pic.get('profilePictureUrl') or data_pic.get('url')
+                            contact.profile_pic = url
+                            contact.save()
+                            
+                            # Sincroniza com o Cliente (CRM) se existir
+                            if contact.customer:
+                                contact.customer.profile_pic = url
+                                contact.customer.save()
+                    except Exception as e:
+                        print(f"DEBUG FOTO ERROR: {str(e)}")
+
+                # 2. Abre ou Recupera Ticket
+                ticket = Ticket.objects.filter(
+                    contact=contact,
+                    company=connection.company,
+                    status__in=['open', 'pending']
+                ).order_by('-id').first()
+                
+                if not ticket:
+                    ticket = Ticket.objects.create(
+                        contact=contact,
+                        company=connection.company,
+                        status='open'
+                    )
+
+                # 3. Salva a Mensagem
+                msg_obj, msg_created = Message.objects.update_or_create(
+                    message_id=msg_id,
+                    defaults={
+                        'ticket': ticket,
+                        'from_me': from_me,
+                        'body': body or "",
+                        'media_url': media_url,
+                        'media_type': media_type
+                    }
+                )
+
+                ticket.last_message = body or (f"📷 Foto" if media_type == 'image' else (f"🎵 Áudio" if media_type == 'audio' else f"📄 Documento"))
+                ticket.save()
+                
+                if msg_created:
+                    event_payload = {
+                        "company_id": str(ticket.company.id),
+                        "type": "new_message",
+                        "payload": MessageSerializer(msg_obj).data
+                    }
+                    from django.core.serializers.json import DjangoJSONEncoder
+                    redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+
+        return Response({"status": "received"}, status=status.HTTP_200_OK)
+
+
+        return Response({"status": "received"}, status=status.HTTP_200_OK)
+
+
+        return Response({"status": "received"}, status=status.HTTP_200_OK)
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'password', 'department']
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+class UserViewSet(TenantModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        if self.request.user.role != 'admin':
+            return User.objects.filter(id=self.request.user.id)
+        return super().get_queryset()
+
+    def perform_create(self, serializer):
+        serializer.save(company=self.request.user.company)
+
+class CompanyViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar as configurações da empresa do usuário logado.
+    """
+    serializer_class = CompanySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Retorna apenas a empresa do usuário logado
+        return Company.objects.filter(id=self.request.user.company.id)
+
+    @action(detail=False, methods=['get', 'patch'])
+    def mine(self, request):
+        company = request.user.company
+        if not company:
+            return Response({"error": "Usuário não vinculado a uma empresa"}, status=400)
+            
+        if request.method == 'GET':
+            serializer = self.get_serializer(company)
+            return Response(serializer.data)
+        
+        if request.user.role != 'admin':
+            return Response({"error": "Apenas administradores podem alterar as configurações"}, status=403)
+            
+        serializer = self.get_serializer(company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def reset_conversations(self, request):
+        print(f"[RESET] Request by user {request.user.username} (Role: {request.user.role})")
+        if request.user.role != 'admin':
+            return Response({"error": "Apenas administradores podem realizar esta ação"}, status=403)
+        
+        company = request.user.company
+        if not company:
+            return Response({"error": "Usuário não vinculado a uma empresa"}, status=400)
+
+        # Deleta todas as mensagens e tickets da empresa
+        try:
+            msg_count = Message.objects.filter(ticket__company=company).count()
+            ticket_count = Ticket.objects.filter(company=company).count()
+            print(f"[RESET] Deleting {msg_count} messages and {ticket_count} tickets for company {company.name}")
+            
+            Message.objects.filter(ticket__company=company).delete()
+            Ticket.objects.filter(company=company).delete()
+            
+            return Response({"message": "Todas as conversas foram apagadas com sucesso"})
+        except Exception as e:
+            print(f"[RESET] ERROR: {str(e)}")
+            return Response({"error": f"Erro interno ao deletar: {str(e)}"}, status=500)

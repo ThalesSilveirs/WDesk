@@ -1,0 +1,38 @@
+[SYNC] ID encontrado: 5299fee0-0e68-4480-ab89-6afbc42ce77b. Configurando Advanced Settings...
+[SYNC] PUT Advanced Settings | Status: 401 | Resposta: {"error":"not authorized"}
+[SYNC] Tentativa em http://evolution-go:8080/instance/update/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] Tentativa em http://evolution-go:8080/instance/set/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] Tentativa em http://evolution-go:8080/instance/settings/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] API falhou. Tentando atualização direta no banco de dados evogo_users...
+[SYNC] Webhook configurado diretamente no banco de dados!
+[SYNC] Buscando: 'instancia01'
+[SYNC] Resposta Evolution: {"data": [{"id": "ace1de78-2dc4-499e-9dc8-526c5e523bcd", "name": "test_hook", "token": "test-token", "webhook": "", "rabbitmqEnable": "", "websocketEnable": "", "natsEnable": "", "jid": "", "qrcode": "", "connected": false, "expiration": 0, "disconnect_reason": "", "events": "", "os_name": "", "proxy": "", "client_name": "evolution", "createdAt": "2026-05-12T10:27:24.849903-03:00", "alwaysOnline": false, "rejectCall": false, "msgRejectCall": "", "readMessages": false, "ignoreGroups": false, "ign
+[SYNC] ID encontrado: 5299fee0-0e68-4480-ab89-6afbc42ce77b. Configurando Advanced Settings...
+[SYNC] PUT Advanced Settings | Status: 401 | Resposta: {"error":"not authorized"}
+[SYNC] Tentativa em http://evolution-go:8080/instance/update/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] Tentativa em http://evolution-go:8080/instance/set/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] Tentativa em http://evolution-go:8080/instance/settings/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] API falhou. Tentando atualização direta no banco de dados evogo_users...
+[SYNC] Webhook configurado diretamente no banco de dados!
+[SYNC] Buscando: 'instancia01'
+[SYNC] Resposta Evolution: {"data": [{"id": "ace1de78-2dc4-499e-9dc8-526c5e523bcd", "name": "test_hook", "token": "test-token", "webhook": "", "rabbitmqEnable": "", "websocketEnable": "", "natsEnable": "", "jid": "", "qrcode": "", "connected": false, "expiration": 0, "disconnect_reason": "", "events": "", "os_name": "", "proxy": "", "client_name": "evolution", "createdAt": "2026-05-12T10:27:24.849903-03:00", "alwaysOnline": false, "rejectCall": false, "msgRejectCall": "", "readMessages": false, "ignoreGroups": false, "ign
+[SYNC] ID encontrado: 5299fee0-0e68-4480-ab89-6afbc42ce77b. Configurando Advanced Settings...
+[SYNC] PUT Advanced Settings | Status: 401 | Resposta: {"error":"not authorized"}
+[SYNC] Tentativa em http://evolution-go:8080/instance/update/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] Tentativa em http://evolution-go:8080/instance/set/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] Tentativa em http://evolution-go:8080/instance/settings/instancia01
+[SYNC] Resultado: 404 | 404 page not found
+[SYNC] API falhou. Tentando atualização direta no banco de dados evogo_users...
+[SYNC] Webhook configurado diretamente no banco de dados!
+[SYNC] Buscando: 'instancia01'
+[SYNC] Resposta Evolution: {"data": [{"id": "ace1de78-2dc4-499e-9dc8-526c5e523bcd", "name": "test_hook", "token": "test-token", "webhook": "", "rabbitmqEnable": "", "websocketEnable": "", "natsEnable": "", "jid": "", "qrcode": "", "connected": false, "expiration": 0, "disconnect_reason": "", "events": "", "os_name": "", "proxy": "", "client_name": "evolution", "createdAt": "2026-05-12T10:27:24.849903-03:00", "alwaysOnline": false, "rejectCall": false, "msgRejectCall": "", "readMessages": false, "ignoreGroups": false, "ign
+[SYNC] ID encontrado: 5299fee0-0e68-4480-ab89-6afbc42ce77b. Configurando Advanced Settings...
+[SYNC] PUT Advanced Settings | Status: 401 | Resposta: {"error":"not authorized"}

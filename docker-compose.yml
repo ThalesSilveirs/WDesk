@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh
+    environment:
+      - POSTGRES_DB=${DB_NAME:-whatsapp_saas}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+
+  evolution-go:
+    image: evoapicloud/evolution-go:latest
+    container_name: evolution-go
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8080
+      - GLOBAL_API_KEY=${EVOLUTION_API_TOKEN:-0f00f38b042ada23b3437e74b0141dd4d40ac50daf2afd9c8c524b79958a54cd}
+      - POSTGRES_AUTH_DB=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/evogo_auth?sslmode=disable
+      - POSTGRES_USERS_DB=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/evogo_users?sslmode=disable
+      - WEBHOOK_ENABLED=true
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_URL=http://backend:8000/api/v1/webhooks/evolution
+      - WEBHOOK_GLOBAL_URL=http://backend:8000/api/v1/webhooks/evolution
+      - WEBHOOK_EVENTS=ALL
+      - LOG_LEVEL=DEBUG
+      - REDIS_ENABLED=false
+      - REDIS_URI=redis://redis:6379
+      - CLIENT_NAME=evolution
+      - AUTHENTICATION_TYPE=apikey
+      - WEBHOOK_BASE64=true
+      - DATABASE_SAVE_MESSAGES=true
+      - DATABASE_CONNECTION_URI=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/evogo_users?sslmode=disable
+      - WADEBUG=DEBUG
+      - LOGTYPE=console
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DEBUG=1
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-go:8080}
+      - EVOLUTION_API_TOKEN=${EVOLUTION_API_TOKEN:-0f00f38b042ada23b3437e74b0141dd4d40ac50daf2afd9c8c524b79958a54cd}
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: ./backend
+    command: celery -A core worker -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-go:8080}
+      - EVOLUTION_API_TOKEN=${EVOLUTION_API_TOKEN:-0f00f38b042ada23b3437e74b0141dd4d40ac50daf2afd9c8c524b79958a54cd}
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+
+  realtime:
+    build: ./realtime
+    command: npm run dev
+    volumes:
+      - ./realtime:/app
+      - /app/node_modules
+    environment:
+      - REDIS_HOST=redis
+      - PORT=3000
+    depends_on:
+      - redis
+    networks:
+      - app-network
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
