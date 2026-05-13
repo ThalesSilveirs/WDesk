@@ -16,9 +16,15 @@
       <router-link to="/settings" class="nav-item">
         <SettingsIcon :size="24" />
       </router-link>
-      <button @click="logout" class="nav-item logout">
-        <LogOutIcon :size="24" />
-      </button>
+      <div class="bottom-actions">
+        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
+          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
+          <MoonIcon v-else :size="24" />
+        </button>
+        <button @click="logout" class="nav-item logout">
+          <LogOutIcon :size="24" />
+        </button>
+      </div>
     </aside>
 
     <main class="users-content">
@@ -92,9 +98,13 @@ import {
   Pencil as PencilIcon,
   Contact as ContactIcon,
   Settings as SettingsIcon,
-  Wifi as WifiIcon
+  Wifi as WifiIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon
 } from 'lucide-vue-next'
+import { useChatStore } from '../store/chat'
 
+const chatStore = useChatStore()
 const router = useRouter()
 const users = ref([])
 const showAddModal = ref(false)
@@ -111,7 +121,7 @@ const newUser = ref({
 
 const fetchUsers = async () => {
   const token = localStorage.getItem('token')
-  const response = await axios.get(`http://${window.location.hostname}:8000/api/v1/users/`, {
+  const response = await axios.get(`/api/v1/users/`, {
     headers: { Authorization: `Bearer ${token}` }
   })
   users.value = response.data
@@ -137,11 +147,11 @@ const saveUser = async () => {
     if (editingId.value && !payload.password) delete payload.password
 
     if (editingId.value) {
-      await axios.patch(`http://${window.location.hostname}:8000/api/v1/users/${editingId.value}/`, payload, {
+      await axios.patch(`/api/v1/users/${editingId.value}/`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
     } else {
-      await axios.post(`http://${window.location.hostname}:8000/api/v1/users/`, payload, {
+      await axios.post(`/api/v1/users/`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
     }
@@ -156,7 +166,7 @@ const saveUser = async () => {
 const deleteUser = async (id) => {
   if (!confirm('Deseja realmente remover este usuário?')) return
   const token = localStorage.getItem('token')
-  await axios.delete(`http://${window.location.hostname}:8000/api/v1/users/${id}/`, {
+  await axios.delete(`/api/v1/users/${id}/`, {
     headers: { Authorization: `Bearer ${token}` }
   })
   fetchUsers()
@@ -174,12 +184,13 @@ onMounted(fetchUsers)
 .users-layout {
   display: flex;
   height: 100vh;
-  background: #0b0f1a;
-  color: white;
+  background: var(--bg-dark);
+  color: var(--text-primary);
 }
 
 .mini-sidebar {
   width: 70px;
+  background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -200,7 +211,17 @@ onMounted(fetchUsers)
   color: white;
 }
 
-.logout { margin-top: auto; color: #ef4444; border: none; background: none; cursor: pointer; }
+.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
+.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
+.theme-toggle:hover { color: var(--accent); }
+
+.bottom-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 
 .users-content {
   flex: 1;

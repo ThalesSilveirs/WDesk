@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.response import Response
+from django.db import transaction
 from rest_framework.decorators import action
 from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact
 from .serializers import (
@@ -87,6 +88,22 @@ class TicketViewSet(TenantModelViewSet):
     queryset = Ticket.objects.all().order_by('-updated_at')
     serializer_class = TicketSerializer
 
+    def broadcast_ticket_update(self, ticket):
+        event_payload = {
+            "company_id": str(ticket.company.id),
+            "type": "ticket_updated",
+            "payload": TicketSerializer(ticket).data
+        }
+        from django.core.serializers.json import DjangoJSONEncoder
+        redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+
+    @action(detail=True, methods=['post'])
+    def reset_unread(self, request, pk=None):
+        ticket = self.get_object()
+        ticket.unread_count = 0
+        ticket.save()
+        return Response({'status': 'unread count reset'})
+
     def get_queryset(self):
         qs = super().get_queryset()
         status_filter = self.request.query_params.get('status_filter')
@@ -110,6 +127,7 @@ class TicketViewSet(TenantModelViewSet):
         
         ticket.user = request.user
         ticket.save()
+        self.broadcast_ticket_update(ticket)
         return Response(TicketSerializer(ticket).data)
 
     @action(detail=True, methods=['post'])
@@ -124,6 +142,7 @@ class TicketViewSet(TenantModelViewSet):
             new_user = User.objects.get(id=user_id, company=request.user.company)
             ticket.user = new_user
             ticket.save()
+            self.broadcast_ticket_update(ticket)
             return Response(TicketSerializer(ticket).data)
         except User.DoesNotExist:
             return Response({"error": "Usuário não encontrado na sua empresa"}, status=404)
@@ -135,6 +154,7 @@ class TicketViewSet(TenantModelViewSet):
         ticket.status = 'closed'
         ticket.resolution = resolution
         ticket.save()
+        self.broadcast_ticket_update(ticket)
         return Response(TicketSerializer(ticket).data)
 
     @action(detail=True, methods=['post'])
@@ -458,7 +478,7 @@ class ConnectionViewSet(TenantModelViewSet):
                 webhook_payload = {
                     "url": webhook_url,
                     "enabled": True,
-                    "events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "MESSAGES_DELETE", "SEND_MESSAGE", "CONNECTION_UPDATE", "MESSAGE_UPSERT", "Message"]
+                    "events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "Message"]
                 }
                 
                 # Tenta endpoints de atualização de instância (comum na Evolution GO)
@@ -523,7 +543,7 @@ class ConnectionViewSet(TenantModelViewSet):
                         adv_payload = {
                             "webhook": webhook_url,
                             "webhook_enabled": True,
-                            "webhook_events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "MESSAGES_DELETE", "SEND_MESSAGE", "CONNECTION_UPDATE", "MESSAGE_UPSERT", "Message"]
+                            "webhook_events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "Message"]
                         }
                         # Tenta com o token da instância, o token mestre do banco e depois com a chave global
                         tokens_to_try = [
@@ -610,23 +630,42 @@ class WebhookView(viewsets.ViewSet):
 
     @action(detail=False, methods=['post', 'get'], url_path='evolution')
     def evolution(self, request):
-        print(f"\n[WEBHOOK] Incoming {request.method} request")
-        # Log em arquivo para inspeção (dentro do container)
-        try:
-            with open('/app/webhook_debug.json', 'a') as f:
-                f.write(f"[{request.method}] " + json.dumps(request.data) + "\n")
-        except:
-            pass
+        # print(f"\n[WEBHOOK] Incoming {request.method} request")
+        # # Log em arquivo para inspeção (dentro do container)
+        # try:
+        #     with open('/app/webhook_debug.json', 'a') as f:
+        #         f.write(f"[{request.method}] " + json.dumps(request.data) + "\n")
+        # except:
+        #     pass
 
         if request.method == 'GET':
             return Response({"status": "active"}, status=200)
         
         data = request.data
         event_type = str(data.get('event') or data.get('eventType') or '').lower().replace('_', '.')
-        instance_name = data.get('instance') or data.get('instanceName')
+        
+        # Evolution GO envia payloads sem o campo 'event'.
+        # Detecta o formato pelo conteúdo de 'data': se tiver 'Info' ou 'Message', é uma mensagem.
+        payload_data_peek = data.get('data', {})
+        if not event_type and isinstance(payload_data_peek, dict):
+            if 'Info' in payload_data_peek or 'Message' in payload_data_peek:
+                event_type = 'message'
+                print(f"[WEBHOOK] Detectado formato Evolution GO (sem campo 'event'). Tratando como mensagem.")
+        
+        # Busca exaustiva pelo nome da instância em todos os campos possíveis
+        instance_name = (
+            data.get('instance') or
+            data.get('instanceName') or
+            data.get('instance_name') or
+            data.get('data', {}).get('instance') or
+            data.get('data', {}).get('instanceName') or
+            data.get('sender')  # Algumas versões usam 'sender'
+        )
         
         # Log agressivo no stdout (aparece no docker logs)
         print(f"\n[WEBHOOK RECEIVED] Event: {event_type} | Instance: {instance_name}")
+        print(f"[WEBHOOK DEBUG] Payload keys: {list(data.keys())}")
+        print(f"[WEBHOOK DEBUG] data.data keys: {list(data.get('data', {}).keys()) if isinstance(data.get('data'), dict) else data.get('data')}")
         
         # Tratamento de Status da Conexão
         if event_type in ['connection.update', 'connection_update']:
@@ -678,9 +717,13 @@ class WebhookView(viewsets.ViewSet):
                 info = msg_item.get('Info', {}) or msg_item.get('key', {}) or {}
                 message_content = msg_item.get('Message', {}) or msg_item.get('message', {}) or {}
                 
-                # Salva em arquivo para diagnóstico (bypass permissão logs)
-                with open('/app/webhook_structure.json', 'w') as f:
-                    json.dump(msg_item, f)
+                # # Salva em arquivo para diagnóstico - grava payload COMPLETO
+                # try:
+                #     with open('/app/webhook_structure.json', 'w') as f:
+                #         json.dump({'full_data': dict(data), 'msg_item': msg_item}, f, indent=2, default=str)
+                # except:
+                #     pass
+                print(f"[WEBHOOK MSG_ITEM] {json.dumps(msg_item, default=str)[:500]}")
                 
                 # Busca exaustiva pelo corpo da mensagem
                 body = message_content.get('conversation') or \
@@ -690,13 +733,49 @@ class WebhookView(viewsets.ViewSet):
                        msg_item.get('text') or \
                        msg_item.get('content')
                 
-                remote_jid = info.get('Chat') or \
-                             info.get('Sender') or \
-                             info.get('remoteJid') or \
-                             msg_item.get('key', {}).get('remoteJid')
+                # 1. Identifica o JID remoto (conversa)
+                # Prioriza Chat e remoteJid sobre Sender, pois Sender em mensagens fromMe é a própria instância
+                remote_jid = (
+                    info.get('Chat') or
+                    info.get('remoteJid') or
+                    msg_item.get('remoteJid') or
+                    msg_item.get('key', {}).get('remoteJid') or
+                    info.get('Sender') or
+                    data.get('data', {}).get('key', {}).get('remoteJid')
+                )
                 
-                from_me = info.get('IsFromMe', msg_item.get('fromMe', False))
-                msg_id = info.get('ID') or msg_item.get('messageId') or info.get('id')
+                if not remote_jid or 'status@broadcast' in str(remote_jid):
+                    if not remote_jid:
+                        print(f"[WEBHOOK] remote_jid não encontrado. msg_item keys: {list(msg_item.keys())}")
+                    continue
+                
+                # 2. Detecta se a mensagem foi enviada pela própria instância (FromMe)
+                # Checa múltiplas variações de nomes de campos e locais no payload
+                from_me = info.get('IsFromMe')
+                if from_me is None: from_me = info.get('fromMe')
+                if from_me is None: from_me = msg_item.get('fromMe')
+                if from_me is None: from_me = msg_item.get('key', {}).get('fromMe')
+                if from_me is None: from_me = False
+                
+                # Garante que seja booleano
+                if isinstance(from_me, str):
+                    from_me = from_me.lower() == 'true'
+                else:
+                    from_me = bool(from_me)
+
+                # 3. Identifica o ID da mensagem e evita duplicidade processamento (Deduplicação)
+                msg_id = info.get('ID') or msg_item.get('messageId') or info.get('id') or msg_item.get('key', {}).get('id')
+                
+                if not msg_id:
+                    continue
+
+                # Deduplicação via Redis para evitar processar o mesmo evento 2x (ex: Message + Messages.upsert)
+                cache_key = f"webhook_msg_{msg_id}"
+                if redis_client.get(cache_key):
+                    print(f"[WEBHOOK] Mensagem {msg_id} já processada. Ignorando.")
+                    continue
+                redis_client.setex(cache_key, 30, "1") # 30 segundos de "visto recentemente"
+
                 
                 # Busca exaustiva por mídia
                 media_type = None
@@ -746,13 +825,25 @@ class WebhookView(viewsets.ViewSet):
                     continue
 
                 from django.db.models import Q
-                connection = Connection.objects.filter(Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))).first()
+                if instance_name:
+                    connection = Connection.objects.filter(
+                        Q(instance_name=instance_name) |
+                        Q(instance_name=data.get('instance')) |
+                        Q(instance_name=data.get('instanceName'))
+                    ).first()
+                else:
+                    # Se não veio instance, pega a primeira conexão ativa (fallback para single-tenant)
+                    connection = Connection.objects.filter(status='connected').first()
+                    if not connection:
+                        connection = Connection.objects.first()
+                    print(f"[WEBHOOK] Instance name ausente no payload! Usando fallback: {connection}")
+                
                 if not connection:
-                    print(f"DEBUG: Connection not found for {instance_name}")
+                    print(f"DEBUG: Connection not found for instance='{instance_name}'. Payload: {json.dumps(dict(data))[:300]}")
                     continue
                 
                 # 1. Cria/Recupera Contato
-                contact_name = msg_item.get('pushName') or info.get('PushName') or remote_jid.split('@')[0]
+                contact_name = msg_item.get('pushName') or info.get('PushName') or data.get('data', {}).get('pushName') or remote_jid.split('@')[0]
                 
                 # Tenta encontrar cliente pelo telefone
                 phone_number = remote_jid.split('@')[0]
@@ -802,34 +893,37 @@ class WebhookView(viewsets.ViewSet):
                     except Exception as e:
                         print(f"DEBUG FOTO ERROR: {str(e)}")
 
-                # 2. Abre ou Recupera Ticket
-                ticket = Ticket.objects.filter(
-                    contact=contact,
-                    company=connection.company,
-                    status__in=['open', 'pending']
-                ).order_by('-id').first()
-                
-                if not ticket:
-                    ticket = Ticket.objects.create(
+                # 2. Abre ou Recupera Ticket (Atomicamente para evitar duplicidade)
+                with transaction.atomic():
+                    ticket = Ticket.objects.filter(
                         contact=contact,
                         company=connection.company,
-                        status='open'
+                        status__in=['open', 'pending']
+                    ).order_by('-id').select_for_update().first()
+                    
+                    if not ticket:
+                        ticket = Ticket.objects.create(
+                            contact=contact,
+                            company=connection.company,
+                            status='open'
+                        )
+
+                    # 3. Salva a Mensagem
+                    msg_obj, msg_created = Message.objects.update_or_create(
+                        message_id=msg_id,
+                        defaults={
+                            'ticket': ticket,
+                            'from_me': from_me,
+                            'body': body or "",
+                            'media_url': media_url,
+                            'media_type': media_type
+                        }
                     )
 
-                # 3. Salva a Mensagem
-                msg_obj, msg_created = Message.objects.update_or_create(
-                    message_id=msg_id,
-                    defaults={
-                        'ticket': ticket,
-                        'from_me': from_me,
-                        'body': body or "",
-                        'media_url': media_url,
-                        'media_type': media_type
-                    }
-                )
-
-                ticket.last_message = body or (f"📷 Foto" if media_type == 'image' else (f"🎵 Áudio" if media_type == 'audio' else f"📄 Documento"))
-                ticket.save()
+                    ticket.last_message = body or (f"📷 Foto" if media_type == 'image' else (f"🎵 Áudio" if media_type == 'audio' else f"📄 Documento"))
+                    if not from_me:
+                        ticket.unread_count += 1
+                    ticket.save()
                 
                 if msg_created:
                     event_payload = {
@@ -839,12 +933,6 @@ class WebhookView(viewsets.ViewSet):
                     }
                     from django.core.serializers.json import DjangoJSONEncoder
                     redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
-
-        return Response({"status": "received"}, status=status.HTTP_200_OK)
-
-
-        return Response({"status": "received"}, status=status.HTTP_200_OK)
-
 
         return Response({"status": "received"}, status=status.HTTP_200_OK)
 

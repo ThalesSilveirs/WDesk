@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+
+# Django
+db.sqlite3
+media/
+static/
+
+# Debug files
+backend/webhook_debug.json
+backend/webhook_structure.json
+webhook_debug.json
+webhook_structure.json
+
+# Logs
+*.log
+evo_logs.txt
+logs_agora.txt
+backend_logs_snapshot.txt
+
+# OS
+.DS_Store
+
+# Frontend
+node_modules/
+dist/
+.env.local
+.env.*.local

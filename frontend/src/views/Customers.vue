@@ -16,9 +16,15 @@
       <router-link v-if="userRole === 'admin'" to="/settings" class="nav-item">
         <SettingsIcon :size="24" />
       </router-link>
-      <button @click="logout" class="nav-item logout">
-        <LogOutIcon :size="24" />
-      </button>
+      <div class="bottom-actions">
+        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
+          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
+          <MoonIcon v-else :size="24" />
+        </button>
+        <button @click="logout" class="nav-item logout">
+          <LogOutIcon :size="24" />
+        </button>
+      </div>
     </aside>
 
     <main class="main-content">
@@ -191,9 +197,13 @@ import {
   X as XIcon,
   MessageSquarePlus as MessageSquarePlusIcon,
   Settings as SettingsIcon,
-  Wifi as WifiIcon
+  Wifi as WifiIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon
 } from 'lucide-vue-next'
+import { useChatStore } from '../store/chat'
 
+const chatStore = useChatStore()
 const router = useRouter()
 const customers = ref([])
 const search = ref('')
@@ -232,7 +242,7 @@ const filteredCustomers = computed(() => {
 const fetchCustomers = async () => {
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get(`http://${window.location.hostname}:8000/api/v1/customers/`, {
+    const response = await axios.get(`/api/v1/customers/`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     customers.value = response.data
@@ -260,9 +270,9 @@ const saveCustomer = async () => {
     const config = { headers: { Authorization: `Bearer ${token}` } }
     
     if (editingId.value) {
-      await axios.put(`http://${window.location.hostname}:8000/api/v1/customers/${editingId.value}/`, form.value, config)
+      await axios.put(`/api/v1/customers/${editingId.value}/`, form.value, config)
     } else {
-      await axios.post(`http://${window.location.hostname}:8000/api/v1/customers/`, form.value, config)
+      await axios.post(`/api/v1/customers/`, form.value, config)
     }
     
     showModal.value = false
@@ -285,7 +295,7 @@ const addContact = async () => {
   loadingContact.value = true
   try {
     const token = localStorage.getItem('token')
-    await axios.post(`http://${window.location.hostname}:8000/api/v1/customer-contacts/`, newContact.value, {
+    await axios.post(`/api/v1/customer-contacts/`, newContact.value, {
       headers: { Authorization: `Bearer ${token}` }
     })
     newContact.value = { name: '', phone: '', email: '', customer: selectedCustomer.value.id }
@@ -303,7 +313,7 @@ const deleteContact = async (id) => {
   if (!confirm("Excluir este contato?")) return
   try {
     const token = localStorage.getItem('token')
-    await axios.delete(`http://${window.location.hostname}:8000/api/v1/customer-contacts/${id}/`, {
+    await axios.delete(`/api/v1/customer-contacts/${id}/`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     await fetchCustomers()
@@ -317,7 +327,7 @@ const confirmDelete = async (customer) => {
   if (confirm(`Deseja realmente excluir o cliente ${customer.name}?`)) {
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://${window.location.hostname}:8000/api/v1/customers/${customer.id}/`, {
+      await axios.delete(`/api/v1/customers/${customer.id}/`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       await fetchCustomers()
@@ -330,7 +340,7 @@ const confirmDelete = async (customer) => {
 const openTicket = async (customer) => {
   try {
     const token = localStorage.getItem('token')
-    await axios.post(`http://${window.location.hostname}:8000/api/v1/customers/${customer.id}/open_ticket/`, {}, {
+    await axios.post(`/api/v1/customers/${customer.id}/open_ticket/`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     })
     router.push('/')
@@ -351,24 +361,23 @@ onMounted(fetchCustomers)
 .app-layout {
   display: flex;
   height: 100vh;
-  background: #0b101b;
-  color: white;
+  background: var(--bg-dark);
+  color: var(--text-primary);
 }
 
 .mini-sidebar {
   width: 70px;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 20px 0;
   gap: 20px;
-  background: rgba(15, 20, 35, 0.5);
-  backdrop-filter: blur(10px);
 }
 
 .nav-item {
-  color: #94a3b8;
+  color: var(--text-secondary);
   padding: 12px;
   border-radius: 12px;
   transition: all 0.2s;
@@ -376,12 +385,22 @@ onMounted(fetchCustomers)
 }
 
 .nav-item:hover, .nav-item.active {
-  background: #10b981;
+  background: var(--accent);
   color: white;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
-.logout { margin-top: auto; color: #ef4444; border: none; background: none; }
+.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
+.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
+.theme-toggle:hover { color: var(--accent); }
+
+.bottom-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 
 .main-content {
   flex: 1;
@@ -403,12 +422,10 @@ onMounted(fetchCustomers)
   font-size: 1.8rem;
   font-weight: 800;
   margin-bottom: 4px;
-  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
 }
 
-.header-info p { color: #94a3b8; font-size: 0.95rem; }
+.header-info p { color: var(--text-secondary); font-size: 0.95rem; }
 
 .header-actions {
   display: flex;
@@ -417,8 +434,8 @@ onMounted(fetchCustomers)
 }
 
 .search-bar {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--glass);
+  border: 1px solid var(--border);
   padding: 8px 16px;
   border-radius: 12px;
   display: flex;
@@ -430,7 +447,7 @@ onMounted(fetchCustomers)
 .search-bar input {
   background: none;
   border: none;
-  color: white;
+  color: var(--text-primary);
   width: 100%;
   outline: none;
 }
@@ -464,8 +481,8 @@ onMounted(fetchCustomers)
 }
 
 .customer-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   padding: 25px;
   border-radius: 24px;
   transition: all 0.3s;
@@ -568,13 +585,14 @@ onMounted(fetchCustomers)
 }
 
 .modal-content {
-  background: #141a2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
   width: 100%;
   max-width: 550px;
   padding: 35px;
   border-radius: 30px;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
 }
 
 .contacts-modal {

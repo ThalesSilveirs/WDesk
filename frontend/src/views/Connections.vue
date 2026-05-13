@@ -16,9 +16,15 @@
       <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-item">
         <SettingsIcon :size="24" />
       </router-link>
-      <button @click="logout" class="nav-item logout">
-        <LogOutIcon :size="24" />
-      </button>
+      <div class="bottom-actions">
+        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
+          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
+          <MoonIcon v-else :size="24" />
+        </button>
+        <button @click="logout" class="nav-item logout">
+          <LogOutIcon :size="24" />
+        </button>
+      </div>
     </aside>
 
     <main class="connections-content">
@@ -173,7 +179,9 @@ import {
   X as XIcon,
   Loader as LoaderIcon,
   RefreshCw as RefreshIcon,
-  Zap as ZapIcon
+  Zap as ZapIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon
 } from 'lucide-vue-next'
 import axios from 'axios'
 
@@ -190,7 +198,7 @@ const newConn = ref({ name: '', instance_name: '' })
 
 const fetchConnections = async () => {
   const token = localStorage.getItem('token')
-  const response = await axios.get(`http://${window.location.hostname}:8000/api/v1/connections/`, {
+  const response = await axios.get(`/api/v1/connections/`, {
     headers: { Authorization: `Bearer ${token}` }
   })
   connections.value = response.data
@@ -200,7 +208,7 @@ const syncStatus = async (conn) => {
   syncing.value = conn.id
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.post(`http://${window.location.hostname}:8000/api/v1/connections/${conn.id}/sync_status/`, {}, {
+    const response = await axios.post(`/api/v1/connections/${conn.id}/sync_status/`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     })
     const index = connections.value.findIndex(c => c.id === conn.id)
@@ -232,7 +240,7 @@ const createConn = async () => {
   creating.value = true
   try {
     const token = localStorage.getItem('token')
-    await axios.post(`http://${window.location.hostname}:8000/api/v1/connections/`, newConn.value, {
+    await axios.post(`/api/v1/connections/`, newConn.value, {
       headers: { Authorization: `Bearer ${token}` }
     })
     showAddModal.value = false
@@ -249,7 +257,7 @@ const createConn = async () => {
 const deleteConn = async (id) => {
   if (!confirm("Deseja realmente remover esta conexão?")) return
   const token = localStorage.getItem('token')
-  await axios.delete(`http://${window.location.hostname}:8000/api/v1/connections/${id}/`, {
+  await axios.delete(`/api/v1/connections/${id}/`, {
     headers: { Authorization: `Bearer ${token}` }
   })
   fetchConnections()
@@ -261,7 +269,7 @@ const getQRCode = async (conn) => {
   showQRModal.value = true
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.post(`http://${window.location.hostname}:8000/api/v1/connections/${conn.id}/connect/`, {}, {
+    const response = await axios.post(`/api/v1/connections/${conn.id}/connect/`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     })
     activeQR.value = response.data.qrcode
@@ -277,7 +285,7 @@ const disconnect = async (id) => {
   if (!confirm("Deseja desconectar esta instância?")) return
   try {
     const token = localStorage.getItem('token')
-    await axios.post(`http://${window.location.hostname}:8000/api/v1/connections/${id}/logout/`, {}, {
+    await axios.post(`/api/v1/connections/${id}/logout/`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     })
     fetchConnections()
@@ -325,12 +333,13 @@ onUnmounted(() => {
 .connections-page {
   display: flex;
   height: 100vh;
-  background: #0b0f1a;
-  color: white;
+  background: var(--bg-dark);
+  color: var(--text-primary);
 }
 
 .mini-sidebar {
   width: 70px;
+  background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -351,7 +360,17 @@ onUnmounted(() => {
   color: white;
 }
 
-.logout { margin-top: auto; color: #ef4444; border: none; background: none; cursor: pointer; }
+.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
+.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
+.theme-toggle:hover { color: var(--accent); }
+
+.bottom-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 
 .connections-content {
   flex: 1;

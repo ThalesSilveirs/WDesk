@@ -54,6 +54,8 @@ class ContactSerializer(serializers.ModelSerializer):
 
 class MessageSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
+    contact_name = serializers.CharField(source='ticket.contact.name', read_only=True)
+    
     class Meta:
         model = Message
         fields = '__all__'

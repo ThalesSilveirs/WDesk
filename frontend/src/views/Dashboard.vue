@@ -1,6 +1,9 @@
 <template>
   <div class="app-layout">
     <aside class="mini-sidebar glass-effect">
+      <div class="logo-wrapper">
+        <img src="/favicon.png" alt="WDesk Favicon" class="app-logo" />
+      </div>
       <router-link to="/" class="nav-item active">
         <MessageCircleIcon :size="24" />
       </router-link>
@@ -16,9 +19,15 @@
       <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-item">
         <SettingsIcon :size="24" />
       </router-link>
-      <button @click="logout" class="nav-item logout">
-        <LogOutIcon :size="24" />
-      </button>
+      <div class="bottom-actions">
+        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
+          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
+          <MoonIcon v-else :size="24" />
+        </button>
+        <button @click="showLogoutModal = true" class="nav-item logout">
+          <LogOutIcon :size="24" />
+        </button>
+      </div>
     </aside>
     <!-- Sidebar -->
     <aside class="sidebar glass-effect">
@@ -42,7 +51,10 @@
             <div class="ticket-info">
               <div class="top">
                 <span class="name">{{ ticket.contact_details?.name || ticket.contact_details?.remote_jid }}</span>
-                <span class="time">{{ formatTime(ticket.updated_at) }}</span>
+                <div class="time-unread">
+                  <span v-if="ticket.unread_count > 0" class="unread-badge">{{ ticket.unread_count }}</span>
+                  <span class="time">{{ formatTime(ticket.updated_at) }}</span>
+                </div>
               </div>
               <p class="last-msg">
                 <span v-if="ticket.priority === 'high'" class="priority-dot high"></span>
@@ -57,7 +69,7 @@
       <div class="ticket-list-wrapper bottom">
         <div class="list-header">
           <div class="header-main">
-            <h3>{{ chatStore.currentFilter === 'closed' ? 'Histórico' : 'Fila' }}</h3>
+            <h3>{{ chatStore.currentFilter === 'closed' ? 'Histórico' : (chatStore.currentFilter === 'all' ? 'Todos' : 'Fila') }}</h3>
             <span class="badge">{{ chatStore.tickets.length }}</span>
           </div>
           <div class="tabs-top-inline">
@@ -100,7 +112,10 @@
             <div class="ticket-info">
               <div class="top">
                 <span class="name">{{ ticket.contact_details?.name || ticket.contact_details?.remote_jid }}</span>
-                <span class="time">{{ formatTime(ticket.updated_at) }}</span>
+                <div class="time-unread">
+                  <span v-if="ticket.unread_count > 0" class="unread-badge">{{ ticket.unread_count }}</span>
+                  <span class="time">{{ formatTime(ticket.updated_at) }}</span>
+                </div>
               </div>
               <p class="last-msg">{{ ticket.last_message || 'Nenhuma mensagem' }}</p>
               <span v-if="ticket.attendant_details" class="attendant-label">
@@ -144,7 +159,8 @@
               </button>
               
               <template v-if="chatStore.activeTicket.status !== 'closed'">
-                <button v-if="!chatStore.activeTicket.user" @click="chatStore.acceptTicket(chatStore.activeTicket.id)" class="accept-btn">
+                <button v-if="!chatStore.activeTicket.user" @click="handleAccept" class="accept-btn">
+                  <CheckIcon :size="18" />
                   Aceitar Atendimento
                 </button>
                 <div v-else class="action-group">
@@ -161,7 +177,8 @@
             </div>
           </header>
 
-          <div class="messages-container" ref="messageRef">
+          <div class="messages-wrapper">
+            <div class="messages-container" ref="messageRef">
             <div v-for="msg in chatStore.messages" :key="msg.id" class="message" :class="{ 'me': msg.from_me }">
               <div class="message-bubble">
                 <!-- Media Display -->
@@ -193,8 +210,9 @@
               </div>
             </div>
           </div>
+        </div>
 
-          <footer v-if="chatStore.activeTicket.status !== 'closed'" class="chat-input glass-effect">
+        <footer v-if="chatStore.activeTicket.status !== 'closed'" class="chat-input glass-effect">
             <input 
               type="file" 
               ref="fileInput" 
@@ -208,10 +226,11 @@
             <input 
               v-model="newMessage" 
               @keyup.enter="send"
-              placeholder="Digite uma mensagem..." 
+              :placeholder="chatStore.activeTicket.user ? 'Digite uma mensagem...' : 'Aceite o atendimento para responder...'" 
               type="text" 
+              :disabled="!chatStore.activeTicket.user"
             />
-            <button class="send-btn" @click="send" :disabled="!newMessage.trim()">
+            <button class="send-btn" @click="send" :disabled="!newMessage.trim() || !chatStore.activeTicket.user">
               <SendIcon :size="20" />
             </button>
           </footer>
@@ -305,6 +324,7 @@
       
       <div v-else class="empty-state">
         <div class="empty-content">
+          <img src="/logo.png" alt="WDesk Watermark" class="watermark-logo" />
           <h1>WDesk</h1>
           <p>Selecione uma conversa para começar a atender.</p>
         </div>
@@ -393,6 +413,18 @@
       <button class="close-viewer"><XIcon :size="32" /></button>
       <img :src="selectedImage" class="full-image" @click.stop />
     </div>
+
+    <!-- Modal de Logout -->
+    <div v-if="showLogoutModal" class="modal-overlay">
+      <div class="modal-content glass-effect small-modal">
+        <h2>Sair do Sistema</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
+        <div class="modal-actions">
+          <button @click="showLogoutModal = false" class="cancel-btn">Cancelar</button>
+          <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -414,7 +446,9 @@ import {
   UserX as UserXIcon,
   Settings as SettingsIcon,
   Wifi as WifiIcon,
-  CheckCircle as CheckIcon
+  CheckCircle as CheckIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -425,10 +459,17 @@ const fileInput = ref(null)
 const showTransferModal = ref(false)
 const showPriorityModal = ref(false)
 const showCloseModal = ref(false)
+const showLogoutModal = ref(false)
 const selectedImage = ref(null)
 const showCRM = ref(false)
 const loadingCRM = ref(false)
 const resolutionSummary = ref('')
+
+const handleAccept = async () => {
+  if (!chatStore.activeTicket) return
+  await chatStore.acceptTicket(chatStore.activeTicket.id)
+  showPriorityModal.value = true
+}
 
 const quickForm = ref({
   name: '',
@@ -549,6 +590,7 @@ const logout = () => {
 }
 
 onMounted(() => {
+  document.documentElement.setAttribute('data-theme', chatStore.theme)
   chatStore.fetchTickets()
   chatStore.fetchMyTickets()
   chatStore.initSocket()
@@ -559,18 +601,34 @@ onMounted(() => {
 .app-layout {
   display: flex;
   height: 100vh;
-  background: #0b0f1a;
-  color: white;
+  background: var(--bg-dark);
+  color: var(--text-primary);
 }
 
 .mini-sidebar {
   width: 70px;
+  background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 20px 0;
   gap: 20px;
+}
+
+.logo-wrapper {
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.3));
 }
 
 .nav-item {
@@ -585,10 +643,21 @@ onMounted(() => {
   color: white;
 }
 
-.logout { margin-top: auto; color: #ef4444; border: none; background: none; cursor: pointer; }
+.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
+.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
+.theme-toggle:hover { color: var(--accent); }
+
+.bottom-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 
 .sidebar {
   width: var(--sidebar-width);
+  background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -605,10 +674,10 @@ onMounted(() => {
   gap: 15px;
   cursor: pointer;
   transition: background 0.2s;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border);
 }
 
-.ticket-item:hover { background: rgba(255, 255, 255, 0.05); }
+.ticket-item:hover { background: var(--glass); }
 
 .ticket-item.active {
   background: rgba(16, 185, 129, 0.1);
@@ -656,10 +725,39 @@ onMounted(() => {
 .priority-dot.high { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
 .priority-dot.medium { background: #f59e0b; }
 
+.time-unread {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.unread-badge {
+  background: var(--accent);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  animation: badge-pulse 2s infinite;
+}
+
+@keyframes badge-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
 .chat-area {
   flex: 1;
   display: flex;
-  background: #0b0f1a;
+  background: var(--bg-dark);
   position: relative;
 }
 
@@ -676,6 +774,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   z-index: 10;
+  background: var(--bg-sidebar);
   border-bottom: 1px solid var(--border);
 }
 
@@ -813,6 +912,13 @@ onMounted(() => {
   border-color: var(--accent);
 }
 
+.messages-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;
@@ -820,15 +926,32 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  z-index: 1;
 }
 
-.message { display: flex; width: 100%; }
+.messages-wrapper::before {
+  content: "";
+  position: absolute;
+  top: -50%; left: -50%; width: 200%; height: 200%;
+  background-image: url('/favicon.png');
+  background-repeat: repeat;
+  background-size: 80px;
+  opacity: var(--pattern-opacity);
+  filter: var(--pattern-filter);
+  transform: rotate(-15deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.message { display: flex; width: 100%; position: relative; z-index: 1; }
 .message.me { justify-content: flex-end; }
 .message-bubble {
   max-width: 65%;
   padding: 8px 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
 }
 .message.me .message-bubble { background: var(--accent); }
 
@@ -881,18 +1004,52 @@ onMounted(() => {
   display: flex;
   gap: 15px;
   align-items: center;
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(10px);
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
 }
 
 .chat-input input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--glass);
+  border: 1px solid var(--border);
   padding: 12px;
   border-radius: 12px;
-  color: white;
+  color: var(--text-primary);
   outline: none;
+}
+
+.chat-input input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.send-btn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+}
+
+.send-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: scale(1.05) translateX(2px);
+  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+  background: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .closed-banner {
@@ -908,8 +1065,7 @@ onMounted(() => {
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: rgba(15, 20, 35, 0.95);
-  backdrop-filter: blur(20px);
+  background: var(--bg-sidebar);
 }
 
 .crm-header {
@@ -963,11 +1119,46 @@ onMounted(() => {
 .ticket-list-wrapper { display: flex; flex-direction: column; overflow: hidden; }
 .ticket-list-wrapper.top { flex: 1; }
 .ticket-list-wrapper.bottom { height: 45%; border-top: 1px solid var(--border); background: rgba(0, 0, 0, 0.1); }
-.list-header { padding: 12px 20px; display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, 0.02); }
-.list-header h3 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); }
-.tabs-top-inline { display: flex; background: rgba(255, 255, 255, 0.03); padding: 3px; border-radius: 8px; margin-left: auto; }
-.tab-btn-mini { padding: 6px 10px; border: none; background: none; color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; cursor: pointer; border-radius: 6px; }
-.tab-btn-mini.active { background: rgba(255, 255, 255, 0.1); color: white; }
+.list-header { 
+  padding: 12px 20px; 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  background: var(--glass);
+}
+
+.list-header h3 { 
+  font-size: 0.85rem; 
+  font-weight: 700; 
+  text-transform: uppercase; 
+  color: var(--text-secondary); 
+}
+
+.tabs-top-inline { 
+  display: flex; 
+  background: var(--bg-dark); 
+  padding: 3px; 
+  border-radius: 8px; 
+  margin-left: auto; 
+  border: 1px solid var(--border);
+}
+.tab-btn-mini { 
+  padding: 6px 10px; 
+  border: none; 
+  background: none; 
+  color: var(--text-secondary); 
+  font-size: 0.75rem; 
+  font-weight: 600; 
+  cursor: pointer; 
+  border-radius: 6px; 
+  transition: all 0.2s;
+}
+
+.tab-btn-mini.active { 
+  background: var(--accent); 
+  color: white; 
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+}
 
 .modal-overlay {
   position: fixed;
@@ -976,12 +1167,13 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: center; z-index: 1000;
 }
 .modal-content { 
-  background: #141a2e; 
+  background: var(--bg-sidebar); 
   padding: 30px; 
   border-radius: 24px; 
   width: 450px; 
   border: 1px solid var(--border);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
 }
 .attendant-option { 
   display: flex; 
@@ -1008,7 +1200,20 @@ onMounted(() => {
 .attendant-option .dept { font-size: 0.75rem; color: var(--text-secondary); display: block; text-align: left; }
 
 .action-group { display: flex; align-items: center; gap: 10px; }
-.cancel-btn { background: none; border: 1px solid var(--border); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+.cancel-btn { 
+  background: none; 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 8px 16px; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  transition: all 0.3s ease;
+}
+
+.cancel-btn:hover {
+  background: var(--glass);
+  border-color: var(--text-secondary);
+}
 
 .crm-avatar { width: 60px; height: 60px; background: var(--accent); border-radius: 20px; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; }
 .crm-name { font-size: 1.2rem; text-align: center; margin-bottom: 20px; }
@@ -1065,13 +1270,81 @@ onMounted(() => {
 
 .btn-primary-sm.block { width: 100%; }
 
-.pulse-effect:hover {
-  animation: pulse 2s infinite;
+.btn-danger-sm {
+  padding: 8px 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+.btn-danger-sm:hover { background: #dc2626; transform: translateY(-2px); }
+
+.accept-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+.accept-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+}
+
+.accept-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, var(--empty-bg-inner) 0%, var(--empty-bg-outer) 100%);
+}
+
+.empty-content {
+  text-align: center;
+  opacity: 0.5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.watermark-logo {
+  width: 280px;
+  height: 280px;
+  object-fit: contain;
+  margin-bottom: 30px;
+  filter: drop-shadow(0 0 30px rgba(16, 185, 129, 0.15));
+  opacity: 0.7;
+  transition: all 0.5s ease;
+}
+
+.empty-content:hover .watermark-logo {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+.empty-content h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(to bottom, #ffffff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 </style>

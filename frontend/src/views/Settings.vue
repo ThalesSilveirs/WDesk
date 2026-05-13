@@ -16,9 +16,15 @@
       <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-item active">
         <SettingsIcon :size="24" />
       </router-link>
-      <button @click="logout" class="nav-item logout">
-        <LogOutIcon :size="24" />
-      </button>
+      <div class="bottom-actions">
+        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
+          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
+          <MoonIcon v-else :size="24" />
+        </button>
+        <button @click="logout" class="nav-item logout">
+          <LogOutIcon :size="24" />
+        </button>
+      </div>
     </aside>
 
     <main class="settings-content">
@@ -178,7 +184,9 @@ import {
   Info as InfoIcon,
   Wifi as WifiIcon,
   Trash2 as TrashIcon,
-  AlertTriangle as AlertIcon
+  AlertTriangle as AlertIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -195,7 +203,7 @@ const settings = ref({
 })
 
 const webhookUrl = computed(() => {
-  return `http://${window.location.hostname}:8000/api/v1/webhooks/evolution/`
+  return `/api/v1/webhooks/evolution/`
 })
 
 const fetchSettings = async () => {
@@ -254,12 +262,13 @@ onMounted(fetchSettings)
 .settings-page {
   display: flex;
   height: 100vh;
-  background: #0b0f1a;
-  color: white;
+  background: var(--bg-dark);
+  color: var(--text-primary);
 }
 
 .mini-sidebar {
   width: 70px;
+  background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -280,7 +289,17 @@ onMounted(fetchSettings)
   color: white;
 }
 
-.logout { margin-top: auto; color: #ef4444; border: none; background: none; cursor: pointer; }
+.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
+.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
+.theme-toggle:hover { color: var(--accent); }
+
+.bottom-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 
 .settings-content {
   flex: 1;
