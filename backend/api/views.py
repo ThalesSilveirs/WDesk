@@ -777,54 +777,6 @@ class WebhookView(viewsets.ViewSet):
                 redis_client.setex(cache_key, 30, "1") # 30 segundos de "visto recentemente"
 
                 
-                # Busca exaustiva por mídia
-                media_type = None
-                media_url = None
-                
-                if 'imageMessage' in message_content:
-                    media_type = 'image'
-                    media_url = message_content['imageMessage'].get('url') or message_content['imageMessage'].get('base64')
-                elif 'videoMessage' in message_content:
-                    media_type = 'video'
-                    media_url = message_content['videoMessage'].get('url') or message_content['videoMessage'].get('base64')
-                elif 'audioMessage' in message_content:
-                    media_type = 'audio'
-                    media_url = message_content['audioMessage'].get('url') or message_content['audioMessage'].get('base64')
-                elif 'documentMessage' in message_content:
-                    media_type = 'document'
-                    media_url = message_content['documentMessage'].get('url') or message_content['documentMessage'].get('base64')
-                elif 'stickerMessage' in message_content:
-                    media_type = 'image' # Trata figurinha como imagem para exibição simples
-                    media_url = message_content['stickerMessage'].get('url') or message_content['stickerMessage'].get('base64')
-                
-                # Fallback para campos diretos
-                if not media_type:
-                    media_type = msg_item.get('type') or info.get('MediaType') or info.get('Type')
-                if not media_url:
-                    media_url = msg_item.get('url') or msg_item.get('base64')
-                
-                # Normaliza tipos conhecidos da Evolution GO
-                mimetype = message_content.get('imageMessage', {}).get('mimetype') or \
-                           message_content.get('videoMessage', {}).get('mimetype') or \
-                           message_content.get('audioMessage', {}).get('mimetype') or \
-                           message_content.get('documentMessage', {}).get('mimetype') or \
-                           'image/jpeg' # Fallback
-                
-                if media_type:
-                    media_type = str(media_type).lower()
-                    if 'image' in media_type: media_type = 'image'
-                    elif 'video' in media_type: media_type = 'video'
-                    elif 'audio' in media_type: media_type = 'audio'
-                    elif 'document' in media_type: media_type = 'document'
-                
-                # Se for Base64 puro (sem prefixo), adiciona o prefixo para o navegador
-                if media_url and not str(media_url).startswith('http') and not str(media_url).startswith('data:'):
-                    media_url = f"data:{mimetype};base64,{media_url}"
-                
-                if not body and not media_url:
-                    continue
-
-                from django.db.models import Q
                 if instance_name:
                     connection = Connection.objects.filter(
                         Q(instance_name=instance_name) |
