@@ -760,11 +760,7 @@ class WebhookView(viewsets.ViewSet):
                 # Garante que seja booleano
                 if isinstance(from_me, str):
                     from_me = from_me.lower() == 'true'
-                else:
-                    from_me = bool(from_me)
 
-
-                    continue
                 
                 # 1. Cria/Recupera Contato
                 contact_name = msg_item.get('pushName') or info.get('PushName') or data.get('data', {}).get('pushName') or remote_jid.split('@')[0]
