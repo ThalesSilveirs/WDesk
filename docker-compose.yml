@@ -25,6 +25,8 @@ services:
     image: evoapicloud/evolution-go:latest
     container_name: evolution-go
     restart: unless-stopped
+    volumes:
+      - evolution_instances:/evolution/instances
     environment:
       - SERVER_PORT=8080
       - GLOBAL_API_KEY=${EVOLUTION_API_TOKEN:-0f00f38b042ada23b3437e74b0141dd4d40ac50daf2afd9c8c524b79958a54cd}
@@ -32,12 +34,12 @@ services:
       - POSTGRES_USERS_DB=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/evogo_users?sslmode=disable
       - WEBHOOK_ENABLED=true
       - WEBHOOK_GLOBAL_ENABLED=true
-      - WEBHOOK_URL=http://backend:8000/api/v1/webhooks/evolution
-      - WEBHOOK_GLOBAL_URL=http://backend:8000/api/v1/webhooks/evolution
-      - WEBHOOK_EVENTS=ALL
-      - WEBHOOK_URL_MESSAGE=http://backend:8000/api/v1/webhooks/evolution
-      - WEBHOOK_URL_MESSAGES_UPSERT=http://backend:8000/api/v1/webhooks/evolution
-      - WEBHOOK_URL_CONNECTION_UPDATE=http://backend:8000/api/v1/webhooks/evolution
+      - WEBHOOK_URL=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
+      - WEBHOOK_GLOBAL_URL=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
+      - WEBHOOK_EVENTS=ALL,MESSAGE,READ_RECEIPT,PRESENCE,HISTORY_SYNC,CHAT_PRESENCE,CALL,CONNECTION,QRCODE
+      - WEBHOOK_URL_MESSAGE=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
+      - WEBHOOK_URL_MESSAGES_UPSERT=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
+      - WEBHOOK_URL_CONNECTION_UPDATE=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
       - LOG_LEVEL=DEBUG
       - REDIS_ENABLED=false
       - REDIS_URI=redis://redis:6379
@@ -150,3 +152,4 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  evolution_instances:
