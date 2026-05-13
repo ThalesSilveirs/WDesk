@@ -33,7 +33,7 @@ export const useChatStore = defineStore('chat', {
 
     async transferTicket(ticketId, userId) {
       const token = localStorage.getItem('token')
-      await axios.post(`/api/v1/tickets/${ticketId}/transfer/`, 
+      await axios.post(`/api/v1/tickets/${ticketId}/transfer/`,
         { user_id: userId },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -45,7 +45,7 @@ export const useChatStore = defineStore('chat', {
 
     async closeTicket(ticketId, resolution) {
       const token = localStorage.getItem('token')
-      await axios.post(`/api/v1/tickets/${ticketId}/close/`, 
+      await axios.post(`/api/v1/tickets/${ticketId}/close/`,
         { resolution },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -57,7 +57,7 @@ export const useChatStore = defineStore('chat', {
 
     async updateTicket(ticketId, payload) {
       const token = localStorage.getItem('token')
-      const response = await axios.patch(`/api/v1/tickets/${ticketId}/`, 
+      const response = await axios.patch(`/api/v1/tickets/${ticketId}/`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -84,7 +84,7 @@ export const useChatStore = defineStore('chat', {
       oscillator.type = 'sine'
       oscillator.frequency.setValueAtTime(880, audioCtx.currentTime) // A5
       oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5) // A4
-      
+
       gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime)
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5)
 
@@ -122,7 +122,7 @@ export const useChatStore = defineStore('chat', {
 
       this.requestNotificationPermission()
 
-      const socketUrl = `https://${window.location.hostname}`
+      const socketUrl = `${window.location.protocol}//${window.location.hostname}:3000`
       this.socket = io(socketUrl, {
         auth: { token },
         transports: ['websocket']
@@ -132,18 +132,18 @@ export const useChatStore = defineStore('chat', {
         // Se a mensagem não for minha, disparar alerta
         if (!message.from_me) {
           this.playNotificationSound()
-          
+
           // Só mostra notificação se não estiver com o ticket aberto ou se a janela estiver em segundo plano
           const isCurrentTicket = this.activeTicket && message.ticket === this.activeTicket.id
           if (!isCurrentTicket || document.hidden) {
             const senderName = message.contact_name || 'Novo Cliente'
-            
+
             let bodyText = message.body
             if (!bodyText && message.media_type) {
               const types = { 'image': '📷 Foto', 'audio': '🎵 Áudio', 'video': '🎥 Vídeo', 'document': '📄 Documento' }
               bodyText = types[message.media_type] || 'Nova mídia recebida'
             }
-            
+
             const icon = '/favicon.png'
             this.showNotification(`💬 ${senderName}`, bodyText || 'Nova mensagem recebida', icon)
           }
@@ -159,7 +159,7 @@ export const useChatStore = defineStore('chat', {
         this.fetchTickets()
         this.fetchMyTickets()
       })
-      
+
       this.socket.on('ticket_updated', (ticket) => {
         if (this.activeTicket && ticket.id === this.activeTicket.id) {
           this.activeTicket = ticket
@@ -175,7 +175,7 @@ export const useChatStore = defineStore('chat', {
 
     async fetchTickets(filter = null) {
       if (filter) this.currentFilter = filter
-      
+
       this.loading = true
       try {
         const token = localStorage.getItem('token')
@@ -216,7 +216,7 @@ export const useChatStore = defineStore('chat', {
     async selectTicket(ticket) {
       this.activeTicket = ticket
       const token = localStorage.getItem('token')
-      
+
       // Reseta contador no backend
       if (ticket.unread_count > 0) {
         axios.post(`/api/v1/tickets/${ticket.id}/reset_unread/`, {}, {
@@ -228,7 +228,7 @@ export const useChatStore = defineStore('chat', {
       const response = await axios.get(`/api/v1/tickets/${ticket.id}/`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      this.activeTicket = response.data 
+      this.activeTicket = response.data
       this.messages = response.data.last_messages
     },
 
@@ -237,16 +237,17 @@ export const useChatStore = defineStore('chat', {
       const token = localStorage.getItem('token')
       const formData = new FormData()
       formData.append('file', file)
-      
-      const response = await axios.post(`/api/v1/tickets/${this.activeTicket.id}/send_media/`, 
+
+      const response = await axios.post(`/api/v1/tickets/${this.activeTicket.id}/send_media/`,
         formData,
-        { headers: { 
+        {
+          headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
-          } 
+          }
         }
       )
-      
+
       const exists = this.messages.some(m => m.id === response.data.id || m.message_id === response.data.message_id)
       if (!exists) {
         this.messages.push(response.data)
@@ -256,11 +257,11 @@ export const useChatStore = defineStore('chat', {
     async sendMessage(body) {
       if (!this.activeTicket) return
       const token = localStorage.getItem('token')
-      const response = await axios.post(`/api/v1/tickets/${this.activeTicket.id}/send_message/`, 
+      const response = await axios.post(`/api/v1/tickets/${this.activeTicket.id}/send_message/`,
         { body },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      
+
       // Verifica duplicata antes de dar push (caso o socket tenha sido mais rápido)
       const exists = this.messages.some(m => m.id === response.data.id || m.message_id === response.data.message_id)
       if (!exists) {
