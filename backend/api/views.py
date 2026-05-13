@@ -763,35 +763,7 @@ class WebhookView(viewsets.ViewSet):
                 else:
                     from_me = bool(from_me)
 
-                # 3. Identifica o ID da mensagem e evita duplicidade processamento (Deduplicação)
-                msg_id = info.get('ID') or msg_item.get('messageId') or info.get('id') or msg_item.get('key', {}).get('id')
-                
-                if not msg_id:
-                    continue
 
-                # Deduplicação via Redis para evitar processar o mesmo evento 2x (ex: Message + Messages.upsert)
-                cache_key = f"webhook_msg_{msg_id}"
-                if redis_client.get(cache_key):
-                    print(f"[WEBHOOK] Mensagem {msg_id} já processada. Ignorando.")
-                    continue
-                redis_client.setex(cache_key, 30, "1") # 30 segundos de "visto recentemente"
-
-                
-                if instance_name:
-                    connection = Connection.objects.filter(
-                        Q(instance_name=instance_name) |
-                        Q(instance_name=data.get('instance')) |
-                        Q(instance_name=data.get('instanceName'))
-                    ).first()
-                else:
-                    # Se não veio instance, pega a primeira conexão ativa (fallback para single-tenant)
-                    connection = Connection.objects.filter(status='connected').first()
-                    if not connection:
-                        connection = Connection.objects.first()
-                    print(f"[WEBHOOK] Instance name ausente no payload! Usando fallback: {connection}")
-                
-                if not connection:
-                    print(f"DEBUG: Connection not found for instance='{instance_name}'. Payload: {json.dumps(dict(data))[:300]}")
                     continue
                 
                 # 1. Cria/Recupera Contato
