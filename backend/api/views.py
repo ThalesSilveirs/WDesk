@@ -760,8 +760,87 @@ class WebhookView(viewsets.ViewSet):
                 # Garante que seja booleano
                 if isinstance(from_me, str):
                     from_me = from_me.lower() == 'true'
+                else:
+                    from_me = bool(from_me)
 
+                # 3. Identifica o ID da mensagem e evita duplicidade (Deduplicação)
+                msg_id = info.get('ID') or msg_item.get('messageId') or info.get('id') or msg_item.get('key', {}).get('id')
+                if not msg_id:
+                    continue
+
+                                # Deduplicação via Redis para evitar processar o mesmo evento 2x (ex: Message + Messages.upsert)
+                cache_key = f"webhook_msg_{msg_id}"
+                if redis_client.get(cache_key):
+                    print(f"[WEBHOOK] Mensagem {msg_id} já processada. Ignorando.")
+                    continue
+                redis_client.setex(cache_key, 30, "1") # 30 segundos de "visto recentemente"
+
+                # --- EXTRAÇÃO DE MÍDIA (Suporte a Evolution v1, v2 e Go) ---
+                media_type = None
+                media_url = None
+                mimetype = None
                 
+                actual_msg = message_content
+                if 'viewOnceMessage' in actual_msg:
+                    actual_msg = actual_msg['viewOnceMessage'].get('message', {})
+                elif 'viewOnceMessageV2' in actual_msg:
+                    actual_msg = actual_msg['viewOnceMessageV2'].get('message', {})
+                
+                img_obj = actual_msg.get('imageMessage') or actual_msg.get('ImageMessage')
+                vid_obj = actual_msg.get('videoMessage') or actual_msg.get('VideoMessage')
+                aud_obj = actual_msg.get('audioMessage') or actual_msg.get('AudioMessage')
+                doc_obj = actual_msg.get('documentMessage') or actual_msg.get('DocumentMessage')
+                stk_obj = actual_msg.get('stickerMessage') or actual_msg.get('StickerMessage')
+
+                if img_obj:
+                    media_type, media_url = 'image', img_obj.get('url') or img_obj.get('base64')
+                    mimetype = img_obj.get('mimetype') or 'image/jpeg'
+                elif vid_obj:
+                    media_type, media_url = 'video', vid_obj.get('url') or vid_obj.get('base64')
+                    mimetype = vid_obj.get('mimetype') or 'video/mp4'
+                elif aud_obj:
+                    media_type, media_url = 'audio', aud_obj.get('url') or aud_obj.get('base64')
+                    mimetype = aud_obj.get('mimetype') or 'audio/mp4'
+                elif doc_obj:
+                    media_type, media_url = 'document', doc_obj.get('url') or doc_obj.get('base64')
+                    mimetype = doc_obj.get('mimetype') or 'application/pdf'
+                elif stk_obj:
+                    media_type, media_url = 'image', stk_obj.get('url') or stk_obj.get('base64')
+                    mimetype = stk_obj.get('mimetype') or 'image/webp'
+                
+                if not media_type:
+                    raw_type = str(msg_item.get('type') or info.get('MediaType') or info.get('Type') or '').lower()
+                    if 'image' in raw_type: media_type = 'image'
+                    elif 'video' in raw_type: media_type = 'video'
+                    elif 'audio' in raw_type: media_type = 'audio'
+                    elif 'document' in raw_type: media_type = 'document'
+                
+                if not media_url:
+                    media_url = msg_item.get('url') or msg_item.get('base64') or msg_item.get('content')
+                
+                if not mimetype:
+                    mimetype = actual_msg.get('mimetype') or 'image/jpeg'
+                
+                if media_url and not str(media_url).startswith('http') and not str(media_url).startswith('data:'):
+                    clean_base64 = str(media_url).replace('\n', '').replace('\r', '').strip()
+                    media_url = f"data:{mimetype};base64,{clean_base64}"
+                
+                if not body and not media_url:
+                    continue
+
+                # --- BUSCA CONEXÃO ---
+                from django.db.models import Q
+                if instance_name:
+                    connection = Connection.objects.filter(
+                        Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))
+                    ).first()
+                else:
+                    connection = Connection.objects.filter(status='connected').first()
+                
+                if not connection:
+                    print(f"DEBUG: Connection not found for instance='{instance_name}'")
+                    continue
+
                 # 1. Cria/Recupera Contato
                 contact_name = msg_item.get('pushName') or info.get('PushName') or data.get('data', {}).get('pushName') or remote_jid.split('@')[0]
                 
