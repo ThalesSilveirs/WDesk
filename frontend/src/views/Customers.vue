@@ -1,31 +1,4 @@
 <template>
-  <div class="app-layout">
-    <aside class="mini-sidebar glass-effect">
-      <router-link to="/" class="nav-item">
-        <MessageCircleIcon :size="24" />
-      </router-link>
-      <router-link to="/customers" class="nav-item active">
-        <ContactIcon :size="24" />
-      </router-link>
-      <router-link v-if="userRole === 'admin'" to="/users" class="nav-item">
-        <UsersIcon :size="24" />
-      </router-link>
-      <router-link v-if="userRole === 'admin'" to="/connections" class="nav-item">
-        <WifiIcon :size="24" />
-      </router-link>
-      <router-link v-if="userRole === 'admin'" to="/settings" class="nav-item">
-        <SettingsIcon :size="24" />
-      </router-link>
-      <div class="bottom-actions">
-        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
-          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
-          <MoonIcon v-else :size="24" />
-        </button>
-        <button @click="logout" class="nav-item logout">
-          <LogOutIcon :size="24" />
-        </button>
-      </div>
-    </aside>
 
     <main class="main-content">
       <header class="page-header glass-effect">
@@ -175,31 +148,23 @@
         </div>
       </div>
     </div>
-  </div>
-</template>
+  </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { 
-  MessageCircle as MessageCircleIcon, 
   Users as UsersIcon, 
-  LogOut as LogOutIcon,
   Search as SearchIcon, 
   Plus as PlusIcon,
-  Contact as ContactIcon,
   Phone as PhoneIcon,
   Mail as MailIcon,
   FileText as FileTextIcon,
   Edit as EditIcon,
   Trash2 as TrashIcon,
   X as XIcon,
-  MessageSquarePlus as MessageSquarePlusIcon,
-  Settings as SettingsIcon,
-  Wifi as WifiIcon,
-  Sun as SunIcon,
-  Moon as MoonIcon
+  MessageSquarePlus as MessageSquarePlusIcon
 } from 'lucide-vue-next'
 import { useChatStore } from '../store/chat'
 
@@ -211,9 +176,8 @@ const showModal = ref(false)
 const showContactsModal = ref(false)
 const loading = ref(false)
 const loadingContact = ref(false)
-const editingId = ref(null)
-const userRole = ref(localStorage.getItem('role'))
 const selectedCustomer = ref(null)
+const editingId = ref(null)
 
 const form = ref({
   name: '',
@@ -349,58 +313,12 @@ const openTicket = async (customer) => {
   }
 }
 
-const logout = () => {
-  localStorage.removeItem('token')
-  router.push('/login')
-}
 
 onMounted(fetchCustomers)
 </script>
 
 <style scoped>
-.app-layout {
-  display: flex;
-  height: 100vh;
-  background: var(--bg-dark);
-  color: var(--text-primary);
-}
 
-.mini-sidebar {
-  width: 70px;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 0;
-  gap: 20px;
-}
-
-.nav-item {
-  color: var(--text-secondary);
-  padding: 12px;
-  border-radius: 12px;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-
-.nav-item:hover, .nav-item.active {
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-}
-
-.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
-.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
-.theme-toggle:hover { color: var(--accent); }
-
-.bottom-actions {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
 
 .main-content {
   flex: 1;

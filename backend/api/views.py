@@ -620,9 +620,25 @@ class ConnectionViewSet(TenantModelViewSet):
         }
         
         try:
-            requests.post(url, json=payload, headers=headers)
-        except:
-            pass # Falha silenciosa na criação remota, o usuário pode tentar 'conectar' depois
+            response = requests.post(url, json=payload, headers=headers, timeout=10)
+            if response.status_code not in [200, 201]:
+                # Se falhar na Evolution, remove do nosso banco para não ficar "zumbi"
+                instance_name = instance.instance_name
+                instance.delete()
+                
+                error_data = response.json() if response.status_code != 404 else {"message": "Endpoint não encontrado"}
+                error_msg = error_data.get('message') or error_data.get('error') or response.text
+                
+                print(f"[CREATE] Erro na Evolution ({response.status_code}): {error_msg}")
+                raise serializers.ValidationError({"error": f"Erro na Evolution API: {error_msg}"})
+        except requests.exceptions.RequestException as e:
+            instance.delete()
+            raise serializers.ValidationError({"error": f"Não foi possível conectar à Evolution API: {str(e)}"})
+        except Exception as e:
+            if not isinstance(e, serializers.ValidationError):
+                instance.delete()
+                raise serializers.ValidationError({"error": f"Erro inesperado: {str(e)}"})
+            raise e
 
 @method_decorator(csrf_exempt, name='dispatch')
 class WebhookView(viewsets.ViewSet):

@@ -1,34 +1,5 @@
 <template>
-  <div class="app-layout">
-    <aside class="mini-sidebar glass-effect">
-      <div class="logo-wrapper">
-        <img src="/favicon.png" alt="WDesk Favicon" class="app-logo" />
-      </div>
-      <router-link to="/" class="nav-item active">
-        <MessageCircleIcon :size="24" />
-      </router-link>
-      <router-link to="/customers" class="nav-item">
-        <ContactIcon :size="24" />
-      </router-link>
-      <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-item">
-        <UsersIcon :size="24" />
-      </router-link>
-      <router-link v-if="chatStore.userRole === 'admin'" to="/connections" class="nav-item">
-        <WifiIcon :size="24" />
-      </router-link>
-      <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-item">
-        <SettingsIcon :size="24" />
-      </router-link>
-      <div class="bottom-actions">
-        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
-          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
-          <MoonIcon v-else :size="24" />
-        </button>
-        <button @click="showLogoutModal = true" class="nav-item logout">
-          <LogOutIcon :size="24" />
-        </button>
-      </div>
-    </aside>
+  <div class="dashboard-content">
     <!-- Sidebar -->
     <aside class="sidebar glass-effect">
       <div class="ticket-list-wrapper top">
@@ -414,17 +385,7 @@
       <img :src="selectedImage" class="full-image" @click.stop />
     </div>
 
-    <!-- Modal de Logout -->
-    <div v-if="showLogoutModal" class="modal-overlay">
-      <div class="modal-content glass-effect small-modal">
-        <h2>Sair do Sistema</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
-        <div class="modal-actions">
-          <button @click="showLogoutModal = false" class="cancel-btn">Cancelar</button>
-          <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
-        </div>
-      </div>
-    </div>
+
   </div>
 </template>
 
@@ -433,9 +394,7 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import { useChatStore } from '../store/chat'
 import { useRouter } from 'vue-router'
 import { 
-  MessageCircle as MessageCircleIcon, 
   Users as UsersIcon, 
-  LogOut as LogOutIcon,
   Search as SearchIcon, 
   Send as SendIcon,
   ArrowRightLeft as TransferIcon,
@@ -446,9 +405,7 @@ import {
   UserX as UserXIcon,
   Settings as SettingsIcon,
   Wifi as WifiIcon,
-  CheckCircle as CheckIcon,
-  Sun as SunIcon,
-  Moon as MoonIcon
+  CheckCircle as CheckIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -459,7 +416,6 @@ const fileInput = ref(null)
 const showTransferModal = ref(false)
 const showPriorityModal = ref(false)
 const showCloseModal = ref(false)
-const showLogoutModal = ref(false)
 const selectedImage = ref(null)
 const showCRM = ref(false)
 const loadingCRM = ref(false)
@@ -584,13 +540,7 @@ const scrollToBottom = () => {
 
 watch(() => chatStore.messages.length, scrollToBottom)
 
-const logout = () => {
-  localStorage.removeItem('token')
-  router.push('/login')
-}
-
 onMounted(() => {
-  document.documentElement.setAttribute('data-theme', chatStore.theme)
   chatStore.fetchTickets()
   chatStore.fetchMyTickets()
   chatStore.initSocket()
@@ -598,61 +548,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.app-layout {
+.dashboard-content {
   display: flex;
+  flex: 1;
   height: 100vh;
-  background: var(--bg-dark);
-  color: var(--text-primary);
-}
-
-.mini-sidebar {
-  width: 70px;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 0;
-  gap: 20px;
-}
-
-.logo-wrapper {
-  padding: 10px;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.app-logo {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.3));
-}
-
-.nav-item {
-  color: var(--text-secondary);
-  padding: 12px;
-  border-radius: 12px;
-  transition: all 0.2s;
-}
-
-.nav-item:hover, .nav-item.active {
-  background: var(--accent);
-  color: white;
-}
-
-.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
-.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
-.theme-toggle:hover { color: var(--accent); }
-
-.bottom-actions {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  overflow: hidden;
 }
 
 .sidebar {

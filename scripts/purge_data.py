@@ -8,10 +8,14 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 django.setup()
 
-from tickets.models import Message, Ticket, Contact, Customer, CustomerContact
+from tickets.models import Message, Ticket, Contact, Customer, CustomerContact, Connection
 
 def purge():
     print("Iniciando limpeza total da base de dados...")
+    
+    c_conn_count = Connection.objects.count()
+    Connection.objects.all().delete()
+    print(f"- {c_conn_count} Instâncias (Conexões) removidas.")
     
     m_count = Message.objects.count()
     Message.objects.all().delete()

@@ -1,31 +1,4 @@
 <template>
-  <div class="users-layout">
-    <aside class="mini-sidebar glass-effect">
-      <router-link to="/" class="nav-item">
-        <MessageCircleIcon :size="24" />
-      </router-link>
-      <router-link to="/customers" class="nav-item">
-        <ContactIcon :size="24" />
-      </router-link>
-      <router-link to="/users" class="nav-item active">
-        <UsersIcon :size="24" />
-      </router-link>
-      <router-link to="/connections" class="nav-item">
-        <WifiIcon :size="24" />
-      </router-link>
-      <router-link to="/settings" class="nav-item">
-        <SettingsIcon :size="24" />
-      </router-link>
-      <div class="bottom-actions">
-        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
-          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
-          <MoonIcon v-else :size="24" />
-        </button>
-        <button @click="logout" class="nav-item logout">
-          <LogOutIcon :size="24" />
-        </button>
-      </div>
-    </aside>
 
     <main class="users-content">
       <header class="content-header">
@@ -82,30 +55,16 @@
         </form>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
-import { useRouter } from 'vue-router'
 import { 
-  MessageCircle as MessageCircleIcon, 
-  Users as UsersIcon, 
-  LogOut as LogOutIcon,
   Plus as PlusIcon,
   Trash2 as TrashIcon,
-  Pencil as PencilIcon,
-  Contact as ContactIcon,
-  Settings as SettingsIcon,
-  Wifi as WifiIcon,
-  Sun as SunIcon,
-  Moon as MoonIcon
+  Pencil as PencilIcon
 } from 'lucide-vue-next'
-import { useChatStore } from '../store/chat'
-
-const chatStore = useChatStore()
-const router = useRouter()
 const users = ref([])
 const showAddModal = ref(false)
 const editingId = ref(null)
@@ -172,57 +131,12 @@ const deleteUser = async (id) => {
   fetchUsers()
 }
 
-const logout = () => {
-  localStorage.removeItem('token')
-  router.push('/login')
-}
+
 
 onMounted(fetchUsers)
 </script>
 
 <style scoped>
-.users-layout {
-  display: flex;
-  height: 100vh;
-  background: var(--bg-dark);
-  color: var(--text-primary);
-}
-
-.mini-sidebar {
-  width: 70px;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 0;
-  gap: 20px;
-}
-
-.nav-item {
-  color: var(--text-secondary);
-  padding: 12px;
-  border-radius: 12px;
-  transition: all 0.2s;
-}
-
-.nav-item:hover, .nav-item.active {
-  background: var(--accent);
-  color: white;
-}
-
-.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
-.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
-.theme-toggle:hover { color: var(--accent); }
-
-.bottom-actions {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
 .users-content {
   flex: 1;
   padding: 40px;

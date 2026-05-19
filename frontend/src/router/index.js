@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
+import MainLayout from '../components/MainLayout.vue'
 import Dashboard from '../views/Dashboard.vue'
 
 const router = createRouter({
@@ -12,33 +13,35 @@ const router = createRouter({
     },
     {
       path: '/',
-      name: 'Dashboard',
-      component: Dashboard,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/users',
-      name: 'Users',
-      component: () => import('../views/Users.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/customers',
-      name: 'Customers',
-      component: () => import('../views/Customers.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/settings',
-      name: 'Settings',
-      component: () => import('../views/Settings.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/connections',
-      name: 'Connections',
-      component: () => import('../views/Connections.vue'),
-      meta: { requiresAuth: true }
+      component: MainLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'Dashboard',
+          component: Dashboard
+        },
+        {
+          path: 'users',
+          name: 'Users',
+          component: () => import('../views/Users.vue')
+        },
+        {
+          path: 'customers',
+          name: 'Customers',
+          component: () => import('../views/Customers.vue')
+        },
+        {
+          path: 'settings',
+          name: 'Settings',
+          component: () => import('../views/Settings.vue')
+        },
+        {
+          path: 'connections',
+          name: 'Connections',
+          component: () => import('../views/Connections.vue')
+        }
+      ]
     }
   ]
 })

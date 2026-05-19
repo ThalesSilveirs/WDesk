@@ -1,31 +1,5 @@
 <template>
-  <div class="connections-page animate-fade-in">
-    <aside class="mini-sidebar glass-effect">
-      <router-link to="/" class="nav-item">
-        <MessageCircleIcon :size="24" />
-      </router-link>
-      <router-link to="/customers" class="nav-item">
-        <ContactIcon :size="24" />
-      </router-link>
-      <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-item">
-        <UsersIcon :size="24" />
-      </router-link>
-      <router-link v-if="chatStore.userRole === 'admin'" to="/connections" class="nav-item active">
-        <WifiIcon :size="24" />
-      </router-link>
-      <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-item">
-        <SettingsIcon :size="24" />
-      </router-link>
-      <div class="bottom-actions">
-        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
-          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
-          <MoonIcon v-else :size="24" />
-        </button>
-        <button @click="logout" class="nav-item logout">
-          <LogOutIcon :size="24" />
-        </button>
-      </div>
-    </aside>
+  <div class="connections-page-container animate-fade-in">
 
     <main class="connections-content">
       <header class="page-header glass-effect">
@@ -171,17 +145,10 @@ import {
   Plus as PlusIcon,
   Trash2 as TrashIcon,
   QrCode as QrCodeIcon,
-  LogOut as LogOutIcon,
-  MessageCircle as MessageCircleIcon,
-  Users as UsersIcon,
-  Settings as SettingsIcon,
-  Contact as ContactIcon,
   X as XIcon,
   Loader as LoaderIcon,
   RefreshCw as RefreshIcon,
-  Zap as ZapIcon,
-  Sun as SunIcon,
-  Moon as MoonIcon
+  Zap as ZapIcon
 } from 'lucide-vue-next'
 import axios from 'axios'
 
@@ -294,10 +261,7 @@ const disconnect = async (id) => {
   }
 }
 
-const logout = () => {
-  localStorage.removeItem('token')
-  router.push('/login')
-}
+
 
 const handleConnectionUpdate = (event) => {
   const updatedConn = event.detail
@@ -330,46 +294,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.connections-page {
+.connections-page-container {
+  flex: 1;
   display: flex;
-  height: 100vh;
-  background: var(--bg-dark);
-  color: var(--text-primary);
-}
-
-.mini-sidebar {
-  width: 70px;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 0;
-  gap: 20px;
-}
-
-.nav-item {
-  color: var(--text-secondary);
-  padding: 12px;
-  border-radius: 12px;
-  transition: all 0.2s;
-}
-
-.nav-item:hover, .nav-item.active {
-  background: var(--accent);
-  color: white;
-}
-
-.logout { color: #ef4444; border: none; background: none; cursor: pointer; }
-.theme-toggle { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
-.theme-toggle:hover { color: var(--accent); }
-
-.bottom-actions {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  overflow: hidden;
+  height: 100%;
 }
 
 .connections-content {
