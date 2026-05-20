@@ -477,12 +477,14 @@ class ConnectionViewSet(TenantModelViewSet):
                 webhook_url = f"http://backend:8000/api/v1/webhooks/evolution"
                 webhook_payload = {
                     "url": webhook_url,
+                    "webhook": webhook_url,
                     "enabled": True,
-                    "events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "Message", "READ_RECEIPT", "PRESENCE", "HISTORY_SYNC", "CHAT_PRESENCE", "CALL", "CONNECTION", "QRCODE"]
+                    "events": ["MESSAGE", "MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "Message", "READ_RECEIPT", "PRESENCE", "HISTORY_SYNC", "CHAT_PRESENCE", "CALL", "CONNECTION", "QRCODE"]
                 }
                 
                 # Tenta endpoints de atualização de instância (comum na Evolution GO)
                 webhook_endpoints = [
+                    f"{creds['url']}/webhook/set/{connection.instance_name}",
                     f"{creds['url']}/instance/update/{connection.instance_name}",
                     f"{creds['url']}/instance/set/{connection.instance_name}",
                     f"{creds['url']}/instance/settings/{connection.instance_name}"
@@ -515,7 +517,7 @@ class ConnectionViewSet(TenantModelViewSet):
                         )
                         cur = conn.cursor()
                         # Lista otimizada de eventos para Evolution GO
-                        event_list = "Message,GroupInfo,Chat,Connection,MESSAGES_UPSERT,MESSAGES_UPDATE,SEND_MESSAGE,CONNECTION_UPDATE,READ_RECEIPT,PRESENCE,HISTORY_SYNC,CHAT_PRESENCE,CALL,QRCODE"
+                        event_list = "MESSAGE,Message,GroupInfo,Chat,Connection,MESSAGES_UPSERT,MESSAGES_UPDATE,SEND_MESSAGE,CONNECTION_UPDATE,READ_RECEIPT,PRESENCE,HISTORY_SYNC,CHAT_PRESENCE,CALL,QRCODE"
                         cur.execute("UPDATE instances SET webhook = %s, events = %s WHERE name = %s;", 
                                     (webhook_url, event_list, connection.instance_name))
                         conn.commit()
@@ -543,7 +545,7 @@ class ConnectionViewSet(TenantModelViewSet):
                         adv_payload = {
                             "webhook": webhook_url,
                             "webhook_enabled": True,
-                            "webhook_events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "Message", "READ_RECEIPT", "PRESENCE", "HISTORY_SYNC", "CHAT_PRESENCE", "CALL", "CONNECTION", "QRCODE"]
+                            "webhook_events": ["MESSAGE", "MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "Message", "READ_RECEIPT", "PRESENCE", "HISTORY_SYNC", "CHAT_PRESENCE", "CALL", "CONNECTION", "QRCODE"]
                         }
                         # Tenta com o token da instância, o token mestre do banco e depois com a chave global
                         tokens_to_try = [
