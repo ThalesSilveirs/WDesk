@@ -37,7 +37,7 @@ const router = useRouter()
 const chatStore = useChatStore()
 
 const handleLogin = async () => {
-  loading.ref = true
+  loading.value = true
   try {
     await chatStore.login(username.value, password.value)
     router.push('/')
