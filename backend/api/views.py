@@ -735,12 +735,12 @@ class WebhookView(viewsets.ViewSet):
                 info = msg_item.get('Info', {}) or msg_item.get('key', {}) or {}
                 message_content = msg_item.get('Message', {}) or msg_item.get('message', {}) or {}
                 
-                # # Salva em arquivo para diagnóstico - grava payload COMPLETO
-                # try:
-                #     with open('/app/webhook_structure.json', 'w') as f:
-                #         json.dump({'full_data': dict(data), 'msg_item': msg_item}, f, indent=2, default=str)
-                # except:
-                #     pass
+                # Salva em arquivo para diagnóstico - grava payload COMPLETO
+                try:
+                    with open('/app/webhook_structure.json', 'w') as f:
+                        json.dump({'full_data': dict(data), 'msg_item': msg_item}, f, indent=2, default=str)
+                except Exception as e:
+                    print(f"Erro ao salvar debug json: {e}")
                 print(f"[WEBHOOK MSG_ITEM] {json.dumps(msg_item, default=str)[:500]}")
                 
                 # Busca exaustiva pelo corpo da mensagem
