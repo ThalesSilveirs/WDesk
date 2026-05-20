@@ -811,19 +811,19 @@ class WebhookView(viewsets.ViewSet):
                 stk_obj = actual_msg.get('stickerMessage') or actual_msg.get('StickerMessage')
 
                 if img_obj:
-                    media_type, media_url = 'image', img_obj.get('url') or img_obj.get('base64')
+                    media_type, media_url = 'image', img_obj.get('base64') or img_obj.get('url')
                     mimetype = img_obj.get('mimetype') or 'image/jpeg'
                 elif vid_obj:
-                    media_type, media_url = 'video', vid_obj.get('url') or vid_obj.get('base64')
+                    media_type, media_url = 'video', vid_obj.get('base64') or vid_obj.get('url')
                     mimetype = vid_obj.get('mimetype') or 'video/mp4'
                 elif aud_obj:
-                    media_type, media_url = 'audio', aud_obj.get('url') or aud_obj.get('base64')
+                    media_type, media_url = 'audio', aud_obj.get('base64') or aud_obj.get('url')
                     mimetype = aud_obj.get('mimetype') or 'audio/mp4'
                 elif doc_obj:
-                    media_type, media_url = 'document', doc_obj.get('url') or doc_obj.get('base64')
+                    media_type, media_url = 'document', doc_obj.get('base64') or doc_obj.get('url')
                     mimetype = doc_obj.get('mimetype') or 'application/pdf'
                 elif stk_obj:
-                    media_type, media_url = 'image', stk_obj.get('url') or stk_obj.get('base64')
+                    media_type, media_url = 'image', stk_obj.get('base64') or stk_obj.get('url')
                     mimetype = stk_obj.get('mimetype') or 'image/webp'
                 
                 if not media_type:
@@ -834,17 +834,10 @@ class WebhookView(viewsets.ViewSet):
                     elif 'document' in raw_type: media_type = 'document'
                 
                 if not media_url:
-                    media_url = msg_item.get('url') or msg_item.get('base64') or msg_item.get('content')
+                    media_url = msg_item.get('base64') or msg_item.get('url') or msg_item.get('content')
                 
                 if not mimetype:
                     mimetype = actual_msg.get('mimetype') or 'image/jpeg'
-                
-                if media_url and not str(media_url).startswith('http') and not str(media_url).startswith('data:'):
-                    clean_base64 = str(media_url).replace('\n', '').replace('\r', '').strip()
-                    media_url = f"data:{mimetype};base64,{clean_base64}"
-                
-                if not body and not media_url:
-                    continue
 
                 # --- BUSCA CONEXÃO ---
                 from django.db.models import Q
@@ -857,6 +850,63 @@ class WebhookView(viewsets.ViewSet):
                 
                 if not connection:
                     print(f"DEBUG: Connection not found for instance='{instance_name}'")
+                    continue
+
+                # --- DOWNLOAD DE MÍDIA DA EVOLUTION API ---
+                is_whatsapp_cdn = media_url and 'whatsapp.net' in str(media_url)
+                if media_type and (not media_url or is_whatsapp_cdn or not str(media_url).startswith('data:')):
+                    try:
+                        evo_url = connection.company.evolution_api_url or settings.EVOLUTION_API_URL
+                        evo_key = connection.company.evolution_api_key or settings.EVOLUTION_API_KEY
+                        
+                        # Tenta buscar o token real diretamente no banco da Evolution
+                        try:
+                            import psycopg2
+                            db_conn = psycopg2.connect(dbname="evogo_users", user="postgres", password="postgres", host="db")
+                            db_cur = db_conn.cursor()
+                            db_cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
+                            db_row = db_cur.fetchone()
+                            if db_row: evo_key = db_row[0]
+                            db_cur.close()
+                            db_conn.close()
+                        except:
+                            pass
+
+                        headers = {
+                            "Content-Type": "application/json",
+                            "apikey": evo_key
+                        }
+                        payload = {
+                            "message": {
+                                "key": {
+                                    "id": msg_id,
+                                    "remoteJid": remote_jid,
+                                    "fromMe": from_me
+                                }
+                            },
+                            "convertToMp4": False
+                        }
+                        download_url = f"{evo_url}/chat/getBase64FromMediaMessage/{connection.instance_name}"
+                        print(f"[WEBHOOK MEDIA] Tentando baixar mídia da URL: {download_url} para msg {msg_id}")
+                        res = requests.post(download_url, json=payload, headers=headers, timeout=10)
+                        if res.status_code == 200:
+                            res_data = res.json()
+                            base64_result = res_data.get('base64')
+                            if base64_result:
+                                media_url = base64_result
+                                print(f"[WEBHOOK MEDIA] Mídia baixada com sucesso. Tamanho: {len(media_url)} caracteres.")
+                            else:
+                                print(f"[WEBHOOK MEDIA] Resposta 200 mas sem campo 'base64' no JSON: {res.text[:200]}")
+                        else:
+                            print(f"[WEBHOOK MEDIA] Erro ao baixar mídia (Status {res.status_code}): {res.text[:200]}")
+                    except Exception as media_err:
+                        print(f"[WEBHOOK MEDIA] Falha na chamada da Evolution API: {str(media_err)}")
+                
+                if media_url and not str(media_url).startswith('http') and not str(media_url).startswith('data:'):
+                    clean_base64 = str(media_url).replace('\n', '').replace('\r', '').strip()
+                    media_url = f"data:{mimetype};base64,{clean_base64}"
+                
+                if not body and not media_url:
                     continue
 
                 # 1. Cria/Recupera Contato
