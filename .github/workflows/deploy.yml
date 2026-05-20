@@ -20,7 +20,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ./WDesk
-            git reset --hard
-            git pull https://ThalesSilveirs:${{ secrets.MY_GITHUB_TOKEN }}@github.com/ThalesSilveirs/WDesk.git main
+            git fetch https://ThalesSilveirs:${{ secrets.MY_GITHUB_TOKEN }}@github.com/ThalesSilveirs/WDesk.git main
+            git reset --hard FETCH_HEAD
             docker compose down
             docker compose up -d --build

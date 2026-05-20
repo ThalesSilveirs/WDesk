@@ -122,7 +122,9 @@ export const useChatStore = defineStore('chat', {
 
       this.requestNotificationPermission()
 
-      const socketUrl = `${window.location.protocol}//${window.location.hostname}:3000`
+      const socketUrl = window.location.port === '5173'
+        ? `${window.location.protocol}//${window.location.hostname}:3000`
+        : window.location.origin
       this.socket = io(socketUrl, {
         auth: { token },
         transports: ['websocket']
