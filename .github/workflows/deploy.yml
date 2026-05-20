@@ -20,6 +20,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ./WDesk
-            git pull https://ThalesSilveirs:${{ secrets.MY_GITHUB_TOKEN }}@github.com/ThalesSilveirs/BotPromoSul.git main
+            git pull https://ThalesSilveirs:${{ secrets.MY_GITHUB_TOKEN }}@github.com/ThalesSilveirs/WDesk.git main
             docker compose down
             docker compose up -d --build
