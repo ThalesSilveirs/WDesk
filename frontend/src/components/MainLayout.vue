@@ -27,6 +27,7 @@ onMounted(() => {
 .app-layout {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   background: var(--bg-dark);
   color: var(--text-primary);
   overflow: hidden;
@@ -46,6 +47,7 @@ onMounted(() => {
   }
   .main-content-wrapper {
     height: calc(100vh - 60px);
+    height: calc(100dvh - 60px);
   }
 }
 </style>
