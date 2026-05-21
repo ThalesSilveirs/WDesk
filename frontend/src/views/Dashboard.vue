@@ -415,6 +415,11 @@ onMounted(() => {
     display: none;
   }
 
+  .dashboard-content.has-active-ticket .chat-area {
+    display: flex;
+    width: 100%;
+  }
+
   .dashboard-content.has-crm-open :deep(.crm-sidebar) {
     position: absolute;
     top: 0;
