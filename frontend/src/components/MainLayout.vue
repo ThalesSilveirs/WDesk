@@ -1,11 +1,13 @@
 <template>
   <div class="app-layout">
     <Sidebar />
-    <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
+    <div class="main-content-wrapper">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </div>
   </div>
 </template>
 
@@ -30,9 +32,20 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.main-content-wrapper {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column-reverse;
+  }
+  .main-content-wrapper {
+    height: calc(100vh - 60px);
   }
 }
 </style>

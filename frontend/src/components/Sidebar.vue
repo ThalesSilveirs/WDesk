@@ -1,32 +1,35 @@
 <template>
-  <aside class="mini-sidebar glass-effect">
-    <div class="logo-wrapper">
-      <img src="/favicon.png" alt="WDesk Favicon" class="app-logo" />
-    </div>
-    <router-link to="/" class="nav-item" exact-active-class="active" title="Atendimentos">
-      <MessageCircleIcon :size="24" />
-    </router-link>
-    <router-link to="/customers" class="nav-item" active-class="active" title="Clientes">
-      <ContactIcon :size="24" />
-    </router-link>
-    <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-item" active-class="active" title="Equipe">
-      <UsersIcon :size="24" />
-    </router-link>
-    <router-link v-if="chatStore.userRole === 'admin'" to="/connections" class="nav-item" active-class="active" title="Conexões">
-      <WifiIcon :size="24" />
-    </router-link>
-    <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-item" active-class="active" title="Configurações">
-      <SettingsIcon :size="24" />
-    </router-link>
-    <div class="bottom-actions">
-      <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
-        <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
-        <MoonIcon v-else :size="24" />
-      </button>
-      <button @click="showLogoutModal = true" class="nav-item logout" title="Sair">
-        <LogOutIcon :size="24" />
-      </button>
-    </div>
+  <div class="sidebar-container">
+    <aside class="mini-sidebar glass-effect">
+      <div class="logo-wrapper">
+        <img src="/favicon.png" alt="WDesk Favicon" class="app-logo" />
+      </div>
+      <router-link to="/" class="nav-item" exact-active-class="active" title="Atendimentos">
+        <MessageCircleIcon :size="24" />
+      </router-link>
+      <router-link to="/customers" class="nav-item" active-class="active" title="Clientes">
+        <ContactIcon :size="24" />
+      </router-link>
+      <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-item" active-class="active" title="Equipe">
+        <UsersIcon :size="24" />
+      </router-link>
+      <router-link v-if="chatStore.userRole === 'admin'" to="/connections" class="nav-item" active-class="active" title="Conexões">
+        <WifiIcon :size="24" />
+      </router-link>
+      <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-item" active-class="active" title="Configurações">
+        <SettingsIcon :size="24" />
+      </router-link>
+      <div class="bottom-actions">
+        <button @click="chatStore.toggleTheme" class="nav-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
+          <SunIcon v-if="chatStore.theme === 'dark'" :size="24" />
+          <MoonIcon v-else :size="24" />
+        </button>
+        <button @click="showLogoutModal = true" class="nav-item logout" title="Sair">
+          <LogOutIcon :size="24" />
+        </button>
+      </div>
+    </aside>
+
     <!-- Modal de Logout -->
     <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
       <div class="modal-content glass-effect small-modal" @click.stop>
@@ -38,7 +41,7 @@
         </div>
       </div>
     </div>
-  </aside>
+  </div>
 </template>
 
 <script setup>
@@ -67,8 +70,15 @@ const logout = () => {
 </script>
 
 <style scoped>
-.mini-sidebar {
+.sidebar-container {
   width: 70px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.mini-sidebar {
+  width: 100%;
+  height: 100%;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
@@ -76,8 +86,6 @@ const logout = () => {
   align-items: center;
   padding: 20px 0;
   gap: 20px;
-  flex-shrink: 0;
-  height: 100%;
 }
 
 .logo-wrapper {
@@ -145,16 +153,21 @@ const logout = () => {
 }
 
 @media (max-width: 768px) {
-  .mini-sidebar {
+  .sidebar-container {
     width: 100%;
     height: 60px;
+    flex-shrink: 0;
+    z-index: 50;
+  }
+  .mini-sidebar {
+    width: 100%;
+    height: 100%;
     flex-direction: row;
     border-right: none;
     border-top: 1px solid var(--border);
     padding: 0 10px;
     justify-content: space-between;
     gap: 5px;
-    z-index: 50;
   }
   .logo-wrapper {
     display: none;
