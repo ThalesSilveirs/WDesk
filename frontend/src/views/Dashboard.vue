@@ -179,7 +179,7 @@ onMounted(() => {
 .dashboard-content {
   display: flex;
   flex: 1;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 

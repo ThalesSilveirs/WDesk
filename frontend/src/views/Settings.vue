@@ -483,4 +483,56 @@ onMounted(fetchSettings)
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+@media (max-width: 768px) {
+  .settings-content {
+    padding: 20px;
+  }
+  .settings-header {
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .header-title h1 {
+    font-size: 1.4rem;
+  }
+  .settings-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .settings-section {
+    padding: 20px;
+  }
+  .readonly-box {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .readonly-box code {
+    word-break: break-all;
+    text-align: center;
+  }
+  .copy-btn {
+    align-self: center;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  .btn-primary {
+    justify-content: center;
+  }
+  .danger-item {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  .btn-danger {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>

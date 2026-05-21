@@ -27,19 +27,18 @@
         <LogOutIcon :size="24" />
       </button>
     </div>
-  </aside>
-
-  <!-- Modal de Logout -->
-  <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
-    <div class="modal-content glass-effect small-modal" @click.stop>
-      <h2>Sair do Sistema</h2>
-      <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
-      <div class="modal-actions">
-        <button @click="showLogoutModal = false" class="cancel-btn">Cancelar</button>
-        <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+    <!-- Modal de Logout -->
+    <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
+      <div class="modal-content glass-effect small-modal" @click.stop>
+        <h2>Sair do Sistema</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
+        <div class="modal-actions">
+          <button @click="showLogoutModal = false" class="cancel-btn">Cancelar</button>
+          <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+        </div>
       </div>
     </div>
-  </div>
+  </aside>
 </template>
 
 <script setup>

@@ -1,5 +1,5 @@
 <template>
-
+  <div class="customers-page-container">
     <main class="main-content">
       <header class="page-header glass-effect">
         <div class="header-info">
@@ -148,7 +148,8 @@
         </div>
       </div>
     </div>
-  </template>
+  </div>
+</template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
@@ -319,6 +320,14 @@ onMounted(fetchCustomers)
 
 <style scoped>
 
+
+.customers-page-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
 
 .main-content {
   flex: 1;
@@ -638,4 +647,40 @@ onMounted(fetchCustomers)
 }
 
 .empty-mini { text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 20px; }
+
+@media (max-width: 768px) {
+  .page-header {
+    padding: 15px 20px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .search-bar {
+    width: 100%;
+  }
+  .btn-primary {
+    justify-content: center;
+  }
+  .content-wrapper {
+    padding: 15px;
+  }
+  .customers-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .modal-content {
+    padding: 20px;
+    border-radius: 20px;
+    width: 90%;
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+}
 </style>

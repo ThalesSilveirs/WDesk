@@ -506,4 +506,43 @@ onUnmounted(() => {
   50% { opacity: 0.5; transform: scale(1.2); }
   100% { opacity: 1; transform: scale(1); }
 }
+
+@media (max-width: 768px) {
+  .connections-content {
+    padding: 20px;
+  }
+  .page-header {
+    padding: 15px 20px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  .header-info h1 {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  .header-info p {
+    text-align: center;
+  }
+  .btn-primary {
+    justify-content: center;
+  }
+  .connections-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .premium-modal {
+    width: 95%;
+  }
+  .modal-header {
+    padding: 15px;
+  }
+  .modal-body {
+    padding: 15px;
+  }
+  .modal-footer {
+    padding: 15px;
+  }
+}
 </style>

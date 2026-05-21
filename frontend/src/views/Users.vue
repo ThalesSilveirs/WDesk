@@ -1,5 +1,5 @@
 <template>
-
+  <div class="users-page-container">
     <main class="users-content">
       <header class="content-header">
         <h1>Gerenciamento de Equipe</h1>
@@ -55,6 +55,7 @@
         </form>
       </div>
     </div>
+  </div>
 </template>
 
 <script setup>
@@ -137,6 +138,14 @@ onMounted(fetchUsers)
 </script>
 
 <style scoped>
+.users-page-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
 .users-content {
   flex: 1;
   padding: 40px;
@@ -259,5 +268,36 @@ onMounted(fetchUsers)
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .users-content {
+    padding: 20px;
+  }
+  .content-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  .content-header h1 {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  .add-btn {
+    justify-content: center;
+  }
+  .users-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .modal-content {
+    width: 90%;
+    padding: 20px;
+  }
+  .form-row {
+    flex-direction: column;
+    gap: 15px;
+  }
 }
 </style>

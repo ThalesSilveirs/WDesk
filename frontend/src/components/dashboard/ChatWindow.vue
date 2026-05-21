@@ -121,7 +121,8 @@ import {
   ArrowRightLeft as TransferIcon, 
   FileText as FileIcon, 
   Plus as PlusIcon, 
-  Send as SendIcon 
+  Send as SendIcon,
+  ChevronLeft as ChevronLeftIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -140,6 +141,10 @@ const chatStore = useChatStore()
 const newMessage = ref('')
 const messageRef = ref(null)
 const fileInput = ref(null)
+
+const goBack = () => {
+  chatStore.activeTicket = null
+}
 
 const handleAccept = async () => {
   if (!chatStore.activeTicket) return
