@@ -1,7 +1,9 @@
 <template>
-  <div class="dashboard-content">
+  <div class="dashboard-content" :class="{ 'has-active-ticket': !!chatStore.activeTicket, 'has-crm-open': showCRM }">
     <!-- Sidebar -->
-    <TicketSidebar />
+    <div class="sidebar-wrapper" :class="{ 'hidden-on-mobile': !!chatStore.activeTicket }">
+      <TicketSidebar />
+    </div>
 
     <!-- Chat Area -->
     <main class="chat-area" :class="{ 'with-crm': showCRM }">
@@ -403,12 +405,12 @@ onMounted(() => {
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
-  .dashboard-content {
-    flex-direction: column;
+  .sidebar-wrapper {
+    width: 100%;
+    display: flex;
   }
-
-  .dashboard-content.has-active-ticket :deep(.sidebar) {
-    display: none;
+  .sidebar-wrapper.hidden-on-mobile {
+    display: none !important;
   }
 
   .dashboard-content:not(.has-active-ticket) .chat-area {

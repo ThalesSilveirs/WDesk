@@ -29,4 +29,10 @@ onMounted(() => {
   color: var(--text-primary);
   overflow: hidden;
 }
+
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column-reverse;
+  }
+}
 </style>

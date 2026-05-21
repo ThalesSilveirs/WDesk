@@ -145,6 +145,31 @@ const logout = () => {
   gap: 10px;
 }
 
+@media (max-width: 768px) {
+  .mini-sidebar {
+    width: 100%;
+    height: 60px;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    padding: 0 10px;
+    justify-content: space-between;
+    gap: 5px;
+    z-index: 50;
+  }
+  .logo-wrapper {
+    display: none;
+  }
+  .bottom-actions {
+    flex-direction: row;
+    margin-top: 0;
+    gap: 5px;
+  }
+  .nav-item {
+    padding: 8px;
+  }
+}
+
 /* Modais */
 .modal-overlay {
   position: fixed;
