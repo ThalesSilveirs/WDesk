@@ -188,7 +188,10 @@ class TicketViewSet(TenantModelViewSet):
         evo_token = ticket.company.evolution_api_key or settings.EVOLUTION_API_KEY
         try:
             import psycopg2
-            conn = psycopg2.connect(dbname="evogo_users", user="postgres", password="postgres", host="db")
+            import os
+            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
+            db_host = os.environ.get('DB_HOST', 'db')
+            conn = psycopg2.connect(dbname="evogo_users", user="postgres", password=db_pass, host=db_host)
             cur = conn.cursor()
             cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
             row = cur.fetchone()
@@ -271,11 +274,14 @@ class TicketViewSet(TenantModelViewSet):
         evo_token = "your-token-here"
         try:
             import psycopg2
+            import os
+            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
+            db_host = os.environ.get('DB_HOST', 'db')
             conn = psycopg2.connect(
                 dbname="evogo_users",
                 user="postgres",
-                password="postgres",
-                host="db"
+                password=db_pass,
+                host=db_host
             )
             cur = conn.cursor()
             cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
@@ -508,13 +514,9 @@ class ConnectionViewSet(TenantModelViewSet):
                     try:
                         import psycopg2
                         import os
+                        db_pass = os.environ.get('DB_PASSWORD', 'postgres')
                         db_host = os.environ.get('DB_HOST', 'db')
-                        conn = psycopg2.connect(
-                            dbname="evogo_users",
-                            user="postgres",
-                            password="postgres",
-                            host=db_host
-                        )
+                        conn = psycopg2.connect(dbname="evogo_users", user="postgres", password=db_pass, host=db_host)
                         cur = conn.cursor()
                         # Lista otimizada de eventos para Evolution GO
                         event_list = "MESSAGE,Message,GroupInfo,Chat,Connection,MESSAGES_UPSERT,MESSAGES_UPDATE,SEND_MESSAGE,CONNECTION_UPDATE,READ_RECEIPT,PRESENCE,HISTORY_SYNC,CHAT_PRESENCE,CALL,QRCODE"
@@ -862,7 +864,10 @@ class WebhookView(viewsets.ViewSet):
                         # Tenta buscar o token real diretamente no banco da Evolution
                         try:
                             import psycopg2
-                            db_conn = psycopg2.connect(dbname="evogo_users", user="postgres", password="postgres", host="db")
+                            import os
+                            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
+                            db_host = os.environ.get('DB_HOST', 'db')
+                            db_conn = psycopg2.connect(dbname="evogo_users", user="postgres", password=db_pass, host=db_host)
                             db_cur = db_conn.cursor()
                             db_cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
                             db_row = db_cur.fetchone()
@@ -874,7 +879,10 @@ class WebhookView(viewsets.ViewSet):
 
                         headers = {
                             "Content-Type": "application/json",
-                            "apikey": evo_key
+                            "apikey": evo_key,
+                            "ApiKey": evo_key,
+                            "api-key": evo_key,
+                            "Authorization": f"Bearer {evo_key}"
                         }
                         payload = {
                             "message": {
@@ -889,6 +897,19 @@ class WebhookView(viewsets.ViewSet):
                         download_url = f"{evo_url}/chat/getBase64FromMediaMessage/{connection.instance_name}"
                         print(f"[WEBHOOK MEDIA] Tentando baixar mídia da URL: {download_url} para msg {msg_id}")
                         res = requests.post(download_url, json=payload, headers=headers, timeout=10)
+                        if res.status_code != 200:
+                            # Fallback para o payload simplificado com apenas o id
+                            fallback_payload = {
+                                "message": {
+                                    "key": {
+                                        "id": msg_id
+                                    }
+                                },
+                                "convertToMp4": False
+                            }
+                            print(f"[WEBHOOK MEDIA] Chamada inicial falhou (Status {res.status_code}). Tentando payload simplificado...")
+                            res = requests.post(download_url, json=fallback_payload, headers=headers, timeout=10)
+                        
                         if res.status_code == 200:
                             res_data = res.json()
                             base64_result = res_data.get('base64')
