@@ -812,34 +812,60 @@ class WebhookView(viewsets.ViewSet):
                 doc_obj = actual_msg.get('documentMessage') or actual_msg.get('DocumentMessage')
                 stk_obj = actual_msg.get('stickerMessage') or actual_msg.get('StickerMessage')
 
+                # Obtém o tipo de mídia e mimetype
                 if img_obj:
-                    media_type, media_url = 'image', img_obj.get('base64') or img_obj.get('url')
+                    media_type = 'image'
                     mimetype = img_obj.get('mimetype') or 'image/jpeg'
                 elif vid_obj:
-                    media_type, media_url = 'video', vid_obj.get('base64') or vid_obj.get('url')
+                    media_type = 'video'
                     mimetype = vid_obj.get('mimetype') or 'video/mp4'
                 elif aud_obj:
-                    media_type, media_url = 'audio', aud_obj.get('base64') or aud_obj.get('url')
+                    media_type = 'audio'
                     mimetype = aud_obj.get('mimetype') or 'audio/mp4'
                 elif doc_obj:
-                    media_type, media_url = 'document', doc_obj.get('base64') or doc_obj.get('url')
+                    media_type = 'document'
                     mimetype = doc_obj.get('mimetype') or 'application/pdf'
                 elif stk_obj:
-                    media_type, media_url = 'image', stk_obj.get('base64') or stk_obj.get('url')
+                    media_type = 'image'
                     mimetype = stk_obj.get('mimetype') or 'image/webp'
-                
+                else:
+                    media_type = None
+
+                if not mimetype:
+                    mimetype = actual_msg.get('mimetype') or 'image/jpeg'
+
+                # Captura o base64 enviado na payload se disponível (Evolution Go envia direto no message.base64 ou msg_item.base64)
+                payload_base64 = actual_msg.get('base64') or msg_item.get('base64')
+                if payload_base64:
+                    # Se for a string base64 pura (não começar com data:), formata como data URI
+                    if not str(payload_base64).startswith('data:'):
+                        payload_base64 = f"data:{mimetype};base64,{payload_base64}"
+                    media_url = payload_base64
+                else:
+                    media_url = None
+
+                # Fallback de urls/base64 caso não estivesse no pai
+                if not media_url:
+                    if img_obj:
+                        media_url = img_obj.get('base64') or img_obj.get('url')
+                    elif vid_obj:
+                        media_url = vid_obj.get('base64') or vid_obj.get('url')
+                    elif aud_obj:
+                        media_url = aud_obj.get('base64') or aud_obj.get('url')
+                    elif doc_obj:
+                        media_url = doc_obj.get('base64') or doc_obj.get('url')
+                    elif stk_obj:
+                        media_url = stk_obj.get('base64') or stk_obj.get('url')
+
                 if not media_type:
                     raw_type = str(msg_item.get('type') or info.get('MediaType') or info.get('Type') or '').lower()
                     if 'image' in raw_type: media_type = 'image'
                     elif 'video' in raw_type: media_type = 'video'
                     elif 'audio' in raw_type: media_type = 'audio'
                     elif 'document' in raw_type: media_type = 'document'
-                
+
                 if not media_url:
                     media_url = msg_item.get('base64') or msg_item.get('url') or msg_item.get('content')
-                
-                if not mimetype:
-                    mimetype = actual_msg.get('mimetype') or 'image/jpeg'
 
                 # --- BUSCA CONEXÃO ---
                 from django.db.models import Q
