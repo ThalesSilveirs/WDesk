@@ -3,7 +3,7 @@
     <!-- Top Header Bar -->
     <header class="dashboard-header glass-effect">
       <div class="header-left">
-        <h1>Agent Dashboard</h1>
+        <h1>Painel do Agente</h1>
         <div class="status-dropdown">
           <button @click="showStatusMenu = !showStatusMenu" class="status-btn" :class="currentStatus">
             <span class="status-dot"></span>
@@ -36,14 +36,18 @@
         <button class="header-icon-btn" title="Histórico">
           <HistoryIcon :size="20" />
         </button>
+        
+        <!-- Logged In User Profile -->
         <div class="profile-avatar">
-          <img src="/favicon.png" alt="Profile" />
-          <span class="profile-name">Alex Chen</span>
+          <div class="profile-initials">
+            {{ userInitials }}
+          </div>
+          <span class="profile-name">{{ userDisplayName }}</span>
         </div>
       </div>
     </header>
 
-    <!-- Dashboard Content Grid -->
+    <!-- Dashboard Grid -->
     <div class="dashboard-grid">
       <!-- Row 1: Instance Status & Quick Actions -->
       <div class="row-top">
@@ -62,21 +66,21 @@
             </span>
             <button @click="verifyInstance" class="btn-verify" :disabled="verifying">
               <RefreshCwIcon :class="{'animate-spin': verifying}" :size="16" />
-              <span>{{ verifying ? 'Verificando...' : 'Verify Instance' }}</span>
+              <span>{{ verifying ? 'Verificando...' : 'Verificar Instância' }}</span>
             </button>
           </div>
           <div class="widget-metrics">
             <div class="metric-item">
               <LatencyIcon :size="16" />
               <div class="metric-text">
-                <span>API Latency:</span>
+                <span>Latência da API:</span>
                 <strong>{{ stats.connection?.latency || '0ms' }}</strong>
               </div>
             </div>
             <div class="metric-item">
               <ProtocolIcon :size="16" />
               <div class="metric-text">
-                <span>Protocol:</span>
+                <span>Protocolo:</span>
                 <strong>{{ stats.connection?.protocol || 'HTTP REST' }}</strong>
               </div>
             </div>
@@ -85,16 +89,16 @@
 
         <!-- Quick Actions Card -->
         <div class="widget-card glass-effect quick-actions-card">
-          <h4>QUICK ACTIONS</h4>
+          <h4>AÇÕES RÁPIDAS</h4>
           <div class="actions-buttons">
             <button @click="openBroadcast" class="quick-btn broadcast">
               <MegaphoneIcon :size="18" />
-              <span>New Broadcast</span>
+              <span>Nova Transmissão</span>
               <ChevronRightIcon :size="16" class="arrow" />
             </button>
             <button @click="downloadReport" class="quick-btn report">
               <FileSpreadsheetIcon :size="18" />
-              <span>Generate Report</span>
+              <span>Gerar Relatório</span>
               <ChevronRightIcon :size="16" class="arrow" />
             </button>
           </div>
@@ -112,9 +116,9 @@
             <span class="trend-badge positive">+12%</span>
           </div>
           <div class="card-body-row">
-            <span class="label">ACTIVE CHATS</span>
+            <span class="label">ATENDIMENTOS ATIVOS</span>
             <h2>{{ stats.active_chats || 0 }}</h2>
-            <span class="subtext">Live now</span>
+            <span class="subtext">Ativos agora</span>
             <div class="progress-bar">
               <div class="progress-fill green" style="width: 65%"></div>
             </div>
@@ -130,7 +134,7 @@
             <span class="trend-badge negative">-2m</span>
           </div>
           <div class="card-body-row">
-            <span class="label">AVG RESPONSE TIME</span>
+            <span class="label">TEMPO MÉDIO DE RESPOSTA</span>
             <h2>{{ stats.avg_response_time || '4m 12s' }}</h2>
             <div class="mini-bar-chart">
               <div class="chart-bar" style="height: 40%"></div>
@@ -149,10 +153,10 @@
             <div class="icon-box green">
               <ShieldCheckIcon :size="20" />
             </div>
-            <span class="target-label">Target 95%</span>
+            <span class="target-label">Meta: 95%</span>
           </div>
           <div class="card-body-row">
-            <span class="label">RESOLUTION RATE</span>
+            <span class="label">TAXA DE RESOLUÇÃO</span>
             <h2>{{ stats.resolution_rate || 92.4 }}%</h2>
             <div class="segmented-progress">
               <div class="segment active"></div>
@@ -176,9 +180,9 @@
             <TrendingUpIcon :size="18" class="trend-icon" />
           </div>
           <div class="card-body-row">
-            <span class="label">MESSAGES SENT TODAY</span>
+            <span class="label">MENSAGENS ENVIADAS HOJE</span>
             <h2>{{ stats.messages_sent_today || 0 }}</h2>
-            <span class="subtext">Peak hours: 10:00 AM - 2:00 PM</span>
+            <span class="subtext">Pico: 10h - 14h</span>
           </div>
         </div>
       </div>
@@ -188,10 +192,10 @@
         <!-- Chart Widget -->
         <div class="widget-card glass-effect chart-widget">
           <div class="chart-header">
-            <h4>Conversation Trends</h4>
+            <h4>Evolução de Conversas</h4>
             <div class="toggle-group">
-              <button :class="{ active: chartRange === '7' }" @click="chartRange = '7'">7 Days</button>
-              <button :class="{ active: chartRange === '30' }" @click="chartRange = '30'">30 Days</button>
+              <button :class="{ active: chartRange === '7' }" @click="chartRange = '7'">7 Dias</button>
+              <button :class="{ active: chartRange === '30' }" @click="chartRange = '30'">30 Dias</button>
             </div>
           </div>
           <div class="chart-container">
@@ -214,8 +218,8 @@
         <!-- Team Activity Widget -->
         <div class="widget-card glass-effect team-widget">
           <div class="team-header">
-            <h4>Team Activity</h4>
-            <span class="active-badge">{{ activeAgentsCount }} Active</span>
+            <h4>Atividade da Equipe</h4>
+            <span class="active-badge">{{ activeAgentsCount }} Ativos</span>
           </div>
           <div class="team-list">
             <div v-for="agent in stats.team_activity" :key="agent.id" class="team-member-item">
@@ -227,13 +231,13 @@
               </div>
               <div class="member-info">
                 <h5>{{ agent.first_name }} {{ agent.last_name }}</h5>
-                <p v-if="agent.active_chats > 0">Handling: {{ agent.active_chats }} chats</p>
-                <p v-else class="offline">Status: Offline / Away</p>
+                <p v-if="agent.active_chats > 0">Atendendo: {{ agent.active_chats }} chats</p>
+                <p v-else class="offline">Offline / Ausente</p>
               </div>
             </div>
           </div>
           <div class="team-footer">
-            <router-link to="/users" class="view-all-link">View All Team Members</router-link>
+            <router-link to="/users" class="view-all-link">Ver Todos os Membros</router-link>
           </div>
         </div>
       </div>
@@ -269,6 +273,21 @@ const currentStatus = ref('online')
 const showStatusMenu = ref(false)
 const verifying = ref(false)
 const chartRange = ref('7')
+
+// Computes display name
+const userDisplayName = computed(() => {
+  if (!chatStore.user) return 'Carregando...'
+  return chatStore.user.first_name 
+    ? `${chatStore.user.first_name} ${chatStore.user.last_name || ''}` 
+    : chatStore.user.username
+})
+
+// Computes profile initials
+const userInitials = computed(() => {
+  if (!chatStore.user) return '?'
+  const name = chatStore.user.first_name || chatStore.user.username
+  return name.charAt(0).toUpperCase()
+})
 
 const stats = ref({
   active_chats: 0,
@@ -351,12 +370,9 @@ const openBroadcast = () => {
 const downloadReport = () => {
   const token = localStorage.getItem('token')
   const url = `/api/v1/tickets/generate_report/`
-  // Realiza o download
   const link = document.createElement('a')
   link.href = url
   link.setAttribute('download', 'relatorio_atendimentos.csv')
-  // Passa o token no download fazendo uma requisição fetch ou criando um link direto se autenticado via cookie.
-  // Como usamos JWT Bearer, fazemos um fetch e geramos um ObjectURL:
   fetch(url, {
     headers: { Authorization: `Bearer ${token}` }
   })
@@ -380,7 +396,6 @@ const getBarHeight = (count) => {
 
 onMounted(() => {
   fetchDashboardStats()
-  // Recarrega estatísticas periodicamente
   const interval = setInterval(fetchDashboardStats, 10000)
   return () => clearInterval(interval)
 })
@@ -421,6 +436,7 @@ onMounted(() => {
   font-weight: 800;
   margin: 0;
   letter-spacing: -0.5px;
+  color: var(--text-primary);
 }
 
 .status-dropdown {
@@ -508,11 +524,11 @@ onMounted(() => {
 }
 
 .header-search input {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.15);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 8px 12px 8px 38px;
-  color: white;
+  color: var(--text-primary);
   outline: none;
   width: 260px;
   font-size: 0.9rem;
@@ -538,7 +554,7 @@ onMounted(() => {
 }
 
 .header-icon-btn:hover {
-  color: white;
+  color: var(--text-primary);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -566,17 +582,24 @@ onMounted(() => {
   border-left: 1px solid var(--border);
 }
 
-.profile-avatar img {
+.profile-initials {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid rgba(16, 185, 129, 0.5);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-weight: bold;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
 }
 
 .profile-name {
   font-weight: 600;
   font-size: 0.95rem;
+  color: var(--text-primary);
 }
 
 /* Grid Layout */
@@ -640,7 +663,7 @@ onMounted(() => {
   font-size: 1.15rem;
   font-weight: 800;
   margin: 0;
-  color: white;
+  color: var(--text-primary);
 }
 
 .instance-details p {
@@ -665,7 +688,7 @@ onMounted(() => {
 .btn-verify {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
-  color: white;
+  color: var(--text-primary);
   border-radius: 12px;
   padding: 8px 16px;
   font-weight: 600;
@@ -702,7 +725,7 @@ onMounted(() => {
 }
 
 .metric-text strong {
-  color: white;
+  color: var(--text-primary);
 }
 
 /* Quick Actions card */
@@ -736,7 +759,6 @@ onMounted(() => {
   padding: 12px 20px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  color: white;
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
@@ -746,15 +768,18 @@ onMounted(() => {
 .quick-btn.broadcast {
   background: rgba(16, 185, 129, 0.08);
   border-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
 }
 
 .quick-btn.broadcast:hover {
   background: #10b981;
+  color: white;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
 .quick-btn.report {
   background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
 }
 
 .quick-btn.report:hover {
@@ -842,7 +867,7 @@ onMounted(() => {
   font-size: 1.8rem;
   font-weight: 800;
   margin: 0;
-  color: white;
+  color: var(--text-primary);
 }
 
 .card-body-row .subtext {
@@ -922,7 +947,7 @@ onMounted(() => {
 .chart-header h4 {
   font-size: 1rem;
   font-weight: 800;
-  color: white;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -948,7 +973,7 @@ onMounted(() => {
 
 .toggle-group button.active {
   background: rgba(255, 255, 255, 0.06);
-  color: white;
+  color: var(--text-primary);
 }
 
 .chart-container {
@@ -1010,7 +1035,7 @@ onMounted(() => {
   margin-bottom: 5px;
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
-  color: white;
+  color: var(--text-primary);
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -1047,7 +1072,7 @@ onMounted(() => {
 .team-header h4 {
   font-size: 1rem;
   font-weight: 800;
-  color: white;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -1115,7 +1140,7 @@ onMounted(() => {
   font-size: 0.9rem;
   font-weight: 700;
   margin: 0;
-  color: white;
+  color: var(--text-primary);
 }
 
 .member-info p {
@@ -1144,7 +1169,7 @@ onMounted(() => {
 }
 
 .view-all-link:hover {
-  color: white;
+  color: var(--text-primary);
 }
 
 /* Animations */

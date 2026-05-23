@@ -423,7 +423,7 @@ class TicketViewSet(TenantModelViewSet):
             
             count = Ticket.objects.filter(company=company, created_at__range=(day_start, day_end)).count()
             day_map = {
-                "Mon": "Mon", "Tue": "Tue", "Wed": "Wed", "Thu": "Thu", "Fri": "Fri", "Sat": "Sat", "Sun": "Sun"
+                "Mon": "Seg", "Tue": "Ter", "Wed": "Qua", "Thu": "Qui", "Fri": "Sex", "Sat": "Sáb", "Sun": "Dom"
             }
             weekday_name = day.strftime('%a')
             weekday_counts.append({
@@ -1270,6 +1270,11 @@ class UserViewSet(TenantModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(company=self.request.user.company)
+
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
 class CompanyViewSet(viewsets.ModelViewSet):
     """

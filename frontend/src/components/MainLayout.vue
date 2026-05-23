@@ -22,6 +22,7 @@ const chatStore = useChatStore()
 
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', chatStore.theme)
+  chatStore.fetchCurrentUser()
 })
 </script>
 

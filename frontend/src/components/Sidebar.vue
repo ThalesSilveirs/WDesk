@@ -29,22 +29,22 @@
 
         <router-link to="/conversations" class="nav-link-item" active-class="active">
           <MessageSquareIcon :size="20" />
-          <span class="link-label">Conversations</span>
+          <span class="link-label">Conversas</span>
         </router-link>
 
         <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active">
           <UsersIcon :size="20" />
-          <span class="link-label">Teams</span>
+          <span class="link-label">Equipes</span>
         </router-link>
 
         <router-link to="/analytics" class="nav-link-item" active-class="active">
           <BarChartIcon :size="20" />
-          <span class="link-label">Analytics</span>
+          <span class="link-label">Métricas</span>
         </router-link>
 
         <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active">
           <SettingsIcon :size="20" />
-          <span class="link-label">Settings</span>
+          <span class="link-label">Configurações</span>
         </router-link>
       </nav>
 
@@ -58,12 +58,12 @@
 
         <button @click="showHelpModal = true" class="nav-link-item">
           <HelpCircleIcon :size="20" />
-          <span class="link-label">Help Center</span>
+          <span class="link-label">Ajuda</span>
         </button>
 
         <button @click="showLogoutModal = true" class="nav-link-item logout-item">
           <LogOutIcon :size="20" />
-          <span class="link-label">Logout</span>
+          <span class="link-label">Sair</span>
         </button>
       </div>
     </aside>

@@ -24,6 +24,18 @@ export const useChatStore = defineStore('chat', {
       localStorage.setItem('theme', this.theme)
       document.documentElement.setAttribute('data-theme', this.theme)
     },
+    async fetchCurrentUser() {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) return
+        const response = await axios.get('/api/v1/users/me/', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        this.user = response.data
+      } catch (e) {
+        console.error("Erro ao buscar perfil do usuário", e)
+      }
+    },
     async fetchAttendants() {
       const token = localStorage.getItem('token')
       const response = await axios.get(`/api/v1/users/`, {
