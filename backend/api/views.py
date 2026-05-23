@@ -985,25 +985,35 @@ class WebhookView(viewsets.ViewSet):
 
                 if contact_created or not contact.profile_pic:
                     try:
-                        # Busca configurações da empresa com fallback para settings
                         evo_url = connection.company.evolution_api_url or settings.EVOLUTION_API_URL
                         evo_key = connection.company.evolution_api_key or settings.EVOLUTION_API_KEY
                         
-                        pic_url = f"{evo_url}/chat/fetchProfilePictureUrl/{connection.instance_name}"
-                        pic_res = requests.post(pic_url, 
-                            headers={"apikey": evo_key},
-                            json={"number": remote_jid}
-                        )
+                        clean_number = remote_jid.split('@')[0]
+                        pic_url = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{clean_number}"
+                        pic_res = requests.get(pic_url, headers={
+                            "apikey": evo_key,
+                            "ApiKey": evo_key,
+                            "api-key": evo_key,
+                            "Authorization": f"Bearer {evo_key}"
+                        }, timeout=8)
+                        
                         if pic_res.status_code == 200:
                             data_pic = pic_res.json()
-                            url = data_pic.get('profilePictureUrl') or data_pic.get('url')
-                            contact.profile_pic = url
-                            contact.save()
+                            url = None
+                            if isinstance(data_pic, dict):
+                                data_block = data_pic.get('data') or {}
+                                if isinstance(data_block, dict):
+                                    url = data_block.get('profilePictureUrl') or data_block.get('url')
+                                else:
+                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
                             
-                            # Sincroniza com o Cliente (CRM) se existir
-                            if contact.customer:
-                                contact.customer.profile_pic = url
-                                contact.customer.save()
+                            if url:
+                                contact.profile_pic = url
+                                contact.save()
+                                
+                                if contact.customer:
+                                    contact.customer.profile_pic = url
+                                    contact.customer.save()
                     except Exception as e:
                         print(f"DEBUG FOTO ERROR: {str(e)}")
 

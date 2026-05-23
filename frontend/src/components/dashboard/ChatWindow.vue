@@ -93,7 +93,8 @@
         accept="image/*,audio/*,application/pdf"
       />
       
-      <template v-if="!isRecording">
+      <!-- ESTADO NORMAL -->
+      <template v-if="!isRecording && !hasRecording">
         <button class="attach-btn" @click="fileInput.click()" :disabled="!chatStore.activeTicket.user" title="Enviar Mídia">
           <PlusIcon :size="22" />
         </button>
@@ -124,16 +125,33 @@
         </button>
       </template>
       
-      <template v-else>
+      <!-- ESTADO GRAVANDO -->
+      <template v-else-if="isRecording">
         <div class="recording-indicator">
           <span class="recording-dot"></span>
           <span class="recording-text">Gravando ({{ formatTime(recordingTime) }})</span>
+          <canvas ref="canvasRef" width="100" height="30" class="recording-canvas"></canvas>
         </div>
         <div class="recording-actions">
           <button class="cancel-rec-btn" @click="cancelRecording" title="Cancelar Gravação">
             <TrashIcon :size="20" />
           </button>
-          <button class="stop-rec-btn" @click="stopRecording" title="Parar e Enviar">
+          <button class="stop-rec-btn" @click="stopRecording" title="Parar Gravação">
+            <SquareIcon :size="20" />
+          </button>
+        </div>
+      </template>
+      
+      <!-- ESTADO PRÉVIA DE ÁUDIO -->
+      <template v-else-if="hasRecording">
+        <div class="audio-preview-container">
+          <audio :src="recordedAudioUrl" controls class="audio-preview-player"></audio>
+        </div>
+        <div class="recording-actions">
+          <button class="cancel-rec-btn" @click="cancelRecording" title="Descartar Áudio">
+            <TrashIcon :size="20" />
+          </button>
+          <button class="send-rec-btn" @click="sendRecording" title="Enviar Áudio">
             <SendIcon :size="20" />
           </button>
         </div>
@@ -157,7 +175,8 @@ import {
   Send as SendIcon,
   ChevronLeft as ChevronLeftIcon,
   Mic as MicIcon,
-  Trash2 as TrashIcon
+  Trash2 as TrashIcon,
+  Square as SquareIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -221,10 +240,20 @@ const scrollToBottom = () => {
 
 // Controle de Gravação de Áudio
 const isRecording = ref(false)
+const hasRecording = ref(false)
+const recordedAudioUrl = ref(null)
+const recordedFile = ref(null)
+
 const recordingTime = ref(0)
 const recordingTimer = ref(null)
+const canvasRef = ref(null)
+
 let mediaRecorder = null
 let audioChunks = []
+let audioCtx = null
+let analyser = null
+let source = null
+let animationFrameId = null
 
 const startRecording = async () => {
   try {
@@ -243,6 +272,16 @@ const startRecording = async () => {
     }
     
     mediaRecorder = new MediaRecorder(stream, options)
+    
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+      analyser = audioCtx.createAnalyser()
+      source = audioCtx.createMediaStreamSource(stream)
+      source.connect(analyser)
+    } catch (e) {
+      console.warn("AudioContext não suportado ou falhou:", e)
+    }
+    
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         audioChunks.push(event.data)
@@ -251,24 +290,45 @@ const startRecording = async () => {
     
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach(track => track.stop())
+      
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
+      if (audioCtx) {
+        audioCtx.close().catch(() => {})
+        audioCtx = null
+      }
+      analyser = null
+      
       if (audioChunks.length === 0) return
       
       const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' })
       const extension = (mediaRecorder.mimeType || '').includes('ogg') ? 'ogg' : 
                         (mediaRecorder.mimeType || '').includes('mp4') ? 'mp4' : 'webm'
-      const file = new File([audioBlob], `audio_record.${extension}`, { type: audioBlob.type })
       
-      await chatStore.sendMedia(file)
-      scrollToBottom()
+      if (recordedAudioUrl.value) {
+        URL.revokeObjectURL(recordedAudioUrl.value)
+      }
+      
+      recordedAudioUrl.value = URL.createObjectURL(audioBlob)
+      recordedFile.value = new File([audioBlob], `audio_record.${extension}`, { type: audioBlob.type })
+      
+      hasRecording.value = true
     }
     
     isRecording.value = true
+    hasRecording.value = false
+    recordedAudioUrl.value = null
+    recordedFile.value = null
     recordingTime.value = 0
+    
     mediaRecorder.start()
     
     recordingTimer.value = setInterval(() => {
       recordingTime.value++
     }, 1000)
+    
+    nextTick(() => {
+      drawWaveform()
+    })
     
   } catch (err) {
     console.error("Erro ao iniciar gravação de áudio:", err)
@@ -295,10 +355,78 @@ const cancelRecording = () => {
     }
     mediaRecorder.stop()
   }
+  
+  if (animationFrameId) cancelAnimationFrame(animationFrameId)
+  if (audioCtx) {
+    audioCtx.close().catch(() => {})
+    audioCtx = null
+  }
+  analyser = null
+  
+  if (recordedAudioUrl.value) {
+    URL.revokeObjectURL(recordedAudioUrl.value)
+  }
+  
   isRecording.value = false
+  hasRecording.value = false
+  recordedAudioUrl.value = null
+  recordedFile.value = null
   clearInterval(recordingTimer.value)
   recordingTime.value = 0
   audioChunks = []
+}
+
+const sendRecording = async () => {
+  if (recordedFile.value) {
+    await chatStore.sendMedia(recordedFile.value)
+    
+    if (recordedAudioUrl.value) {
+      URL.revokeObjectURL(recordedAudioUrl.value)
+    }
+    
+    isRecording.value = false
+    hasRecording.value = false
+    recordedAudioUrl.value = null
+    recordedFile.value = null
+    scrollToBottom()
+  }
+}
+
+const drawWaveform = () => {
+  if (!canvasRef.value || !analyser) return
+  const canvas = canvasRef.value
+  const ctx = canvas.getContext('2d')
+  const width = canvas.width
+  const height = canvas.height
+  
+  analyser.fftSize = 32
+  const bufferLength = analyser.frequencyBinCount
+  const dataArray = new Uint8Array(bufferLength)
+  
+  const draw = () => {
+    if (!isRecording.value) return
+    animationFrameId = requestAnimationFrame(draw)
+    analyser.getByteFrequencyData(dataArray)
+    
+    ctx.clearRect(0, 0, width, height)
+    
+    const barWidth = width / bufferLength
+    let barHeight
+    let x = 0
+    
+    for (let i = 0; i < bufferLength; i++) {
+      barHeight = (dataArray[i] / 255) * height * 0.8
+      if (barHeight < 2) barHeight = 2
+      
+      ctx.fillStyle = '#ef4444'
+      const y = (height - barHeight) / 2
+      
+      ctx.fillRect(x, y, barWidth - 2, barHeight)
+      x += barWidth
+    }
+  }
+  
+  draw()
 }
 
 const formatTime = (seconds) => {
@@ -309,6 +437,9 @@ const formatTime = (seconds) => {
 
 onUnmounted(() => {
   if (recordingTimer.value) clearInterval(recordingTimer.value)
+  if (recordedAudioUrl.value) {
+    URL.revokeObjectURL(recordedAudioUrl.value)
+  }
 })
 
 watch(() => chatStore.messages.length, scrollToBottom)
@@ -788,6 +919,45 @@ watch(() => chatStore.messages.length, scrollToBottom)
 }
 
 .stop-rec-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-preview-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.audio-preview-player {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.recording-canvas {
+  margin-left: 10px;
+  background: transparent;
+  border-radius: 4px;
+}
+
+.send-rec-btn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+}
+
+.send-rec-btn:hover {
   background: var(--accent-hover);
   transform: scale(1.05);
 }
