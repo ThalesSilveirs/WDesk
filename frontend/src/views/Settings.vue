@@ -2,15 +2,6 @@
   <div class="settings-page-container animate-fade-in">
 
     <main class="settings-content">
-      <header class="settings-header glass-effect">
-        <div class="header-title">
-          <SettingsIcon :size="32" class="icon-accent" />
-          <div>
-            <h1>Configurações do Sistema</h1>
-            <p>Gerencie as integrações e parâmetros da plataforma</p>
-          </div>
-        </div>
-      </header>
 
       <div class="settings-grid">
         <!-- Seção Evolution API -->

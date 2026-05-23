@@ -1,51 +1,5 @@
 <template>
   <div class="dashboard-page animate-fade-in">
-    <!-- Top Header Bar -->
-    <header class="dashboard-header glass-effect">
-      <div class="header-left">
-        <h1>Painel do Agente</h1>
-        <div class="status-dropdown">
-          <button @click="showStatusMenu = !showStatusMenu" class="status-btn" :class="currentStatus">
-            <span class="status-dot"></span>
-            {{ formatStatusName(currentStatus) }}
-            <ChevronDownIcon :size="16" />
-          </button>
-          <div v-if="showStatusMenu" class="status-menu glass-effect">
-            <button @click="changeStatus('online')" class="status-option online">
-              <span class="status-dot"></span> Online
-            </button>
-            <button @click="changeStatus('away')" class="status-option away">
-              <span class="status-dot"></span> Ausente
-            </button>
-            <button @click="changeStatus('offline')" class="status-option offline">
-              <span class="status-dot"></span> Offline
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <div class="header-search">
-          <SearchIcon :size="18" class="search-icon" />
-          <input type="text" placeholder="Buscar conversas ou logs..." />
-        </div>
-        <button class="header-icon-btn" title="Notificações">
-          <BellIcon :size="20" />
-          <span class="badge">3</span>
-        </button>
-        <button class="header-icon-btn" title="Histórico">
-          <HistoryIcon :size="20" />
-        </button>
-        
-        <!-- Logged In User Profile -->
-        <div class="profile-avatar">
-          <div class="profile-initials">
-            {{ userInitials }}
-          </div>
-          <span class="profile-name">{{ userDisplayName }}</span>
-        </div>
-      </div>
-    </header>
 
     <!-- Dashboard Grid -->
     <div class="dashboard-grid">

@@ -15,7 +15,8 @@ export const useChatStore = defineStore('chat', {
     attendants: [],
     userRole: localStorage.getItem('role') || 'attendant',
     theme: localStorage.getItem('theme') || 'dark',
-    showBroadcastModal: false
+    showBroadcastModal: false,
+    notifications: []
   }),
 
   actions: {
@@ -35,6 +36,22 @@ export const useChatStore = defineStore('chat', {
       } catch (e) {
         console.error("Erro ao buscar perfil do usuário", e)
       }
+    },
+    addNotification(notification) {
+      this.notifications.unshift({
+        id: Date.now() + Math.random().toString(36).substr(2, 9),
+        title: notification.title,
+        body: notification.body,
+        timestamp: new Date(),
+        read: false,
+        ticket_id: notification.ticket_id
+      })
+    },
+    clearNotifications() {
+      this.notifications = []
+    },
+    markAllNotificationsAsRead() {
+      this.notifications.forEach(n => n.read = true)
     },
     async fetchAttendants() {
       const token = localStorage.getItem('token')
@@ -161,6 +178,11 @@ export const useChatStore = defineStore('chat', {
 
             const icon = '/favicon.png'
             this.showNotification(`💬 ${senderName}`, bodyText || 'Nova mensagem recebida', icon)
+            this.addNotification({
+              title: `De: ${senderName}`,
+              body: bodyText || 'Nova mensagem recebida',
+              ticket_id: message.ticket
+            })
           }
         }
 

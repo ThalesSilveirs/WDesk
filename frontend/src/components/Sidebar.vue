@@ -4,11 +4,11 @@
       <!-- Brand Logo Header -->
       <div class="logo-section">
         <div class="logo-icon">
-          <MessageCircleIcon :size="24" />
+          <MessageSquareIcon :size="24" />
         </div>
         <div class="logo-text">
-          <span class="brand-name">OmniChat</span>
-          <span class="brand-sub">Enterprise Support</span>
+          <span class="brand-name">wDesk</span>
+          <span class="brand-sub">WhatsApp CRM</span>
         </div>
       </div>
 

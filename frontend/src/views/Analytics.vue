@@ -1,21 +1,15 @@
 <template>
   <div class="analytics-page animate-fade-in">
-    <header class="page-header glass-effect">
-      <div class="header-info">
-        <h1>Analytics & Insights</h1>
-        <p>Acompanhe a performance de atendimento e tempo de resposta da equipe</p>
-      </div>
-      <div class="header-actions">
-        <select v-model="timeRange" class="premium-select">
-          <option value="today">Hoje</option>
-          <option value="7d">Últimos 7 dias</option>
-          <option value="30d">Últimos 30 dias</option>
-        </select>
-        <button @click="exportData" class="btn-primary">
-          <DownloadIcon :size="18" /> Exportar Dados
-        </button>
-      </div>
-    </header>
+    <div class="analytics-toolbar">
+      <select v-model="timeRange" class="premium-select">
+        <option value="today">Hoje</option>
+        <option value="7d">Últimos 7 dias</option>
+        <option value="30d">Últimos 30 dias</option>
+      </select>
+      <button @click="exportData" class="btn-primary">
+        <DownloadIcon :size="18" /> Exportar Dados
+      </button>
+    </div>
 
     <div class="analytics-content">
       <!-- High-level KPIs -->
@@ -142,14 +136,11 @@ onMounted(() => {
   height: 100%;
 }
 
-.page-header {
+.analytics-toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 15px;
   align-items: center;
-  padding: 20px 30px;
-  background: var(--bg-card);
-  border-radius: 20px;
-  border: 1px solid var(--border);
 }
 
 .header-info h1 {
