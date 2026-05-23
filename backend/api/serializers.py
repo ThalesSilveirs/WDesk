@@ -23,9 +23,19 @@ class CompanySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'is_active', 'evolution_api_url', 'evolution_api_key']
 
 class UserSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department')
+        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status')
+
+    def get_status(self, obj):
+        import redis
+        from django.conf import settings
+        redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
+        r = redis.Redis.from_url(redis_url)
+        is_active = r.exists(f"user_active_{obj.id}")
+        return "Online" if is_active else "Offline"
 
 class ConnectionSerializer(serializers.ModelSerializer):
     class Meta:

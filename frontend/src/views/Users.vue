@@ -10,8 +10,11 @@
 
       <div class="users-grid">
         <div v-for="user in users" :key="user.id" class="user-card glass-effect">
-          <div class="user-avatar">
-            {{ user.first_name?.charAt(0) || user.username.charAt(0).toUpperCase() }}
+          <div class="avatar-wrapper">
+            <div class="user-avatar">
+              {{ user.first_name?.charAt(0) || user.username.charAt(0).toUpperCase() }}
+            </div>
+            <span class="status-dot-indicator" :class="user.status?.toLowerCase() || 'offline'"></span>
           </div>
           <div class="user-details">
             <h3>{{ user.first_name }} {{ user.last_name }}</h3>
@@ -299,5 +302,28 @@ onMounted(fetchUsers)
     flex-direction: column;
     gap: 15px;
   }
+}
+
+.avatar-wrapper {
+  position: relative;
+}
+
+.status-dot-indicator {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-dark);
+}
+
+.status-dot-indicator.online {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.status-dot-indicator.offline {
+  background: #94a3b8;
 }
 </style>

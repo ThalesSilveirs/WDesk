@@ -432,10 +432,16 @@ class TicketViewSet(TenantModelViewSet):
             })
             
         # 7. Team Activity
+        import redis
+        from django.conf import settings
+        redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
+        r = redis.Redis.from_url(redis_url)
+
         team_activity = []
         users = User.objects.filter(company=company)
         for user in users:
             active_handling = Ticket.objects.filter(company=company, user=user, status__in=['open', 'pending']).count()
+            is_active = r.exists(f"user_active_{user.id}")
             team_activity.append({
                 "id": user.id,
                 "username": user.username,
@@ -443,7 +449,7 @@ class TicketViewSet(TenantModelViewSet):
                 "last_name": user.last_name,
                 "department": user.department or "Atendimento",
                 "active_chats": active_handling,
-                "status": "Online" if active_handling > 0 else "Offline"
+                "status": "Online" if is_active else "Offline"
             })
         team_activity.sort(key=lambda x: x['active_chats'], reverse=True)
         

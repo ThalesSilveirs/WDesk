@@ -110,7 +110,7 @@
                 <h3>Zerar Banco de Conversas</h3>
                 <p>Apaga permanentemente todos os tickets e mensagens de todos os atendentes.</p>
               </div>
-              <button @click="confirmReset = true" class="btn-danger" :disabled="reseting">
+              <button @click="triggerResetModal" class="btn-danger" :disabled="reseting">
                 <TrashIcon :size="18" />
                 {{ reseting ? 'Limpando...' : 'Zerar Agora' }}
               </button>
@@ -127,8 +127,25 @@
         <h2>Tem certeza absoluta?</h2>
         <p>Esta ação apagará **TODAS** as conversas, tickets e históricos de atendimento da sua empresa. Esta ação **não pode ser desfeita**.</p>
         
+        <div style="margin-bottom: 20px; text-align: left;">
+          <label style="font-size: 0.8rem; font-weight: 700; color: #ef4444; display: block; margin-bottom: 8px; text-transform: uppercase;">
+            Digite "Confirmar" para prosseguir:
+          </label>
+          <input 
+            v-model="resetTextConfirm" 
+            type="text" 
+            placeholder="Digite Confirmar por extenso" 
+            class="premium-input" 
+            style="border-color: rgba(239, 68, 68, 0.4); text-align: center;"
+          />
+        </div>
+
         <div class="modal-actions-vertical">
-          <button @click="handleReset" class="btn-danger block" :disabled="reseting">
+          <button 
+            @click="handleReset" 
+            class="btn-danger block" 
+            :disabled="reseting || resetTextConfirm !== 'Confirmar'"
+          >
             SIM, APAGAR TUDO
           </button>
           <button @click="confirmReset = false" class="btn-ghost block" :disabled="reseting">
@@ -163,6 +180,12 @@ const reseting = ref(false)
 const saveSuccess = ref(false)
 const showKey = ref(false)
 const confirmReset = ref(false)
+const resetTextConfirm = ref('')
+
+const triggerResetModal = () => {
+  resetTextConfirm.value = ''
+  confirmReset.value = true
+}
 
 const settings = ref({
   evolution_api_url: '',
@@ -299,7 +322,7 @@ onMounted(fetchSettings)
   border: 1px solid var(--border);
   padding: 12px 16px;
   border-radius: 12px;
-  color: white;
+  color: var(--text-primary);
   font-size: 1rem;
   outline: none;
   transition: all 0.2s;
@@ -468,7 +491,7 @@ onMounted(fetchSettings)
 .btn-ghost {
   background: none;
   border: 1px solid var(--border);
-  color: white;
+  color: var(--text-primary);
   padding: 12px;
   border-radius: 10px;
   cursor: pointer;
