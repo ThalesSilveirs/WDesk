@@ -92,19 +92,52 @@
         @change="handleFileUpload"
         accept="image/*,audio/*,application/pdf"
       />
-      <button class="attach-btn" @click="fileInput.click()" title="Enviar Mídia">
-        <PlusIcon :size="22" />
-      </button>
-      <input 
-        v-model="newMessage" 
-        @keyup.enter="send"
-        :placeholder="chatStore.activeTicket.user ? 'Digite uma mensagem...' : 'Aceite o atendimento para responder...'" 
-        type="text" 
-        :disabled="!chatStore.activeTicket.user"
-      />
-      <button class="send-btn" @click="send" :disabled="!newMessage.trim() || !chatStore.activeTicket.user">
-        <SendIcon :size="20" />
-      </button>
+      
+      <template v-if="!isRecording">
+        <button class="attach-btn" @click="fileInput.click()" :disabled="!chatStore.activeTicket.user" title="Enviar Mídia">
+          <PlusIcon :size="22" />
+        </button>
+        <input 
+          v-model="newMessage" 
+          @keyup.enter="send"
+          :placeholder="chatStore.activeTicket.user ? 'Digite uma mensagem...' : 'Aceite o atendimento para responder...'" 
+          type="text" 
+          :disabled="!chatStore.activeTicket.user"
+        />
+        <button 
+          v-if="newMessage.trim()" 
+          class="send-btn" 
+          @click="send" 
+          :disabled="!chatStore.activeTicket.user"
+          title="Enviar Mensagem"
+        >
+          <SendIcon :size="20" />
+        </button>
+        <button 
+          v-else 
+          class="mic-btn" 
+          @click="startRecording" 
+          :disabled="!chatStore.activeTicket.user"
+          title="Gravar Áudio"
+        >
+          <MicIcon :size="20" />
+        </button>
+      </template>
+      
+      <template v-else>
+        <div class="recording-indicator">
+          <span class="recording-dot"></span>
+          <span class="recording-text">Gravando ({{ formatTime(recordingTime) }})</span>
+        </div>
+        <div class="recording-actions">
+          <button class="cancel-rec-btn" @click="cancelRecording" title="Cancelar Gravação">
+            <TrashIcon :size="20" />
+          </button>
+          <button class="stop-rec-btn" @click="stopRecording" title="Parar e Enviar">
+            <SendIcon :size="20" />
+          </button>
+        </div>
+      </template>
     </footer>
     <div v-else class="closed-banner">
       Este atendimento foi finalizado em {{ new Date(chatStore.activeTicket.updated_at).toLocaleString() }}.
@@ -113,7 +146,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onUnmounted } from 'vue'
 import { useChatStore } from '../../store/chat'
 import { 
   Contact as ContactIcon, 
@@ -122,7 +155,9 @@ import {
   FileText as FileIcon, 
   Plus as PlusIcon, 
   Send as SendIcon,
-  ChevronLeft as ChevronLeftIcon
+  ChevronLeft as ChevronLeftIcon,
+  Mic as MicIcon,
+  Trash2 as TrashIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -183,6 +218,98 @@ const scrollToBottom = () => {
     }
   })
 }
+
+// Controle de Gravação de Áudio
+const isRecording = ref(false)
+const recordingTime = ref(0)
+const recordingTimer = ref(null)
+let mediaRecorder = null
+let audioChunks = []
+
+const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    audioChunks = []
+    
+    let options = { mimeType: 'audio/webm' }
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      options = { mimeType: 'audio/ogg' }
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'audio/mp4' }
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options = {}
+        }
+      }
+    }
+    
+    mediaRecorder = new MediaRecorder(stream, options)
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data)
+      }
+    }
+    
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(track => track.stop())
+      if (audioChunks.length === 0) return
+      
+      const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' })
+      const extension = (mediaRecorder.mimeType || '').includes('ogg') ? 'ogg' : 
+                        (mediaRecorder.mimeType || '').includes('mp4') ? 'mp4' : 'webm'
+      const file = new File([audioBlob], `audio_record.${extension}`, { type: audioBlob.type })
+      
+      await chatStore.sendMedia(file)
+      scrollToBottom()
+    }
+    
+    isRecording.value = true
+    recordingTime.value = 0
+    mediaRecorder.start()
+    
+    recordingTimer.value = setInterval(() => {
+      recordingTime.value++
+    }, 1000)
+    
+  } catch (err) {
+    console.error("Erro ao iniciar gravação de áudio:", err)
+    alert("Não foi possível acessar o microfone. Verifique as permissões do seu navegador.")
+  }
+}
+
+const stopRecording = () => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop()
+  }
+  isRecording.value = false
+  clearInterval(recordingTimer.value)
+  recordingTime.value = 0
+}
+
+const cancelRecording = () => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.onstop = () => {
+      const stream = mediaRecorder.stream
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
+      }
+    }
+    mediaRecorder.stop()
+  }
+  isRecording.value = false
+  clearInterval(recordingTimer.value)
+  recordingTime.value = 0
+  audioChunks = []
+}
+
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60).toString().padStart(2, '0')
+  const secs = (seconds % 60).toString().padStart(2, '0')
+  return `${mins}:${secs}`
+}
+
+onUnmounted(() => {
+  if (recordingTimer.value) clearInterval(recordingTimer.value)
+})
 
 watch(() => chatStore.messages.length, scrollToBottom)
 </script>
@@ -554,5 +681,114 @@ watch(() => chatStore.messages.length, scrollToBottom)
   background: rgba(0, 0, 0, 0.3);
   color: var(--text-secondary);
   font-size: 0.9rem;
+}
+
+.mic-btn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+}
+
+.mic-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+}
+
+.mic-btn:disabled {
+  opacity: 0.5;
+  background: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.recording-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  animation: pulse-red 1.2s infinite;
+}
+
+.recording-text {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+@keyframes pulse-red {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.recording-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.cancel-rec-btn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-rec-btn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.stop-rec-btn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+}
+
+.stop-rec-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
 }
 </style>
