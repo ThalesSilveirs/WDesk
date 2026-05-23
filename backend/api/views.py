@@ -176,8 +176,11 @@ class TicketViewSet(TenantModelViewSet):
         base64_data = base64.b64encode(file_content).decode('utf-8')
         mime_type, _ = mimetypes.guess_type(file_obj.name)
         
+        # Se for o áudio gravado no frontend, força a ser do tipo áudio (evitando que .webm seja confundido com video/webm)
+        if 'audio_record' in file_obj.name.lower():
+            mime_type = 'audio/webm'
         # Fallback de tipo de arquivo por extensão caso o SO não reconheça (e.g. webm/ogg)
-        if not mime_type or mime_type == 'application/octet-stream':
+        elif not mime_type or mime_type == 'application/octet-stream':
             ext = file_obj.name.split('.')[-1].lower()
             if ext in ['ogg', 'mp3', 'wav', 'webm', 'm4a', 'aac']:
                 mime_type = f'audio/{ext}'
