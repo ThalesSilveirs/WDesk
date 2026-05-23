@@ -1,434 +1,1195 @@
 <template>
-  <div class="dashboard-content" :class="{ 'has-active-ticket': !!chatStore.activeTicket, 'has-crm-open': showCRM }">
-    <!-- Sidebar -->
-    <div class="sidebar-wrapper" :class="{ 'hidden-on-mobile': !!chatStore.activeTicket }">
-      <TicketSidebar />
-    </div>
-
-    <!-- Chat Area -->
-    <main class="chat-area" :class="{ 'with-crm': showCRM }">
-      <template v-if="chatStore.activeTicket">
-        <ChatWindow 
-          :showCRM="showCRM"
-          @update:showCRM="showCRM = $event"
-          @openPriorityModal="showPriorityModal = true"
-          @openTransferModal="openTransfer"
-          @openCloseModal="showCloseModal = true"
-          @openImage="openImage"
-        />
-
-        <CrmPanel 
-          :showCRM="showCRM"
-          @update:showCRM="showCRM = $event"
-        />
-      </template>
-      
-      <div v-else class="empty-state">
-        <div class="empty-content">
-          <img src="/logo.png" alt="WDesk Watermark" class="watermark-logo" />
-          <h1>WDesk</h1>
-          <p>Selecione uma conversa para começar a atender.</p>
+  <div class="dashboard-page animate-fade-in">
+    <!-- Top Header Bar -->
+    <header class="dashboard-header glass-effect">
+      <div class="header-left">
+        <h1>Agent Dashboard</h1>
+        <div class="status-dropdown">
+          <button @click="showStatusMenu = !showStatusMenu" class="status-btn" :class="currentStatus">
+            <span class="status-dot"></span>
+            {{ formatStatusName(currentStatus) }}
+            <ChevronDownIcon :size="16" />
+          </button>
+          <div v-if="showStatusMenu" class="status-menu glass-effect">
+            <button @click="changeStatus('online')" class="status-option online">
+              <span class="status-dot"></span> Online
+            </button>
+            <button @click="changeStatus('away')" class="status-option away">
+              <span class="status-dot"></span> Ausente
+            </button>
+            <button @click="changeStatus('offline')" class="status-option offline">
+              <span class="status-dot"></span> Offline
+            </button>
+          </div>
         </div>
       </div>
-    </main>
 
-    <!-- Modal de Finalização -->
-    <div v-if="showCloseModal" class="modal-overlay">
-      <div class="modal-content glass-effect">
-        <h2>Finalizar Atendimento</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 15px;">Descreva brevemente como o caso foi resolvido:</p>
-        
-        <div class="form-group">
-          <textarea 
-            v-model="resolutionSummary" 
-            placeholder="Ex: O cliente foi orientado a reiniciar o roteador e o sinal voltou ao normal."
-            rows="5"
-            style="width: 100%; background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border); border-radius: 10px; padding: 10px; outline: none;"
-          ></textarea>
+      <div class="header-right">
+        <div class="header-search">
+          <SearchIcon :size="18" class="search-icon" />
+          <input type="text" placeholder="Buscar conversas ou logs..." />
+        </div>
+        <button class="header-icon-btn" title="Notificações">
+          <BellIcon :size="20" />
+          <span class="badge">3</span>
+        </button>
+        <button class="header-icon-btn" title="Histórico">
+          <HistoryIcon :size="20" />
+        </button>
+        <div class="profile-avatar">
+          <img src="/favicon.png" alt="Profile" />
+          <span class="profile-name">Alex Chen</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Content Grid -->
+    <div class="dashboard-grid">
+      <!-- Row 1: Instance Status & Quick Actions -->
+      <div class="row-top">
+        <!-- Instance Widget -->
+        <div class="widget-card glass-effect instance-widget">
+          <div class="widget-header">
+            <div class="instance-icon-wrapper" :class="connectionStatus">
+              <ServerIcon :size="24" />
+            </div>
+            <div class="instance-details">
+              <h3>{{ stats.connection?.name || 'Sem Conexão WhatsApp' }}</h3>
+              <p>#{{ stats.connection?.instance_name || 'nenhuma_ativa' }}</p>
+            </div>
+            <span class="badge-status" :class="connectionStatus">
+              {{ stats.connection?.status || 'DESCONECTADO' }}
+            </span>
+            <button @click="verifyInstance" class="btn-verify" :disabled="verifying">
+              <RefreshCwIcon :class="{'animate-spin': verifying}" :size="16" />
+              <span>{{ verifying ? 'Verificando...' : 'Verify Instance' }}</span>
+            </button>
+          </div>
+          <div class="widget-metrics">
+            <div class="metric-item">
+              <LatencyIcon :size="16" />
+              <div class="metric-text">
+                <span>API Latency:</span>
+                <strong>{{ stats.connection?.latency || '0ms' }}</strong>
+              </div>
+            </div>
+            <div class="metric-item">
+              <ProtocolIcon :size="16" />
+              <div class="metric-text">
+                <span>Protocol:</span>
+                <strong>{{ stats.connection?.protocol || 'HTTP REST' }}</strong>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="modal-actions" style="margin-top: 20px;">
-          <button @click="showCloseModal = false" class="cancel-btn">Cancelar</button>
-          <button @click="confirmClose" class="btn-success-sm" :disabled="!resolutionSummary.trim()">Confirmar e Fechar</button>
+        <!-- Quick Actions Card -->
+        <div class="widget-card glass-effect quick-actions-card">
+          <h4>QUICK ACTIONS</h4>
+          <div class="actions-buttons">
+            <button @click="openBroadcast" class="quick-btn broadcast">
+              <MegaphoneIcon :size="18" />
+              <span>New Broadcast</span>
+              <ChevronRightIcon :size="16" class="arrow" />
+            </button>
+            <button @click="downloadReport" class="quick-btn report">
+              <FileSpreadsheetIcon :size="18" />
+              <span>Generate Report</span>
+              <ChevronRightIcon :size="16" class="arrow" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Statistics Cards -->
+      <div class="row-stats">
+        <!-- Card 1: Active Chats -->
+        <div class="stat-card glass-effect">
+          <div class="card-header-row">
+            <div class="icon-box green">
+              <MessageCircleIcon :size="20" />
+            </div>
+            <span class="trend-badge positive">+12%</span>
+          </div>
+          <div class="card-body-row">
+            <span class="label">ACTIVE CHATS</span>
+            <h2>{{ stats.active_chats || 0 }}</h2>
+            <span class="subtext">Live now</span>
+            <div class="progress-bar">
+              <div class="progress-fill green" style="width: 65%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Avg Response Time -->
+        <div class="stat-card glass-effect">
+          <div class="card-header-row">
+            <div class="icon-box blue">
+              <ClockIcon :size="20" />
+            </div>
+            <span class="trend-badge negative">-2m</span>
+          </div>
+          <div class="card-body-row">
+            <span class="label">AVG RESPONSE TIME</span>
+            <h2>{{ stats.avg_response_time || '4m 12s' }}</h2>
+            <div class="mini-bar-chart">
+              <div class="chart-bar" style="height: 40%"></div>
+              <div class="chart-bar" style="height: 55%"></div>
+              <div class="chart-bar" style="height: 35%"></div>
+              <div class="chart-bar" style="height: 70%"></div>
+              <div class="chart-bar active" style="height: 45%"></div>
+              <div class="chart-bar" style="height: 60%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Resolution Rate -->
+        <div class="stat-card glass-effect">
+          <div class="card-header-row">
+            <div class="icon-box green">
+              <ShieldCheckIcon :size="20" />
+            </div>
+            <span class="target-label">Target 95%</span>
+          </div>
+          <div class="card-body-row">
+            <span class="label">RESOLUTION RATE</span>
+            <h2>{{ stats.resolution_rate || 92.4 }}%</h2>
+            <div class="segmented-progress">
+              <div class="segment active"></div>
+              <div class="segment active"></div>
+              <div class="segment active"></div>
+              <div class="segment active"></div>
+              <div class="segment active"></div>
+              <div class="segment active"></div>
+              <div class="segment active"></div>
+              <div class="segment"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Messages Sent Today -->
+        <div class="stat-card glass-effect">
+          <div class="card-header-row">
+            <div class="icon-box purple">
+              <SendIcon :size="20" />
+            </div>
+            <TrendingUpIcon :size="18" class="trend-icon" />
+          </div>
+          <div class="card-body-row">
+            <span class="label">MESSAGES SENT TODAY</span>
+            <h2>{{ stats.messages_sent_today || 0 }}</h2>
+            <span class="subtext">Peak hours: 10:00 AM - 2:00 PM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Trends Chart & Team Activity -->
+      <div class="row-bottom-layout">
+        <!-- Chart Widget -->
+        <div class="widget-card glass-effect chart-widget">
+          <div class="chart-header">
+            <h4>Conversation Trends</h4>
+            <div class="toggle-group">
+              <button :class="{ active: chartRange === '7' }" @click="chartRange = '7'">7 Days</button>
+              <button :class="{ active: chartRange === '30' }" @click="chartRange = '30'">30 Days</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <div class="bar-chart-visual">
+              <div v-for="(item, index) in stats.trends" :key="index" class="bar-col">
+                <div class="bar-tooltip">{{ item.count }} chamados</div>
+                <div class="bar-wrapper">
+                  <div 
+                    class="bar-fill" 
+                    :style="{ height: getBarHeight(item.count) }"
+                    :class="{ active: index === 3 }"
+                  ></div>
+                </div>
+                <span class="bar-label">{{ item.day }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Team Activity Widget -->
+        <div class="widget-card glass-effect team-widget">
+          <div class="team-header">
+            <h4>Team Activity</h4>
+            <span class="active-badge">{{ activeAgentsCount }} Active</span>
+          </div>
+          <div class="team-list">
+            <div v-for="agent in stats.team_activity" :key="agent.id" class="team-member-item">
+              <div class="avatar-wrapper">
+                <div class="member-avatar">
+                  {{ agent.first_name?.charAt(0).toUpperCase() || agent.username?.charAt(0).toUpperCase() }}
+                </div>
+                <span class="status-dot-indicator" :class="agent.status.toLowerCase()"></span>
+              </div>
+              <div class="member-info">
+                <h5>{{ agent.first_name }} {{ agent.last_name }}</h5>
+                <p v-if="agent.active_chats > 0">Handling: {{ agent.active_chats }} chats</p>
+                <p v-else class="offline">Status: Offline / Away</p>
+              </div>
+            </div>
+          </div>
+          <div class="team-footer">
+            <router-link to="/users" class="view-all-link">View All Team Members</router-link>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- Modal de Transferência -->
-    <div v-if="showTransferModal" class="modal-overlay">
-      <div class="modal-content glass-effect">
-        <h2>Transferir Atendimento</h2>
-        <div class="attendants-list">
-          <button 
-            v-for="user in chatStore.attendants" 
-            :key="user.id" 
-            @click="confirmTransfer(user.id)"
-            class="attendant-option"
-          >
-            <div class="avatar small">{{ user.username.charAt(0).toUpperCase() }}</div>
-            <div>
-              <span class="name">{{ user.first_name }} {{ user.last_name }}</span>
-              <span class="dept">{{ user.department }}</span>
-            </div>
-          </button>
-        </div>
-        <div class="modal-actions"><button @click="showTransferModal = false" class="cancel-btn">Cancelar</button></div>
-      </div>
-    </div>
-
-    <!-- Modal de Prioridade -->
-    <div v-if="showPriorityModal" class="modal-overlay" @click="showPriorityModal = false">
-      <div class="modal-content glass-effect small-modal" @click.stop>
-        <h2>Definir Prioridade</h2>
-        <div class="priority-options">
-          <button @click="setPriority('high')" class="priority-option high">
-            <span class="dot"></span>
-            <div class="opt-text">
-              <span class="label">Alta Prioridade</span>
-              <span class="desc">Assuntos urgentes / Críticos</span>
-            </div>
-          </button>
-          <button @click="setPriority('medium')" class="priority-option medium">
-            <span class="dot"></span>
-            <div class="opt-text">
-              <span class="label">Média Prioridade</span>
-              <span class="desc">Atendimento padrão</span>
-            </div>
-          </button>
-          <button @click="setPriority('low')" class="priority-option low">
-            <span class="dot"></span>
-            <div class="opt-text">
-              <span class="label">Baixa Prioridade</span>
-              <span class="desc">Dúvidas gerais / Informativo</span>
-            </div>
-          </button>
-        </div>
-        <div class="modal-actions">
-          <button @click="showPriorityModal = false" class="cancel-btn block">Cancelar</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Visualizador de Imagem -->
-    <div v-if="selectedImage" class="modal-overlay image-viewer" @click="selectedImage = null">
-      <button class="close-viewer"><XIcon :size="32" /></button>
-      <img :src="selectedImage" class="full-image" @click.stop />
-    </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useChatStore } from '../store/chat'
-import { X as XIcon } from 'lucide-vue-next'
-import TicketSidebar from '../components/dashboard/TicketSidebar.vue'
-import ChatWindow from '../components/dashboard/ChatWindow.vue'
-import CrmPanel from '../components/dashboard/CrmPanel.vue'
+import { 
+  ChevronDown as ChevronDownIcon,
+  Search as SearchIcon,
+  Bell as BellIcon,
+  History as HistoryIcon,
+  Server as ServerIcon,
+  RefreshCw as RefreshCwIcon,
+  Activity as LatencyIcon,
+  Shield as ProtocolIcon,
+  ChevronRight as ChevronRightIcon,
+  MessageCircle as MessageCircleIcon,
+  Clock as ClockIcon,
+  ShieldAlert as ShieldCheckIcon,
+  Send as SendIcon,
+  TrendingUp as TrendingUpIcon,
+  Megaphone as MegaphoneIcon,
+  FileText as FileSpreadsheetIcon
+} from 'lucide-vue-next'
+import axios from 'axios'
 
 const chatStore = useChatStore()
+const currentStatus = ref('online')
+const showStatusMenu = ref(false)
+const verifying = ref(false)
+const chartRange = ref('7')
 
-const showTransferModal = ref(false)
-const showPriorityModal = ref(false)
-const showCloseModal = ref(false)
-const selectedImage = ref(null)
-const showCRM = ref(false)
-const resolutionSummary = ref('')
+const stats = ref({
+  active_chats: 0,
+  avg_response_time: '4m 12s',
+  avg_response_seconds: 252,
+  resolution_rate: 92.4,
+  messages_sent_today: 0,
+  connection: null,
+  trends: [
+    { day: 'Mon', count: 4 },
+    { day: 'Tue', count: 6 },
+    { day: 'Wed', count: 5 },
+    { day: 'Thu', count: 10 },
+    { day: 'Fri', count: 8 },
+    { day: 'Sat', count: 3 },
+    { day: 'Sun', count: 6 }
+  ],
+  team_activity: []
+})
 
-const openTransfer = () => {
-  chatStore.fetchAttendants()
-  showTransferModal.value = true
+const connectionStatus = computed(() => {
+  const status = stats.value.connection?.status?.toLowerCase() || 'disconnected'
+  return status === 'connected' ? 'connected' : (status === 'connecting' ? 'connecting' : 'disconnected')
+})
+
+const activeAgentsCount = computed(() => {
+  return stats.value.team_activity.filter(a => a.active_chats > 0).length
+})
+
+const formatStatusName = (status) => {
+  const map = {
+    'online': 'Online',
+    'away': 'Ausente',
+    'offline': 'Offline'
+  }
+  return map[status] || status
 }
 
-const confirmTransfer = async (userId) => {
-  await chatStore.transferTicket(chatStore.activeTicket.id, userId)
-  showTransferModal.value = false
+const changeStatus = (status) => {
+  currentStatus.value = status
+  showStatusMenu.value = false
 }
 
-const confirmClose = async () => {
-  if (!resolutionSummary.value.trim()) return
-  await chatStore.closeTicket(chatStore.activeTicket.id, resolutionSummary.value)
-  showCloseModal.value = false
-  resolutionSummary.value = ''
+const fetchDashboardStats = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.get('/api/v1/tickets/stats/', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    stats.value = response.data
+  } catch (e) {
+    console.error("Erro ao carregar estatísticas do dashboard", e)
+  }
 }
 
-const updateTicketPriority = async () => {
-  if (!chatStore.activeTicket) return
-  await chatStore.updateTicket(chatStore.activeTicket.id, {
-    priority: chatStore.activeTicket.priority
+const verifyInstance = async () => {
+  if (!stats.value.connection?.id) {
+    alert("Nenhuma conexão WhatsApp cadastrada para verificar.")
+    return
+  }
+  verifying.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.post(`/api/v1/connections/${stats.value.connection.id}/sync_status/`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    alert(`Status atualizado: Instância ${response.data.status}`)
+    await fetchDashboardStats()
+  } catch (e) {
+    alert("Erro ao sincronizar status da instância.")
+  } finally {
+    verifying.value = null
+  }
+}
+
+const openBroadcast = () => {
+  chatStore.showBroadcastModal = true
+}
+
+const downloadReport = () => {
+  const token = localStorage.getItem('token')
+  const url = `/api/v1/tickets/generate_report/`
+  // Realiza o download
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', 'relatorio_atendimentos.csv')
+  // Passa o token no download fazendo uma requisição fetch ou criando um link direto se autenticado via cookie.
+  // Como usamos JWT Bearer, fazemos um fetch e geramos um ObjectURL:
+  fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  .then(res => res.blob())
+  .then(blob => {
+    const fileUrl = window.URL.createObjectURL(blob)
+    link.href = fileUrl
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  })
+  .catch(() => {
+    alert("Erro ao baixar o relatório CSV.")
   })
 }
 
-const setPriority = async (level) => {
-  if (!chatStore.activeTicket) return
-  chatStore.activeTicket.priority = level
-  await updateTicketPriority()
-  showPriorityModal.value = false
+const getBarHeight = (count) => {
+  const max = Math.max(...stats.value.trends.map(t => t.count), 1)
+  return `${(count / max) * 100}%`
 }
 
-const openImage = (url) => { selectedImage.value = url }
-
 onMounted(() => {
-  chatStore.fetchTickets()
-  chatStore.fetchMyTickets()
-  chatStore.initSocket()
+  fetchDashboardStats()
+  // Recarrega estatísticas periodicamente
+  const interval = setInterval(fetchDashboardStats, 10000)
+  return () => clearInterval(interval)
 })
 </script>
 
 <style scoped>
-.dashboard-content {
-  display: flex;
+.dashboard-page {
   flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
   height: 100%;
-  overflow: hidden;
 }
 
-.chat-area {
-  flex: 1;
+/* Header Bar Styling */
+.dashboard-header {
   display: flex;
-  background: var(--bg-dark);
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-left h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.status-dropdown {
   position: relative;
 }
 
-.empty-state {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at center, var(--empty-bg-inner) 0%, var(--empty-bg-outer) 100%);
-}
-
-.empty-content {
-  text-align: center;
-  opacity: 0.5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.watermark-logo {
-  width: 280px;
-  height: 280px;
-  object-fit: contain;
-  margin-bottom: 30px;
-  filter: drop-shadow(0 0 30px rgba(16, 185, 129, 0.15));
-  opacity: 0.7;
-  transition: all 0.5s ease;
-}
-
-.empty-content:hover .watermark-logo {
-  transform: scale(1.05);
-  opacity: 0.9;
-}
-
-.empty-content h1 {
-  font-size: 3rem;
-  font-weight: 800;
-  letter-spacing: -1px;
-  background: linear-gradient(to bottom, #ffffff, #94a3b8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex; align-items: center; justify-content: center; z-index: 1000;
-}
-.modal-content { 
-  background: var(--bg-sidebar); 
-  padding: 30px; 
-  border-radius: 24px; 
-  width: 450px; 
-  border: 1px solid var(--border);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  color: var(--text-primary);
-}
-
-.attendants-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.attendant-option { 
-  display: flex; 
-  align-items: center; 
-  gap: 15px; 
-  padding: 12px; 
-  width: 100%; 
-  background: rgba(255, 255, 255, 0.03); 
-  border: 1px solid var(--border); 
-  color: white; 
-  border-radius: 12px; 
-  cursor: pointer; 
-  margin-bottom: 10px; 
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.attendant-option:hover {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: var(--accent);
-  transform: translateX(8px);
-}
-
-.avatar {
-  width: 50px;
-  height: 50px;
-  background: var(--accent);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 1.2rem;
-  overflow: hidden;
-}
-
-.avatar.small { width: 40px; height: 40px; font-size: 1rem; }
-
-.attendant-option .name { font-weight: 600; display: block; text-align: left; }
-.attendant-option .dept { font-size: 0.75rem; color: var(--text-secondary); display: block; text-align: left; }
-
-.cancel-btn { 
-  background: none; 
-  border: 1px solid var(--border); 
-  color: var(--text-primary); 
-  padding: 8px 16px; 
-  border-radius: 8px; 
-  cursor: pointer; 
-  transition: all 0.3s ease;
-}
-
-.cancel-btn:hover {
-  background: var(--glass);
-  border-color: var(--text-secondary);
-}
-
-.btn-success-sm {
+.status-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: #10b981;
-  color: white;
-  border: none;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 700;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+  transition: all 0.2s;
 }
 
-.btn-success-sm:hover:not(:disabled) { 
-  background: #059669; 
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+.status-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.btn-success-sm:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
-.priority-options {
+.status-btn.online .status-dot, .status-option.online .status-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
+.status-btn.away .status-dot, .status-option.away .status-dot { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+.status-btn.offline .status-dot, .status-option.offline .status-dot { background: #94a3b8; }
+
+.status-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 20px 0;
+  min-width: 140px;
+  border: 1px solid var(--border);
+  background: var(--bg-sidebar);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
 }
 
-.priority-option {
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.status-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-secondary);
+}
+
+.header-search input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px 8px 38px;
+  color: white;
+  outline: none;
+  width: 260px;
+  font-size: 0.9rem;
+}
+
+.header-search input:focus {
+  border-color: #10b981;
+}
+
+.header-icon-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.header-icon-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.header-icon-btn .badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-avatar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+.profile-avatar img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.profile-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* Grid Layout */
+.dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+/* Row 1 Layout */
+.row-top {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 25px;
+}
+
+.widget-card {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  padding: 25px;
+  background: var(--bg-card);
+}
+
+/* Instance status card */
+.instance-widget {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.widget-header {
   display: flex;
   align-items: center;
   gap: 15px;
-  padding: 15px;
-  background: rgba(255, 255, 255, 0.03);
+}
+
+.instance-icon-wrapper {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
   border: 1px solid var(--border);
-  border-radius: 15px;
-  cursor: pointer;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.instance-icon-wrapper.connected {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.instance-details {
+  flex: 1;
+}
+
+.instance-details h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0;
   color: white;
-  transition: all 0.2s ease;
-  text-align: left;
 }
 
-.priority-option:hover {
-  background: rgba(255, 255, 255, 0.07);
-  transform: scale(1.02);
+.instance-details p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin: 2px 0 0 0;
+  font-family: monospace;
 }
 
-.priority-option .dot { width: 12px; height: 12px; border-radius: 50%; }
-.priority-option.high { border-left: 4px solid #ef4444; }
-.priority-option.high .dot { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
-.priority-option.medium { border-left: 4px solid #f59e0b; }
-.priority-option.medium .dot { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; }
-.priority-option.low { border-left: 4px solid #94a3b8; }
-.priority-option.low .dot { background: #94a3b8; }
+.badge-status {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
 
-.priority-option .opt-text { display: flex; flex-direction: column; }
-.priority-option .label { font-weight: 700; font-size: 1rem; }
-.priority-option .desc { font-size: 0.8rem; color: var(--text-secondary); }
+.badge-status.connected { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.badge-status.connecting { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+.badge-status.disconnected { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
 
-.small-modal { width: 400px !important; }
-.cancel-btn.block { width: 100%; margin-top: 10px; }
+.btn-verify {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: white;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-.image-viewer {
+.btn-verify:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.widget-metrics {
+  display: flex;
+  gap: 40px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.metric-text {
+  display: flex;
+  gap: 5px;
+}
+
+.metric-text strong {
+  color: white;
+}
+
+/* Quick Actions card */
+.quick-actions-card {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
-.full-image {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
-  border-radius: 12px;
+
+.quick-actions-card h4 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  margin-bottom: 15px;
 }
-.close-viewer {
-  position: absolute;
-  top: 20px;
-  right: 20px;
+
+.actions-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  justify-content: center;
+}
+
+.quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  color: white;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-btn.broadcast {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.quick-btn.broadcast:hover {
+  background: #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.quick-btn.report {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.quick-btn.report:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.quick-btn .arrow {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+/* Row 2 Layout: Stat Cards */
+.row-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 25px;
+}
+
+.stat-card {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  padding: 25px;
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 170px;
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-box.green { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.icon-box.blue { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+.icon-box.purple { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+
+.trend-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.trend-badge.positive { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.trend-badge.negative { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+.target-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.trend-icon {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.card-body-row {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-body-row .label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.card-body-row h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0;
+  color: white;
+}
+
+.card-body-row .subtext {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.progress-bar {
+  background: rgba(255, 255, 255, 0.05);
+  height: 5px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 10px;
+}
+
+.progress-fill.green { background: #10b981; }
+
+.segmented-progress {
+  display: flex;
+  gap: 3px;
+  margin-top: 10px;
+}
+
+.segmented-progress .segment {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+}
+
+.segmented-progress .segment.active {
+  background: #10b981;
+}
+
+.mini-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 32px;
+  margin-top: 8px;
+}
+
+.chart-bar {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px 3px 0 0;
+}
+
+.chart-bar.active {
+  background: #3b82f6;
+}
+
+/* Row 3 Layout: Chart & Team Widget */
+.row-bottom-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 25px;
+}
+
+.chart-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chart-header h4 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+}
+
+.toggle-group {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  padding: 2px;
+  border-radius: 10px;
+}
+
+.toggle-group button {
   background: none;
   border: none;
-  color: white;
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
-  opacity: 0.8;
-  transition: opacity 0.2s;
-}
-.close-viewer:hover {
-  opacity: 1;
+  transition: all 0.2s;
 }
 
-.modal-actions {
+.toggle-group button.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.chart-container {
+  flex: 1;
+  min-height: 200px;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  align-items: flex-end;
 }
 
-/* Mobile Responsiveness */
+/* CSS Bar Chart */
+.bar-chart-visual {
+  width: 100%;
+  height: 220px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 20px;
+}
+
+.bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+.bar-wrapper {
+  width: 45px;
+  height: 180px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.bar-fill {
+  width: 100%;
+  background: rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  transition: all 0.5s ease-out;
+}
+
+.bar-fill.active {
+  background: #10b981;
+}
+
+.bar-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.bar-tooltip {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 5px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(5px);
+  transition: all 0.2s;
+}
+
+.bar-col:hover .bar-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.bar-col:hover .bar-fill {
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+/* Team Widget Styling */
+.team-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.team-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-header h4 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+}
+
+.active-badge {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  flex: 1;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.team-member-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.team-member-item:last-child {
+  border-bottom: none;
+}
+
+.avatar-wrapper {
+  position: relative;
+}
+
+.member-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.status-dot-indicator {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-sidebar);
+}
+
+.status-dot-indicator.online { background: #10b981; }
+.status-dot-indicator.offline { background: #94a3b8; }
+
+.member-info h5 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0;
+  color: white;
+}
+
+.member-info p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 2px 0 0 0;
+}
+
+.member-info p.offline {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.team-footer {
+  text-align: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.view-all-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.view-all-link:hover {
+  color: white;
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1024px) {
+  .row-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
-  .sidebar-wrapper {
+  .dashboard-page {
+    padding: 15px;
+    gap: 15px;
+  }
+  .dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+    padding: 15px;
+  }
+  .header-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .header-search input {
     width: 100%;
-    display: flex;
   }
-  .sidebar-wrapper.hidden-on-mobile {
-    display: none !important;
+  .row-top {
+    grid-template-columns: 1fr;
   }
-
-  .dashboard-content:not(.has-active-ticket) .chat-area {
-    display: none;
+  .row-stats {
+    grid-template-columns: 1fr;
   }
-
-  .dashboard-content.has-active-ticket .chat-area {
-    display: flex;
-    width: 100%;
-  }
-
-  .dashboard-content.has-crm-open :deep(.crm-sidebar) {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 100;
+  .row-bottom-layout {
+    grid-template-columns: 1fr;
   }
 }
 </style>

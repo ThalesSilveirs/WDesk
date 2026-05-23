@@ -14,7 +14,8 @@ export const useChatStore = defineStore('chat', {
     currentFilter: 'unassigned', // 'mine', 'unassigned', 'closed', 'all'
     attendants: [],
     userRole: localStorage.getItem('role') || 'attendant',
-    theme: localStorage.getItem('theme') || 'dark'
+    theme: localStorage.getItem('theme') || 'dark',
+    showBroadcastModal: false
   }),
 
   actions: {

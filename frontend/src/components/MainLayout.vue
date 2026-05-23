@@ -8,6 +8,7 @@
         </transition>
       </router-view>
     </div>
+    <BroadcastModal />
   </div>
 </template>
 
@@ -15,6 +16,7 @@
 import { onMounted } from 'vue'
 import { useChatStore } from '../store/chat'
 import Sidebar from './Sidebar.vue'
+import BroadcastModal from './dashboard/BroadcastModal.vue'
 
 const chatStore = useChatStore()
 

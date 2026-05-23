@@ -22,9 +22,19 @@ const router = createRouter({
           component: Dashboard
         },
         {
+          path: 'conversations',
+          name: 'Conversations',
+          component: () => import('../views/Conversations.vue')
+        },
+        {
           path: 'users',
           name: 'Users',
           component: () => import('../views/Users.vue')
+        },
+        {
+          path: 'analytics',
+          name: 'Analytics',
+          component: () => import('../views/Analytics.vue')
         },
         {
           path: 'customers',
