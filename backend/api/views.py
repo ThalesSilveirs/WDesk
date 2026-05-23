@@ -175,8 +175,18 @@ class TicketViewSet(TenantModelViewSet):
         file_content = file_obj.read()
         base64_data = base64.b64encode(file_content).decode('utf-8')
         mime_type, _ = mimetypes.guess_type(file_obj.name)
-        if not mime_type:
-            mime_type = 'application/octet-stream'
+        
+        # Fallback de tipo de arquivo por extensão caso o SO não reconheça (e.g. webm/ogg)
+        if not mime_type or mime_type == 'application/octet-stream':
+            ext = file_obj.name.split('.')[-1].lower()
+            if ext in ['ogg', 'mp3', 'wav', 'webm', 'm4a', 'aac']:
+                mime_type = f'audio/{ext}'
+            elif ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                mime_type = f'image/{ext}'
+            elif ext in ['mp4', 'avi', 'mov', 'mkv']:
+                mime_type = f'video/{ext}'
+            else:
+                mime_type = 'application/octet-stream'
         
         # 3. Determinar o tipo (Evolution Go espera: image, audio, video, document)
         evo_type = 'document'

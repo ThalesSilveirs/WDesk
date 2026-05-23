@@ -378,17 +378,23 @@ const cancelRecording = () => {
 
 const sendRecording = async () => {
   if (recordedFile.value) {
-    await chatStore.sendMedia(recordedFile.value)
-    
-    if (recordedAudioUrl.value) {
-      URL.revokeObjectURL(recordedAudioUrl.value)
+    try {
+      await chatStore.sendMedia(recordedFile.value)
+      
+      if (recordedAudioUrl.value) {
+        URL.revokeObjectURL(recordedAudioUrl.value)
+      }
+      
+      isRecording.value = false
+      hasRecording.value = false
+      recordedAudioUrl.value = null
+      recordedFile.value = null
+      scrollToBottom()
+    } catch (err) {
+      console.error("Erro ao enviar áudio gravado:", err)
+      const errorMsg = err.response?.data?.error || err.message || "Erro desconhecido"
+      alert("Não foi possível enviar o áudio: " + errorMsg)
     }
-    
-    isRecording.value = false
-    hasRecording.value = false
-    recordedAudioUrl.value = null
-    recordedFile.value = null
-    scrollToBottom()
   }
 }
 
