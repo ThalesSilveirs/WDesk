@@ -1,18 +1,41 @@
 import redis
 from django.conf import settings
 from django.utils import timezone
-
-# Initialize Redis client from Celery broker URL
-redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
-r = redis.Redis.from_url(redis_url)
+from rest_framework_simplejwt.tokens import AccessToken
 
 class UpdateLastActivityMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        self.r = None
 
     def __call__(self, request):
-        if request.user and request.user.is_authenticated:
-            # Mark user as active for 60 seconds (since dashboard polls every 10s)
-            key = f"user_active_{request.user.id}"
-            r.setex(key, 60, int(timezone.now().timestamp()))
+        user_id = None
+        
+        # 1. Try session authentication
+        if hasattr(request, 'user') and request.user and request.user.is_authenticated:
+            user_id = request.user.id
+            
+        # 2. Try JWT Bearer token authentication
+        else:
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            if auth_header.startswith('Bearer '):
+                try:
+                    token = auth_header.split(' ')[1]
+                    access_token = AccessToken(token)
+                    user_id = access_token['user_id']
+                except Exception:
+                    pass
+
+        # 3. If user is authenticated, record activity in Redis
+        if user_id:
+            try:
+                if not self.r:
+                    redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
+                    self.r = redis.Redis.from_url(redis_url)
+                key = f"user_active_{user_id}"
+                self.r.setex(key, 60, int(timezone.now().timestamp()))
+            except Exception as e:
+                # Catch exceptions to prevent API crashes if Redis is briefly unreachable
+                print(f"Error recording user activity in Redis: {e}")
+
         return self.get_response(request)
