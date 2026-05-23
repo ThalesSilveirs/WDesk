@@ -148,10 +148,10 @@
           <audio :src="recordedAudioUrl" controls class="audio-preview-player"></audio>
         </div>
         <div class="recording-actions">
-          <button class="cancel-rec-btn" @click="cancelRecording" title="Descartar Áudio">
+          <button class="cancel-rec-btn" @click="cancelRecording" :disabled="isSending" title="Descartar Áudio">
             <TrashIcon :size="20" />
           </button>
-          <button class="send-rec-btn" @click="sendRecording" title="Enviar Áudio">
+          <button class="send-rec-btn" @click="sendRecording" :disabled="isSending" title="Enviar Áudio">
             <SendIcon :size="20" />
           </button>
         </div>
@@ -241,6 +241,7 @@ const scrollToBottom = () => {
 // Controle de Gravação de Áudio
 const isRecording = ref(false)
 const hasRecording = ref(false)
+const isSending = ref(false)
 const recordedAudioUrl = ref(null)
 const recordedFile = ref(null)
 
@@ -377,7 +378,8 @@ const cancelRecording = () => {
 }
 
 const sendRecording = async () => {
-  if (recordedFile.value) {
+  if (recordedFile.value && !isSending.value) {
+    isSending.value = true
     try {
       await chatStore.sendMedia(recordedFile.value)
       
@@ -394,6 +396,8 @@ const sendRecording = async () => {
       console.error("Erro ao enviar áudio gravado:", err)
       const errorMsg = err.response?.data?.error || err.message || "Erro desconhecido"
       alert("Não foi possível enviar o áudio: " + errorMsg)
+    } finally {
+      isSending.value = false
     }
   }
 }
@@ -966,5 +970,12 @@ watch(() => chatStore.messages.length, scrollToBottom)
 .send-rec-btn:hover {
   background: var(--accent-hover);
   transform: scale(1.05);
+}
+
+.send-rec-btn:disabled, .cancel-rec-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 </style>

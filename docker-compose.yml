@@ -10,6 +10,11 @@ services:
       - POSTGRES_DB=${DB_NAME:-whatsapp_saas}
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 
@@ -53,8 +58,10 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - app-network
 
@@ -74,8 +81,10 @@ services:
       - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-go:8080}
       - EVOLUTION_API_TOKEN=${EVOLUTION_API_TOKEN:-0f00f38b042ada23b3437e74b0141dd4d40ac50daf2afd9c8c524b79958a54cd}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - app-network
     ports:
@@ -94,8 +103,10 @@ services:
       - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-go:8080}
       - EVOLUTION_API_TOKEN=${EVOLUTION_API_TOKEN:-0f00f38b042ada23b3437e74b0141dd4d40ac50daf2afd9c8c524b79958a54cd}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - app-network
 
