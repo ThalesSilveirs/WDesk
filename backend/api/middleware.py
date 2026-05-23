@@ -1,7 +1,6 @@
 import redis
 from django.conf import settings
 from django.utils import timezone
-from rest_framework_simplejwt.tokens import AccessToken
 
 class UpdateLastActivityMiddleware:
     def __init__(self, get_response):
@@ -20,6 +19,7 @@ class UpdateLastActivityMiddleware:
             auth_header = request.META.get('HTTP_AUTHORIZATION', '')
             if auth_header.startswith('Bearer '):
                 try:
+                    from rest_framework_simplejwt.tokens import AccessToken
                     token = auth_header.split(' ')[1]
                     access_token = AccessToken(token)
                     user_id = access_token['user_id']
