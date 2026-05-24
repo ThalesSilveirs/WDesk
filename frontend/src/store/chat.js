@@ -208,6 +208,14 @@ export const useChatStore = defineStore('chat', {
       this.socket.on('connection_update', (payload) => {
         window.dispatchEvent(new CustomEvent('connection-updated', { detail: payload }))
       })
+
+      this.socket.on('reset_conversations', () => {
+        this.tickets = []
+        this.myTickets = []
+        this.activeTicket = null
+        this.messages = []
+      })
+
     },
 
     async fetchTickets(filter = null) {
@@ -342,13 +350,14 @@ export const useChatStore = defineStore('chat', {
 
     async resetConversations() {
       const token = localStorage.getItem('token')
-      await axios.post(`/api/v1/companies/reset_conversations/`, {}, {
+      const response = await axios.post(`/api/v1/companies/reset_conversations/`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
       this.tickets = []
       this.myTickets = []
       this.activeTicket = null
       this.messages = []
+      return response.data
     }
   }
 })

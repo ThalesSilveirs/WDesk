@@ -219,9 +219,9 @@ const copyWebhook = () => {
 const handleReset = async () => {
   reseting.value = true
   try {
-    await chatStore.resetConversations()
+    const res = await chatStore.resetConversations()
     confirmReset.value = false
-    alert("Todas as conversas foram apagadas com sucesso.")
+    alert(res?.message || "O processo de limpeza foi iniciado com sucesso.")
   } catch (e) {
     console.error("Erro no reset:", e)
     const errorMsg = e.response?.data?.error || e.response?.data?.detail || e.message

@@ -168,3 +168,45 @@ def send_broadcast_task(company_id, connection_id, user_id, phones, message):
     except Exception as err:
         print(f"Erro geral no broadcast: {err}")
 
+
+@shared_task
+def reset_company_conversations_task(company_id):
+    from tickets.models import Company
+    from django.db import connection as db_connection
+    
+    try:
+        company = Company.objects.get(id=company_id)
+        print(f"[RESET TASK] Starting reset for company: {company.name} ({company_id})")
+        
+        with db_connection.cursor() as cursor:
+            # 1. Delete all messages from tickets belonging to the company
+            cursor.execute("""
+                DELETE FROM tickets_message 
+                WHERE ticket_id IN (
+                    SELECT id FROM tickets_ticket WHERE company_id = %s
+                )
+            """, [str(company_id)])
+            
+            # 2. Delete all tickets belonging to the company
+            cursor.execute("""
+                DELETE FROM tickets_ticket 
+                WHERE company_id = %s
+            """, [str(company_id)])
+            
+        print(f"[RESET TASK] Reset completed successfully for company {company.name}")
+        
+        # Publish real-time event to reset UI for all logged-in users of the company
+        try:
+            event_payload = {
+                "company_id": str(company_id),
+                "type": "reset_conversations",
+                "payload": {}
+            }
+            redis_client.publish('company_events', json.dumps(event_payload))
+        except Exception as redis_err:
+            print(f"[RESET TASK] Error publishing redis event: {redis_err}")
+            
+    except Exception as e:
+        print(f"[RESET TASK] ERROR: {str(e)}")
+
+

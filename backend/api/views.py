@@ -1321,16 +1321,29 @@ class CompanyViewSet(viewsets.ModelViewSet):
         if not company:
             return Response({"error": "Usuário não vinculado a uma empresa"}, status=400)
 
-        # Deleta todas as mensagens e tickets da empresa
         try:
-            msg_count = Message.objects.filter(ticket__company=company).count()
-            ticket_count = Ticket.objects.filter(company=company).count()
-            print(f"[RESET] Deleting {msg_count} messages and {ticket_count} tickets for company {company.name}")
-            
-            Message.objects.filter(ticket__company=company).delete()
-            Ticket.objects.filter(company=company).delete()
-            
-            return Response({"message": "Todas as conversas foram apagadas com sucesso"})
+            from tickets.tasks import reset_company_conversations_task
+            # Trigger clean up in background Celery task
+            reset_company_conversations_task.delay(str(company.id))
+            return Response({"message": "O processo de limpeza foi iniciado em segundo plano. As conversas serão apagadas em breve."})
         except Exception as e:
-            print(f"[RESET] ERROR: {str(e)}")
-            return Response({"error": f"Erro interno ao deletar: {str(e)}"}, status=500)
+            print(f"[RESET] Celery scheduling failed, falling back to optimized SQL delete: {str(e)}")
+            # Fallback to direct optimized SQL delete
+            try:
+                from django.db import connection as db_connection
+                with db_connection.cursor() as cursor:
+                    cursor.execute("""
+                        DELETE FROM tickets_message 
+                        WHERE ticket_id IN (
+                            SELECT id FROM tickets_ticket WHERE company_id = %s
+                        )
+                    """, [str(company.id)])
+                    cursor.execute("""
+                        DELETE FROM tickets_ticket 
+                        WHERE company_id = %s
+                    """, [str(company.id)])
+                return Response({"message": "Todas as conversas foram apagadas com sucesso (fallback SQL)."})
+            except Exception as sql_e:
+                print(f"[RESET] FALLBACK SQL ERROR: {str(sql_e)}")
+                return Response({"error": f"Erro ao resetar: {str(sql_e)}"}, status=500)
+
