@@ -244,6 +244,57 @@ onMounted(fetchSettings)
   height: 100%;
 }
 
+/* Centralized Premium Modal Confirmation */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-content {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  width: 450px;
+  max-width: 90%;
+  padding: 35px;
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.danger-modal {
+  border-color: rgba(239, 68, 68, 0.3);
+  text-align: center;
+}
+
+.danger-modal h2 {
+  font-size: 1.4rem;
+  color: #ef4444;
+  margin-top: 15px;
+  margin-bottom: 10px;
+}
+
+.danger-modal p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 25px;
+}
+
+.modal-actions-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .settings-content {
   flex: 1;
   display: flex;
