@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { 
   Plus as PlusIcon,
@@ -134,10 +134,22 @@ const deleteUser = async (id) => {
   })
   fetchUsers()
 }
+const handleStatusChange = (e) => {
+  const { user_id, status } = e.detail
+  const user = users.value.find(u => u.id === user_id)
+  if (user) {
+    user.status = status
+  }
+}
 
+onMounted(() => {
+  fetchUsers()
+  window.addEventListener('user-status-changed', handleStatusChange)
+})
 
-
-onMounted(fetchUsers)
+onUnmounted(() => {
+  window.removeEventListener('user-status-changed', handleStatusChange)
+})
 </script>
 
 <style scoped>

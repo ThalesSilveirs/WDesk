@@ -34,6 +34,18 @@ class UserSerializer(serializers.ModelSerializer):
         from django.conf import settings
         redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
         r = redis.Redis.from_url(redis_url)
+        
+        status_key = f"user_status_{obj.id}"
+        status_bytes = r.get(status_key)
+        if status_bytes:
+            status = status_bytes.decode('utf-8')
+            if status == 'away':
+                return "Ausente"
+            elif status == 'offline':
+                return "Offline"
+            elif status == 'online':
+                return "Online"
+                
         is_active = r.exists(f"user_active_{obj.id}")
         return "Online" if is_active else "Offline"
 

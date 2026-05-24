@@ -200,7 +200,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useChatStore } from '../store/chat'
 import { 
   ChevronDown as ChevronDownIcon,
@@ -348,10 +348,25 @@ const getBarHeight = (count) => {
   return `${(count / max) * 100}%`
 }
 
+let intervalId = null
+
+const handleStatusChange = (e) => {
+  const { user_id, status } = e.detail
+  const agent = stats.value.team_activity.find(a => a.id === user_id)
+  if (agent) {
+    agent.status = status
+  }
+}
+
 onMounted(() => {
   fetchDashboardStats()
-  const interval = setInterval(fetchDashboardStats, 10000)
-  return () => clearInterval(interval)
+  intervalId = setInterval(fetchDashboardStats, 10000)
+  window.addEventListener('user-status-changed', handleStatusChange)
+})
+
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+  window.removeEventListener('user-status-changed', handleStatusChange)
 })
 </script>
 

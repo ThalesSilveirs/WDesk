@@ -441,7 +441,23 @@ class TicketViewSet(TenantModelViewSet):
         users = User.objects.filter(company=company)
         for user in users:
             active_handling = Ticket.objects.filter(company=company, user=user, status__in=['open', 'pending']).count()
-            is_active = r.exists(f"user_active_{user.id}")
+            
+            status_key = f"user_status_{user.id}"
+            status_bytes = r.get(status_key)
+            status_str = "Offline"
+            if status_bytes:
+                status = status_bytes.decode('utf-8')
+                if status == 'away':
+                    status_str = "Ausente"
+                elif status == 'offline':
+                    status_str = "Offline"
+                elif status == 'online':
+                    status_str = "Online"
+            else:
+                is_active = r.exists(f"user_active_{user.id}")
+                if is_active:
+                    status_str = "Online"
+
             team_activity.append({
                 "id": user.id,
                 "username": user.username,
@@ -449,7 +465,7 @@ class TicketViewSet(TenantModelViewSet):
                 "last_name": user.last_name,
                 "department": user.department or "Atendimento",
                 "active_chats": active_handling,
-                "status": "Online" if is_active else "Offline"
+                "status": status_str
             })
         team_activity.sort(key=lambda x: x['active_chats'], reverse=True)
         

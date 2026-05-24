@@ -216,6 +216,17 @@ export const useChatStore = defineStore('chat', {
         this.messages = []
       })
 
+      this.socket.on('status_sync', (payload) => {
+        window.dispatchEvent(new CustomEvent('user-status-synced', { detail: payload }))
+      })
+
+      this.socket.on('user_status_changed', (payload) => {
+        const attendant = this.attendants.find(a => a.id === payload.user_id)
+        if (attendant) {
+          attendant.status = payload.status
+        }
+        window.dispatchEvent(new CustomEvent('user-status-changed', { detail: payload }))
+      })
     },
 
     async fetchTickets(filter = null) {
@@ -358,6 +369,12 @@ export const useChatStore = defineStore('chat', {
       this.activeTicket = null
       this.messages = []
       return response.data
+    },
+
+    changeUserStatus(status) {
+      if (this.socket && this.socket.connected) {
+        this.socket.emit('change_status', { status })
+      }
     }
   }
 })

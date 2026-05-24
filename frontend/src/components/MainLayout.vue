@@ -106,7 +106,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore } from '../store/chat'
 import Sidebar from './Sidebar.vue'
@@ -170,6 +170,7 @@ const formatStatusName = (status) => {
 const changeStatus = (status) => {
   currentStatus.value = status
   showStatusMenu.value = false
+  chatStore.changeUserStatus(status)
 }
 
 const toggleNotificationDropdown = (e) => {
@@ -215,6 +216,10 @@ const formatTime = (date) => {
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
+const handleStatusSynced = (e) => {
+  currentStatus.value = e.detail.status
+}
+
 // Close dropdown on window click
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', chatStore.theme)
@@ -224,6 +229,12 @@ onMounted(() => {
     showNotificationDropdown.value = false
     showStatusMenu.value = false
   })
+
+  window.addEventListener('user-status-synced', handleStatusSynced)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('user-status-synced', handleStatusSynced)
 })
 </script>
 
