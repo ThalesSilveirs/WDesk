@@ -77,7 +77,7 @@
             </div>
           </div>
 
-          <button class="header-icon-btn" title="Histórico">
+          <button class="header-icon-btn history-btn" title="Histórico">
             <HistoryIcon :size="20" />
           </button>
           
@@ -576,24 +576,50 @@ onUnmounted(() => {
     height: calc(100dvh - 60px);
   }
   .global-header {
-    padding: 10px 15px;
-    height: auto;
-    flex-direction: column;
-    gap: 10px;
-    align-items: stretch;
+    padding: 0 16px;
+    height: 60px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0;
   }
   .header-left {
-    justify-content: space-between;
+    gap: 10px;
+  }
+  .header-left h1 {
+    font-size: 1.15rem;
+  }
+  .status-btn {
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    gap: 4px;
+  }
+  .status-btn svg {
+    width: 12px;
+    height: 12px;
   }
   .header-right {
-    justify-content: space-between;
+    gap: 12px;
   }
-  .header-search input {
-    width: 100%;
+  .header-search {
+    display: none;
+  }
+  .history-btn {
+    display: none;
+  }
+  .profile-name {
+    display: none;
   }
   .profile-avatar {
     border-left: none;
     padding-left: 0;
+    gap: 0;
+  }
+  .notification-dropdown {
+    right: -10px;
+    width: 290px;
+    max-width: calc(100vw - 32px);
   }
 }
 </style>

@@ -1160,30 +1160,163 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .dashboard-page {
     padding: 15px;
-    gap: 15px;
+    gap: 20px;
   }
-  .dashboard-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 15px;
+  .widget-card {
     padding: 15px;
-  }
-  .header-right {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .header-search input {
-    width: 100%;
+    border-radius: 20px;
   }
   .row-top {
     grid-template-columns: 1fr;
+    gap: 15px;
   }
+  
+  /* Instance Widget Mobile layout */
+  .instance-widget .widget-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .instance-widget .instance-details h3 {
+    font-size: 1rem;
+  }
+  .instance-widget .badge-status {
+    grid-column: 3;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+  .instance-widget .btn-verify {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+    margin-top: 5px;
+    padding: 10px;
+    font-size: 0.8rem;
+  }
+  .widget-metrics {
+    gap: 10px;
+    justify-content: space-between;
+    padding-top: 12px;
+  }
+  .metric-item {
+    font-size: 0.75rem;
+  }
+
+  /* Quick Actions Mobile */
+  .quick-actions-card {
+    gap: 15px;
+  }
+  .quick-actions-card h4 {
+    margin-bottom: 5px;
+  }
+  .quick-btn {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    border-radius: 12px;
+  }
+
+  /* 2x2 Stats Grid for Mobile */
   .row-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
+  .stat-card {
+    padding: 15px;
+    min-height: 130px;
+    border-radius: 20px;
+  }
+  .icon-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+  .icon-box svg {
+    width: 16px;
+    height: 16px;
+  }
+  .trend-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+  .target-label {
+    font-size: 0.65rem;
+  }
+  .card-body-row {
+    margin-top: 10px;
+    gap: 2px;
+  }
+  .card-body-row .label {
+    font-size: 0.6rem;
+  }
+  .card-body-row h2 {
+    font-size: 1.35rem;
+  }
+  .card-body-row .subtext {
+    font-size: 0.65rem;
+  }
+  .progress-bar {
+    margin-top: 6px;
+    height: 4px;
+  }
+  .segmented-progress {
+    margin-top: 6px;
+    gap: 2px;
+  }
+  .segmented-progress .segment {
+    height: 4px;
+  }
+  .mini-bar-chart {
+    height: 20px;
+    margin-top: 4px;
+    gap: 4px;
+  }
+
+  /* Charts & Team Widgets Mobile */
   .row-bottom-layout {
     grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .chart-header h4, .team-header h4 {
+    font-size: 0.9rem;
+  }
+  .toggle-group button {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+  .bar-chart-visual {
+    height: 180px;
+    padding-bottom: 10px;
+  }
+  .bar-wrapper {
+    width: 26px;
+    height: 140px;
+  }
+  .bar-label {
+    font-size: 0.7rem;
+    margin-top: 6px;
+  }
+  .team-list {
+    max-height: 220px;
+    gap: 12px;
+  }
+  .team-member-item {
+    gap: 10px;
+    padding-bottom: 8px;
+  }
+  .member-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+  .member-info h5 {
+    font-size: 0.8rem;
+  }
+  .member-info p {
+    font-size: 0.75rem;
+  }
+  .view-all-link {
+    font-size: 0.8rem;
   }
 }
 </style>
