@@ -51,40 +51,48 @@
 
     <div class="messages-wrapper">
       <div class="messages-container" ref="messageRef">
-        <div v-for="msg in chatStore.messages" :key="msg.id" class="message" :class="{ 'me': msg.from_me }">
-          <div class="message-bubble">
-            <!-- Media Display -->
-            <div v-if="msg.media_type === 'image'" class="media-image clickable" @click="emit('openImage', resolvedUrls[msg.id] || msg.media_url || msg.body)">
-              <img :src="resolvedUrls[msg.id] || msg.media_url || msg.body" />
-            </div>
-            <div v-else-if="msg.media_type === 'audio'" class="media-audio">
-              <AudioPlayer :src="resolvedUrls[msg.id] || msg.media_url" :from-me="msg.from_me" />
-            </div>
-            <div v-else-if="msg.media_type === 'video'" class="media-video clickable" @click="emit('openVideo', resolvedUrls[msg.id] || msg.media_url || msg.body)">
-              <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="auto" muted playsinline></video>
-              <div class="video-play-overlay">
-                <PlayIcon :size="24" class="play-icon" />
+        <template v-for="msg in chatStore.messages" :key="msg.id">
+          <!-- Mensagem de Evento do Sistema (Centralizada) -->
+          <div v-if="isSystemMessage(msg)" class="system-message-center">
+            <span class="system-message-badge" v-html="cleanSystemText(msg.body)"></span>
+          </div>
+
+          <!-- Mensagem Normal -->
+          <div v-else class="message" :class="{ 'me': msg.from_me }">
+            <div class="message-bubble">
+              <!-- Media Display -->
+              <div v-if="msg.media_type === 'image'" class="media-image clickable" @click="emit('openImage', resolvedUrls[msg.id] || msg.media_url || msg.body)">
+                <img :src="resolvedUrls[msg.id] || msg.media_url || msg.body" />
               </div>
-            </div>
-            <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(resolvedUrls[msg.id] || msg.media_url || msg.body)">
-              <div class="doc-card">
-                <FileIcon :size="32" />
-                <div class="doc-info">
-                  <span class="doc-name">Ver Documento</span>
-                  <span class="doc-ext">PDF / Arquivo</span>
+              <div v-else-if="msg.media_type === 'audio'" class="media-audio">
+                <AudioPlayer :src="resolvedUrls[msg.id] || msg.media_url" :from-me="msg.from_me" />
+              </div>
+              <div v-else-if="msg.media_type === 'video'" class="media-video clickable" @click="emit('openVideo', resolvedUrls[msg.id] || msg.media_url || msg.body)">
+                <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="auto" muted playsinline></video>
+                <div class="video-play-overlay">
+                  <PlayIcon :size="24" class="play-icon" />
                 </div>
               </div>
+              <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(resolvedUrls[msg.id] || msg.media_url || msg.body)">
+                <div class="doc-card">
+                  <FileIcon :size="32" />
+                  <div class="doc-info">
+                    <span class="doc-name">Ver Documento</span>
+                    <span class="doc-ext">PDF / Arquivo</span>
+                  </div>
+                </div>
+              </div>
+              
+              <p v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio'">
+                {{ cleanBody(msg.body, msg.from_me) }}
+              </p>
+              <span class="msg-time">
+                <span v-if="msg.from_me && msg.user_details" class="msg-attendant">{{ msg.user_details.first_name }} {{ msg.user_details.last_name }} • </span>
+                {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+              </span>
             </div>
-            
-            <p v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio'">
-              {{ cleanBody(msg.body, msg.from_me) }}
-            </p>
-            <span class="msg-time">
-              <span v-if="msg.from_me && msg.user_details" class="msg-attendant">{{ msg.user_details.first_name }} {{ msg.user_details.last_name }} • </span>
-              {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
-            </span>
           </div>
-        </div>
+        </template>
       </div>
     </div>
 
@@ -342,6 +350,25 @@ const handlePaste = async (event) => {
   }
 }
 
+const isSystemMessage = (msg) => {
+  return msg.from_me && !msg.user && (
+    msg.body?.startsWith('Seu atendimento foi') || 
+    msg.body?.startsWith('Seu atendimento iniciado') ||
+    msg.body?.includes('atendimento foi transferido')
+  )
+}
+
+const cleanSystemText = (body) => {
+  if (!body) return ''
+  const escaped = body
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+  return escaped.replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+}
+
 const send = async () => {
   if (!newMessage.value.trim()) return
   const text = newMessage.value
@@ -576,6 +603,32 @@ watch(() => chatStore.messages.length, scrollToBottom)
 </script>
 
 <style scoped>
+.system-message-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 12px 0;
+  width: 100%;
+}
+
+.system-message-badge {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  max-width: 80%;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: inline-block;
+}
+
+.system-message-badge strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .chat-main-column {
   flex: 1;
   display: flex;

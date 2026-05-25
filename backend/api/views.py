@@ -222,7 +222,7 @@ class TicketViewSet(TenantModelViewSet):
         
         # Envia mensagem do sistema
         atendente_nome = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
-        msg_text = f"*Sistema wDesk*:\n\nSeu atendimento foi iniciado por *{atendente_nome}*"
+        msg_text = f"Seu atendimento foi iniciado por *{atendente_nome}*"
         self.send_system_whatsapp_message(ticket, msg_text)
         
         return Response(TicketSerializer(ticket).data)
@@ -243,7 +243,7 @@ class TicketViewSet(TenantModelViewSet):
             
             # Envia mensagem do sistema
             atendente_nome = f"{new_user.first_name} {new_user.last_name}".strip() or new_user.username
-            msg_text = f"*Sistema wDesk*:\n\nSeu atendimento foi transferido para *{atendente_nome}*"
+            msg_text = f"Seu atendimento foi transferido para *{atendente_nome}*"
             self.send_system_whatsapp_message(ticket, msg_text)
             
             return Response(TicketSerializer(ticket).data)
