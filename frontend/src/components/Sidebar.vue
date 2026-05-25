@@ -146,14 +146,15 @@ const logout = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 5px;
-  margin-bottom: 25px;
+  padding: 0;
+  margin-bottom: 30px;
 }
 
 .brand-logo-img {
-  max-height: 60px;
-  max-width: 90%;
+  width: 100%;
+  max-height: 90px;
   object-fit: contain;
+  transform: scale(1.2);
   filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.25));
 }
 
