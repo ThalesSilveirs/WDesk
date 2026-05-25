@@ -33,87 +33,98 @@
     </main>
 
     <!-- Modal de Finalização -->
-    <div v-if="showCloseModal" class="modal-overlay">
-      <div class="modal-content glass-effect">
-        <h2>Finalizar Atendimento</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 15px;">Descreva brevemente como o caso foi resolvido:</p>
-        
-        <div class="form-group">
-          <textarea 
-            v-model="resolutionSummary" 
-            placeholder="Ex: O cliente foi orientado a reiniciar o roteador e o sinal voltou ao normal."
-            rows="5"
-            style="width: 100%; background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border); border-radius: 10px; padding: 10px; outline: none;"
-          ></textarea>
-        </div>
+    <Transition name="modal-fade">
+      <div v-if="showCloseModal" class="modal-overlay" @click="showCloseModal = false">
+        <div class="modal-content" @click.stop>
+          <h2>Finalizar Atendimento</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 15px;">Descreva brevemente como o caso foi resolvido:</p>
+          
+          <div class="form-group">
+            <textarea 
+              v-model="resolutionSummary" 
+              placeholder="Ex: O cliente foi orientado a reiniciar o roteador e o sinal voltou ao normal."
+              rows="5"
+              class="input-glass"
+              style="width: 100%; resize: vertical;"
+            ></textarea>
+          </div>
 
-        <div class="modal-actions" style="margin-top: 20px;">
-          <button @click="showCloseModal = false" class="cancel-btn">Cancelar</button>
-          <button @click="confirmClose" class="btn-success-sm" :disabled="!resolutionSummary.trim()">Confirmar e Fechar</button>
+          <div class="modal-actions" style="margin-top: 20px;">
+            <button @click="showCloseModal = false" class="btn-secondary">Cancelar</button>
+            <button @click="confirmClose" class="btn-success-sm" :disabled="!resolutionSummary.trim()">Confirmar e Fechar</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Modal de Transferência -->
-    <div v-if="showTransferModal" class="modal-overlay">
-      <div class="modal-content glass-effect">
-        <h2>Transferir Atendimento</h2>
-        <div class="attendants-list">
-          <button 
-            v-for="user in chatStore.attendants" 
-            :key="user.id" 
-            @click="confirmTransfer(user.id)"
-            class="attendant-option"
-          >
-            <div class="avatar small">{{ user.username.charAt(0).toUpperCase() }}</div>
-            <div>
-              <span class="name">{{ user.first_name }} {{ user.last_name }}</span>
-              <span class="dept">{{ user.department }}</span>
-            </div>
-          </button>
+    <Transition name="modal-fade">
+      <div v-if="showTransferModal" class="modal-overlay" @click="showTransferModal = false">
+        <div class="modal-content" @click.stop>
+          <h2>Transferir Atendimento</h2>
+          <div class="attendants-list">
+            <button 
+              v-for="user in chatStore.attendants" 
+              :key="user.id" 
+              @click="confirmTransfer(user.id)"
+              class="attendant-option"
+            >
+              <div class="avatar small">{{ user.username.charAt(0).toUpperCase() }}</div>
+              <div>
+                <span class="name">{{ user.first_name }} {{ user.last_name }}</span>
+                <span class="dept">{{ user.department }}</span>
+              </div>
+            </button>
+          </div>
+          <div class="modal-actions">
+            <button @click="showTransferModal = false" class="btn-secondary">Cancelar</button>
+          </div>
         </div>
-        <div class="modal-actions"><button @click="showTransferModal = false" class="cancel-btn">Cancelar</button></div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Modal de Prioridade -->
-    <div v-if="showPriorityModal" class="modal-overlay" @click="showPriorityModal = false">
-      <div class="modal-content glass-effect small-modal" @click.stop>
-        <h2>Definir Prioridade</h2>
-        <div class="priority-options">
-          <button @click="setPriority('high')" class="priority-option high">
-            <span class="dot"></span>
-            <div class="opt-text">
-              <span class="label">Alta Prioridade</span>
-              <span class="desc">Assuntos urgentes / Críticos</span>
-            </div>
-          </button>
-          <button @click="setPriority('medium')" class="priority-option medium">
-            <span class="dot"></span>
-            <div class="opt-text">
-              <span class="label">Média Prioridade</span>
-              <span class="desc">Atendimento padrão</span>
-            </div>
-          </button>
-          <button @click="setPriority('low')" class="priority-option low">
-            <span class="dot"></span>
-            <div class="opt-text">
-              <span class="label">Baixa Prioridade</span>
-              <span class="desc">Dúvidas gerais / Informativo</span>
-            </div>
-          </button>
-        </div>
-        <div class="modal-actions">
-          <button @click="showPriorityModal = false" class="cancel-btn block">Cancelar</button>
+    <Transition name="modal-fade">
+      <div v-if="showPriorityModal" class="modal-overlay" @click="showPriorityModal = false">
+        <div class="modal-content small-modal" @click.stop>
+          <h2>Definir Prioridade</h2>
+          <div class="priority-options">
+            <button @click="setPriority('high')" class="priority-option high">
+              <span class="dot"></span>
+              <div class="opt-text">
+                <span class="label">Alta Prioridade</span>
+                <span class="desc">Assuntos urgentes / Críticos</span>
+              </div>
+            </button>
+            <button @click="setPriority('medium')" class="priority-option medium">
+              <span class="dot"></span>
+              <div class="opt-text">
+                <span class="label">Média Prioridade</span>
+                <span class="desc">Atendimento padrão</span>
+              </div>
+            </button>
+            <button @click="setPriority('low')" class="priority-option low">
+              <span class="dot"></span>
+              <div class="opt-text">
+                <span class="label">Baixa Prioridade</span>
+                <span class="desc">Dúvidas gerais / Informativo</span>
+              </div>
+            </button>
+          </div>
+          <div class="modal-actions">
+            <button @click="showPriorityModal = false" class="btn-secondary block">Cancelar</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Visualizador de Imagem -->
-    <div v-if="selectedImage" class="modal-overlay image-viewer" @click="selectedImage = null">
-      <button class="close-viewer"><XIcon :size="32" /></button>
-      <img :src="selectedImage" class="full-image" @click.stop />
-    </div>
+    <Transition name="fade">
+      <div v-if="selectedImage" class="modal-overlay image-viewer" @click="selectedImage = null">
+        <button class="close-viewer"><XIcon :size="32" /></button>
+        <img :src="selectedImage" class="full-image" @click.stop />
+      </div>
+    </Transition>
 
   </div>
 </template>
@@ -230,22 +241,6 @@ onMounted(() => {
   -webkit-text-fill-color: transparent;
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex; align-items: center; justify-content: center; z-index: 1000;
-}
-.modal-content { 
-  background: var(--bg-sidebar); 
-  padding: 30px; 
-  border-radius: 24px; 
-  width: 450px; 
-  border: 1px solid var(--border);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  color: var(--text-primary);
-}
-
 .attendants-list {
   max-height: 300px;
   overflow-y: auto;
@@ -257,9 +252,9 @@ onMounted(() => {
   gap: 15px; 
   padding: 12px; 
   width: 100%; 
-  background: rgba(255, 255, 255, 0.03); 
+  background: var(--glass); 
   border: 1px solid var(--border); 
-  color: white; 
+  color: var(--text-primary); 
   border-radius: 12px; 
   cursor: pointer; 
   margin-bottom: 10px; 
@@ -283,27 +278,13 @@ onMounted(() => {
   font-weight: bold;
   font-size: 1.2rem;
   overflow: hidden;
+  color: white;
 }
 
 .avatar.small { width: 40px; height: 40px; font-size: 1rem; }
 
 .attendant-option .name { font-weight: 600; display: block; text-align: left; }
 .attendant-option .dept { font-size: 0.75rem; color: var(--text-secondary); display: block; text-align: left; }
-
-.cancel-btn { 
-  background: none; 
-  border: 1px solid var(--border); 
-  color: var(--text-primary); 
-  padding: 8px 16px; 
-  border-radius: 8px; 
-  cursor: pointer; 
-  transition: all 0.3s ease;
-}
-
-.cancel-btn:hover {
-  background: var(--glass);
-  border-color: var(--text-secondary);
-}
 
 .btn-success-sm {
   display: flex;
@@ -343,17 +324,17 @@ onMounted(() => {
   align-items: center;
   gap: 15px;
   padding: 15px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass);
   border: 1px solid var(--border);
   border-radius: 15px;
   cursor: pointer;
-  color: white;
+  color: var(--text-primary);
   transition: all 0.2s ease;
   text-align: left;
 }
 
 .priority-option:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--border);
   transform: scale(1.02);
 }
 

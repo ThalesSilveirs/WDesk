@@ -67,87 +67,91 @@
     </main>
 
     <!-- Modal de Cadastro/Edição de Cliente -->
-    <div v-if="showModal" class="modal-overlay">
-      <div class="modal-content glass-effect">
-        <div class="modal-header">
-          <h2>{{ editingId ? 'Editar Cliente' : 'Novo Cliente' }}</h2>
-          <button @click="showModal = false" class="close-btn"><XIcon :size="24" /></button>
+    <Transition name="modal-fade">
+      <div v-if="showModal" class="modal-overlay" @click="showModal = false">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h2>{{ editingId ? 'Editar Cliente' : 'Novo Cliente' }}</h2>
+            <button @click="showModal = false" class="close-btn-round"><XIcon :size="20" /></button>
+          </div>
+          <form @submit.prevent="saveCustomer" class="modal-form">
+            <div class="form-group">
+              <label>Nome da Empresa / Cliente</label>
+              <input v-model="form.name" required class="input-glass" placeholder="Ex: Confetti Eventos" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Telefone Principal</label>
+                <input v-model="form.phone" required class="input-glass" placeholder="Ex: 5511999999999" />
+              </div>
+              <div class="form-group">
+                <label>CPF/CNPJ</label>
+                <input v-model="form.document" class="input-glass" placeholder="00.000.000/0001-00" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>E-mail</label>
+              <input v-model="form.email" type="email" class="input-glass" placeholder="contato@empresa.com" />
+            </div>
+            <div class="form-group">
+              <label>Endereço</label>
+              <textarea v-model="form.address" class="input-glass" placeholder="Rua, Número, Bairro..." style="resize: vertical;"></textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="button" @click="showModal = false" class="btn-secondary">Cancelar</button>
+              <button type="submit" class="btn-primary" :disabled="loading">
+                {{ loading ? 'Salvando...' : 'Salvar Cliente' }}
+              </button>
+            </div>
+          </form>
         </div>
-        <form @submit.prevent="saveCustomer" class="modal-form">
-          <div class="form-group">
-            <label>Nome da Empresa / Cliente</label>
-            <input v-model="form.name" required placeholder="Ex: Confetti Eventos" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Telefone Principal</label>
-              <input v-model="form.phone" required placeholder="Ex: 5511999999999" />
-            </div>
-            <div class="form-group">
-              <label>CPF/CNPJ</label>
-              <input v-model="form.document" placeholder="00.000.000/0001-00" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label>E-mail</label>
-            <input v-model="form.email" type="email" placeholder="contato@empresa.com" />
-          </div>
-          <div class="form-group">
-            <label>Endereço</label>
-            <textarea v-model="form.address" placeholder="Rua, Número, Bairro..."></textarea>
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="showModal = false" class="btn-secondary">Cancelar</button>
-            <button type="submit" class="btn-primary" :disabled="loading">
-              {{ loading ? 'Salvando...' : 'Salvar Cliente' }}
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+    </Transition>
 
     <!-- Modal de Gerenciamento de Contatos Adicionais -->
-    <div v-if="showContactsModal" class="modal-overlay">
-      <div class="modal-content glass-effect contacts-modal">
-        <div class="modal-header">
-          <div>
-            <h2>Contatos de {{ selectedCustomer.name }}</h2>
-            <p style="color: #94a3b8; font-size: 0.9rem;">Gerencie as pessoas vinculadas a esta empresa</p>
+    <Transition name="modal-fade">
+      <div v-if="showContactsModal" class="modal-overlay" @click="showContactsModal = false">
+        <div class="modal-content contacts-modal" @click.stop>
+          <div class="modal-header">
+            <div>
+              <h2>Contatos de {{ selectedCustomer.name }}</h2>
+              <p style="color: var(--text-secondary); font-size: 0.9rem;">Gerencie as pessoas vinculadas a esta empresa</p>
+            </div>
+            <button @click="showContactsModal = false" class="close-btn-round"><XIcon :size="20" /></button>
           </div>
-          <button @click="showContactsModal = false" class="close-btn"><XIcon :size="24" /></button>
-        </div>
-        
-        <div class="contacts-list">
-          <div v-for="contact in selectedCustomer.additional_contacts" :key="contact.id" class="contact-item-row">
-            <div class="contact-avatar">
-              {{ contact.name.charAt(0) }}
+          
+          <div class="contacts-list">
+            <div v-for="contact in selectedCustomer.additional_contacts" :key="contact.id" class="contact-item-row">
+              <div class="contact-avatar">
+                {{ contact.name.charAt(0) }}
+              </div>
+              <div class="contact-details-mini">
+                <strong>{{ contact.name }}</strong>
+                <span>{{ contact.phone }}</span>
+              </div>
+              <button @click="deleteContact(contact.id)" class="icon-btn delete small">
+                <TrashIcon :size="14" />
+              </button>
             </div>
-            <div class="contact-details-mini">
-              <strong>{{ contact.name }}</strong>
-              <span>{{ contact.phone }}</span>
+
+            <div v-if="!selectedCustomer.additional_contacts?.length" class="empty-mini">
+              Nenhum contato adicional cadastrado.
             </div>
-            <button @click="deleteContact(contact.id)" class="icon-btn delete small">
-              <TrashIcon :size="14" />
+          </div>
+
+          <div class="add-contact-form">
+            <h4>Adicionar Novo Contato</h4>
+            <div class="form-row">
+              <input v-model="newContact.name" class="input-glass" placeholder="Nome da Pessoa" />
+              <input v-model="newContact.phone" class="input-glass" placeholder="WhatsApp (55...)" />
+            </div>
+            <button @click="addContact" class="btn-primary-sm block" :disabled="loadingContact">
+              {{ loadingContact ? 'Adicionando...' : 'Adicionar Contato' }}
             </button>
           </div>
-
-          <div v-if="!selectedCustomer.additional_contacts?.length" class="empty-mini">
-            Nenhum contato adicional cadastrado.
-          </div>
-        </div>
-
-        <div class="add-contact-form">
-          <h4>Adicionar Novo Contato</h4>
-          <div class="form-row">
-            <input v-model="newContact.name" placeholder="Nome da Pessoa" />
-            <input v-model="newContact.phone" placeholder="WhatsApp (55...)" />
-          </div>
-          <button @click="addContact" class="btn-primary-sm block" :disabled="loadingContact">
-            {{ loadingContact ? 'Adicionando...' : 'Adicionar Contato' }}
-          </button>
         </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
@@ -206,10 +210,7 @@ const filteredCustomers = computed(() => {
 
 const fetchCustomers = async () => {
   try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`/api/v1/customers/`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const response = await axios.get(`/api/v1/customers/`)
     customers.value = response.data
   } catch (e) {
     console.error("Erro ao buscar clientes", e)
@@ -231,13 +232,10 @@ const editCustomer = (customer) => {
 const saveCustomer = async () => {
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
-    const config = { headers: { Authorization: `Bearer ${token}` } }
-    
     if (editingId.value) {
-      await axios.put(`/api/v1/customers/${editingId.value}/`, form.value, config)
+      await axios.put(`/api/v1/customers/${editingId.value}/`, form.value)
     } else {
-      await axios.post(`/api/v1/customers/`, form.value, config)
+      await axios.post(`/api/v1/customers/`, form.value)
     }
     
     showModal.value = false
@@ -259,10 +257,7 @@ const addContact = async () => {
   if (!newContact.value.name || !newContact.value.phone) return
   loadingContact.value = true
   try {
-    const token = localStorage.getItem('token')
-    await axios.post(`/api/v1/customer-contacts/`, newContact.value, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    await axios.post(`/api/v1/customer-contacts/`, newContact.value)
     newContact.value = { name: '', phone: '', email: '', customer: selectedCustomer.value.id }
     await fetchCustomers()
     // Atualiza o selecionado
@@ -277,10 +272,7 @@ const addContact = async () => {
 const deleteContact = async (id) => {
   if (!confirm("Excluir este contato?")) return
   try {
-    const token = localStorage.getItem('token')
-    await axios.delete(`/api/v1/customer-contacts/${id}/`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    await axios.delete(`/api/v1/customer-contacts/${id}/`)
     await fetchCustomers()
     selectedCustomer.value = customers.value.find(c => c.id === selectedCustomer.value.id)
   } catch (e) {
@@ -291,10 +283,7 @@ const deleteContact = async (id) => {
 const confirmDelete = async (customer) => {
   if (confirm(`Deseja realmente excluir o cliente ${customer.name}?`)) {
     try {
-      const token = localStorage.getItem('token')
-      await axios.delete(`/api/v1/customers/${customer.id}/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await axios.delete(`/api/v1/customers/${customer.id}/`)
       await fetchCustomers()
     } catch (e) {
       alert("Erro ao excluir cliente")
@@ -304,10 +293,7 @@ const confirmDelete = async (customer) => {
 
 const openTicket = async (customer) => {
   try {
-    const token = localStorage.getItem('token')
-    await axios.post(`/api/v1/customers/${customer.id}/open_ticket/`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    await axios.post(`/api/v1/customers/${customer.id}/open_ticket/`, {})
     router.push('/')
   } catch (e) {
     alert("Erro ao abrir ticket")
@@ -443,9 +429,9 @@ onMounted(fetchCustomers)
 .card-actions { display: flex; gap: 8px; }
 
 .icon-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
   padding: 8px;
   border-radius: 10px;
   cursor: pointer;
@@ -472,7 +458,7 @@ onMounted(fetchCustomers)
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   margin-bottom: 8px;
 }
@@ -491,7 +477,7 @@ onMounted(fetchCustomers)
 .empty-state {
   text-align: center;
   padding-top: 100px;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .empty-icon {
@@ -500,28 +486,6 @@ onMounted(fetchCustomers)
 }
 
 /* Modais */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border);
-  width: 100%;
-  max-width: 550px;
-  padding: 35px;
-  border-radius: 30px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-  color: var(--text-primary);
-}
-
 .contacts-modal {
   max-width: 500px;
 }
@@ -533,7 +497,20 @@ onMounted(fetchCustomers)
   margin-bottom: 30px;
 }
 
-.close-btn { background: none; border: none; color: #94a3b8; cursor: pointer; }
+.close-btn-round {
+  background: var(--glass);
+  border: none;
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.close-btn-round:hover { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 
 .modal-form { display: flex; flex-direction: column; gap: 20px; }
 
@@ -541,16 +518,7 @@ onMounted(fetchCustomers)
 
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 
-.form-group label { font-size: 0.85rem; font-weight: 600; color: #94a3b8; }
-
-.form-group input, .form-group textarea {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 12px;
-  border-radius: 12px;
-  color: white;
-  outline: none;
-}
+.form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
 
 .contacts-list {
   display: flex;
@@ -566,16 +534,18 @@ onMounted(fetchCustomers)
   display: flex;
   align-items: center;
   gap: 15px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass);
   padding: 10px 15px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
 }
 
 .contact-avatar {
   width: 36px;
   height: 36px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border);
+  color: var(--text-primary);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -590,24 +560,14 @@ onMounted(fetchCustomers)
 }
 
 .contact-details-mini strong { font-size: 0.9rem; }
-.contact-details-mini span { font-size: 0.8rem; color: #94a3b8; }
+.contact-details-mini span { font-size: 0.8rem; color: var(--text-secondary); }
 
 .add-contact-form {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--border);
   padding-top: 20px;
 }
 
 .add-contact-form h4 { margin-bottom: 15px; font-size: 1rem; }
-
-.add-contact-form input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 10px;
-  border-radius: 10px;
-  color: white;
-  margin-bottom: 10px;
-  width: 100%;
-}
 
 .btn-primary-sm {
   background: #10b981;
@@ -626,15 +586,6 @@ onMounted(fetchCustomers)
   justify-content: flex-end;
   gap: 15px;
   margin-top: 15px;
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  color: #94a3b8;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  cursor: pointer;
 }
 
 .animate-in {

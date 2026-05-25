@@ -56,7 +56,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top right, #1e293b, #0f172a);
+  background: radial-gradient(circle at top right, var(--bg-card), var(--bg-dark));
 }
 
 .login-card {

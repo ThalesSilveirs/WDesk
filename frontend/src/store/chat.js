@@ -27,11 +27,8 @@ export const useChatStore = defineStore('chat', {
     },
     async fetchCurrentUser() {
       try {
-        const token = localStorage.getItem('token')
-        if (!token) return
-        const response = await axios.get('/api/v1/users/me/', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        if (!localStorage.getItem('token')) return
+        const response = await axios.get('/api/v1/users/me/')
         this.user = response.data
       } catch (e) {
         console.error("Erro ao buscar perfil do usuário", e)
@@ -54,18 +51,13 @@ export const useChatStore = defineStore('chat', {
       this.notifications.forEach(n => n.read = true)
     },
     async fetchAttendants() {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`/api/v1/users/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.get(`/api/v1/users/`)
       this.attendants = response.data
     },
 
     async transferTicket(ticketId, userId) {
-      const token = localStorage.getItem('token')
       await axios.post(`/api/v1/tickets/${ticketId}/transfer/`,
-        { user_id: userId },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { user_id: userId }
       )
       this.activeTicket = null
       this.messages = []
@@ -74,10 +66,8 @@ export const useChatStore = defineStore('chat', {
     },
 
     async closeTicket(ticketId, resolution) {
-      const token = localStorage.getItem('token')
       await axios.post(`/api/v1/tickets/${ticketId}/close/`,
-        { resolution },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { resolution }
       )
       this.activeTicket = null
       this.messages = []
@@ -86,10 +76,8 @@ export const useChatStore = defineStore('chat', {
     },
 
     async updateTicket(ticketId, payload) {
-      const token = localStorage.getItem('token')
       const response = await axios.patch(`/api/v1/tickets/${ticketId}/`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
+        payload
       )
       if (this.activeTicket && this.activeTicket.id === ticketId) {
         this.activeTicket = { ...this.activeTicket, ...response.data }
@@ -244,10 +232,8 @@ export const useChatStore = defineStore('chat', {
 
       this.loading = true
       try {
-        const token = localStorage.getItem('token')
         const response = await axios.get(`/api/v1/tickets/`, {
-          params: { status_filter: this.currentFilter },
-          headers: { Authorization: `Bearer ${token}` }
+          params: { status_filter: this.currentFilter }
         })
         this.tickets = response.data
       } finally {
@@ -257,10 +243,8 @@ export const useChatStore = defineStore('chat', {
 
     async fetchMyTickets() {
       try {
-        const token = localStorage.getItem('token')
         const response = await axios.get(`/api/v1/tickets/`, {
-          params: { status_filter: 'mine' },
-          headers: { Authorization: `Bearer ${token}` }
+          params: { status_filter: 'mine' }
         })
         this.myTickets = response.data
       } catch (e) {
@@ -269,10 +253,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     async acceptTicket(ticketId) {
-      const token = localStorage.getItem('token')
-      await axios.post(`/api/v1/tickets/${ticketId}/accept/`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await axios.post(`/api/v1/tickets/${ticketId}/accept/`, {})
       await this.fetchTickets()
       await this.fetchMyTickets()
       const newTicket = this.myTickets.find(t => t.id === ticketId)
@@ -281,26 +262,19 @@ export const useChatStore = defineStore('chat', {
 
     async selectTicket(ticket) {
       this.activeTicket = ticket
-      const token = localStorage.getItem('token')
-
       // Reseta contador no backend
       if (ticket.unread_count > 0) {
-        axios.post(`/api/v1/tickets/${ticket.id}/reset_unread/`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        axios.post(`/api/v1/tickets/${ticket.id}/reset_unread/`, {})
         ticket.unread_count = 0
       }
 
-      const response = await axios.get(`/api/v1/tickets/${ticket.id}/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.get(`/api/v1/tickets/${ticket.id}/`)
       this.activeTicket = response.data
       this.messages = response.data.last_messages
     },
 
     async sendMedia(file) {
       if (!this.activeTicket) return
-      const token = localStorage.getItem('token')
       const formData = new FormData()
       formData.append('file', file)
 
@@ -308,7 +282,6 @@ export const useChatStore = defineStore('chat', {
         formData,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
         }
@@ -322,10 +295,8 @@ export const useChatStore = defineStore('chat', {
 
     async sendMessage(body) {
       if (!this.activeTicket) return
-      const token = localStorage.getItem('token')
       const response = await axios.post(`/api/v1/tickets/${this.activeTicket.id}/send_message/`,
-        { body },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { body }
       )
 
       // Verifica duplicata antes de dar push (caso o socket tenha sido mais rápido)
@@ -337,43 +308,28 @@ export const useChatStore = defineStore('chat', {
 
     // Ações de CRM
     async createCustomer(payload) {
-      const token = localStorage.getItem('token')
-      const response = await axios.post(`/api/v1/customers/`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.post(`/api/v1/customers/`, payload)
       return response.data
     },
 
     async updateContact(contactId, payload) {
-      const token = localStorage.getItem('token')
-      const response = await axios.patch(`/api/v1/contacts/${contactId}/`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.patch(`/api/v1/contacts/${contactId}/`, payload)
       return response.data
     },
 
     // Configurações da Empresa
     async fetchCompanySettings() {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`/api/v1/companies/mine/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.get(`/api/v1/companies/mine/`)
       return response.data
     },
 
     async updateCompanySettings(payload) {
-      const token = localStorage.getItem('token')
-      const response = await axios.patch(`/api/v1/companies/mine/`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.patch(`/api/v1/companies/mine/`, payload)
       return response.data
     },
 
     async resetConversations() {
-      const token = localStorage.getItem('token')
-      const response = await axios.post(`/api/v1/companies/reset_conversations/`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.post(`/api/v1/companies/reset_conversations/`, {})
       this.tickets = []
       this.myTickets = []
       this.activeTicket = null

@@ -124,10 +124,8 @@ const stats = ref({
 
 const fetchAnalyticsData = async () => {
   try {
-    const token = localStorage.getItem('token')
     const response = await axios.get('/api/v1/tickets/analytics/', {
-      params: { time_range: timeRange.value },
-      headers: { Authorization: `Bearer ${token}` }
+      params: { time_range: timeRange.value }
     })
     stats.value = response.data
   } catch (e) {
@@ -135,26 +133,21 @@ const fetchAnalyticsData = async () => {
   }
 }
 
-const exportData = () => {
-  const token = localStorage.getItem('token')
-  const url = `/api/v1/tickets/generate_report/`
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', 'relatorio_atendimentos.csv')
-  fetch(url, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-  .then(res => res.blob())
-  .then(blob => {
-    const fileUrl = window.URL.createObjectURL(blob)
+const exportData = async () => {
+  try {
+    const response = await axios.get('/api/v1/tickets/generate_report/', {
+      responseType: 'blob'
+    })
+    const fileUrl = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
     link.href = fileUrl
+    link.setAttribute('download', 'relatorio_atendimentos.csv')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-  })
-  .catch(() => {
+  } catch (e) {
     alert("Erro ao baixar o relatório CSV.")
-  })
+  }
 }
 
 watch(timeRange, () => {
@@ -204,9 +197,9 @@ onMounted(() => {
 }
 
 .premium-select {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--border);
-  color: white;
+  color: var(--text-primary);
   padding: 8px 16px;
   border-radius: 12px;
   font-weight: 600;
@@ -264,7 +257,7 @@ onMounted(() => {
   font-size: 1.8rem;
   font-weight: 800;
   margin: 0;
-  color: white;
+  color: var(--text-primary);
 }
 
 .kpi-sub {
@@ -295,13 +288,14 @@ onMounted(() => {
   font-size: 1rem;
   font-weight: 800;
   margin: 0;
-  color: white;
+  color: var(--text-primary);
 }
 
 .progress-bar-stack {
   display: flex;
   height: 24px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -362,7 +356,8 @@ onMounted(() => {
 .bar-track {
   flex: 1;
   height: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
+  border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -379,7 +374,7 @@ onMounted(() => {
 .bar-value {
   font-size: 0.85rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   width: 40px;
   text-align: right;
 }

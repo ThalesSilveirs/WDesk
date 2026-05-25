@@ -19,7 +19,7 @@
                 v-model="settings.evolution_api_url" 
                 type="text" 
                 placeholder="Ex: http://seu-servidor:8080"
-                class="premium-input"
+                class="input-glass premium-input"
               />
               <small>Endereço base onde a Evolution API está rodando.</small>
             </div>
@@ -31,7 +31,7 @@
                   :type="showKey ? 'text' : 'password'" 
                   v-model="settings.evolution_api_key" 
                   placeholder="Sua Global API Key"
-                  class="premium-input"
+                  class="input-glass premium-input"
                 />
                 <button @click="showKey = !showKey" class="icon-toggle">
                   <EyeIcon v-if="!showKey" :size="18" />
@@ -112,39 +112,41 @@
     </main>
 
     <!-- Modal de Confirmação de Reset -->
-    <div v-if="confirmReset" class="modal-overlay">
-      <div class="modal-content glass-effect danger-modal">
-        <AlertIcon :size="48" class="icon-danger large" />
-        <h2>Tem certeza absoluta?</h2>
-        <p>Esta ação apagará **TODAS** as conversas, tickets e históricos de atendimento da sua empresa. Esta ação **não pode ser desfeita**.</p>
-        
-        <div style="margin-bottom: 20px; text-align: left;">
-          <label style="font-size: 0.8rem; font-weight: 700; color: #ef4444; display: block; margin-bottom: 8px; text-transform: uppercase;">
-            Digite "Confirmar" para prosseguir:
-          </label>
-          <input 
-            v-model="resetTextConfirm" 
-            type="text" 
-            placeholder="Digite Confirmar por extenso" 
-            class="premium-input" 
-            style="border-color: rgba(239, 68, 68, 0.4); text-align: center;"
-          />
-        </div>
+    <Transition name="modal-fade">
+      <div v-if="confirmReset" class="modal-overlay" @click="confirmReset = false">
+        <div class="modal-content danger-modal" @click.stop>
+          <AlertIcon :size="48" class="icon-danger large" />
+          <h2>Tem certeza absoluta?</h2>
+          <p>Esta ação apagará **TODAS** as conversas, tickets e históricos de atendimento da sua empresa. Esta ação **não pode ser desfeita**.</p>
+          
+          <div style="margin-bottom: 20px; text-align: left;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: #ef4444; display: block; margin-bottom: 8px; text-transform: uppercase;">
+              Digite "Confirmar" para prosseguir:
+            </label>
+            <input 
+              v-model="resetTextConfirm" 
+              type="text" 
+              placeholder="Digite Confirmar por extenso" 
+              class="input-glass premium-input" 
+              style="border-color: rgba(239, 68, 68, 0.4); text-align: center;"
+            />
+          </div>
 
-        <div class="modal-actions-vertical">
-          <button 
-            @click="handleReset" 
-            class="btn-danger block" 
-            :disabled="reseting || resetTextConfirm !== 'Confirmar'"
-          >
-            SIM, APAGAR TUDO
-          </button>
-          <button @click="confirmReset = false" class="btn-ghost block" :disabled="reseting">
-            Cancelar
-          </button>
+          <div class="modal-actions-vertical">
+            <button 
+              @click="handleReset" 
+              class="btn-danger block" 
+              :disabled="reseting || resetTextConfirm !== 'Confirmar'"
+            >
+              SIM, APAGAR TUDO
+            </button>
+            <button @click="confirmReset = false" class="btn-ghost block" :disabled="reseting">
+              Cancelar
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
@@ -244,32 +246,6 @@ onMounted(fetchSettings)
   height: 100%;
 }
 
-/* Centralized Premium Modal Confirmation */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.modal-content {
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border);
-  width: 450px;
-  max-width: 90%;
-  padding: 35px;
-  border-radius: 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
 .danger-modal {
   border-color: rgba(239, 68, 68, 0.3);
   text-align: center;
@@ -354,26 +330,8 @@ onMounted(fetchSettings)
   font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--text-secondary);
   margin-bottom: 10px;
-}
-
-.premium-input {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
-  padding: 12px 16px;
-  border-radius: 12px;
-  color: var(--text-primary);
-  font-size: 1rem;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.premium-input:focus {
-  border-color: var(--accent);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
 .input-with-icon {
@@ -396,17 +354,17 @@ onMounted(fetchSettings)
   display: block;
   margin-top: 8px;
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .readonly-box {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--glass);
   padding: 12px 16px;
   border-radius: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
 }
 
 .readonly-box code {

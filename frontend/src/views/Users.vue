@@ -35,29 +35,31 @@
     </main>
 
     <!-- Modal Novo Usuário -->
-    <div v-if="showAddModal" class="modal-overlay">
-      <div class="modal-content glass-effect">
-        <h2>{{ editingId ? 'Editar Atendente' : 'Novo Atendente' }}</h2>
-        <form @submit.prevent="saveUser" class="user-form">
-          <div class="form-row">
-            <input v-model="newUser.first_name" type="text" placeholder="Nome" required />
-            <input v-model="newUser.last_name" type="text" placeholder="Sobrenome" required />
-          </div>
-          <input v-model="newUser.department" type="text" placeholder="Área de Atuação (ex: Vendas, Suporte)" />
-          <input v-model="newUser.username" type="text" placeholder="Usuário (login)" required />
-          <input v-model="newUser.email" type="email" placeholder="E-mail" required />
-          <input v-model="newUser.password" type="password" :placeholder="editingId ? 'Senha (deixe em branco para não alterar)' : 'Senha'" :required="!editingId" />
-          <select v-model="newUser.role">
-            <option value="attendant">Atendente</option>
-            <option value="admin">Administrador</option>
-          </select>
-          <div class="modal-actions">
-            <button type="button" @click="closeModal" class="cancel-btn">Cancelar</button>
-            <button type="submit" class="submit-btn">{{ editingId ? 'Salvar Alterações' : 'Criar Usuário' }}</button>
-          </div>
-        </form>
+    <Transition name="modal-fade">
+      <div v-if="showAddModal" class="modal-overlay" @click="closeModal">
+        <div class="modal-content" @click.stop>
+          <h2>{{ editingId ? 'Editar Atendente' : 'Novo Atendente' }}</h2>
+          <form @submit.prevent="saveUser" class="user-form">
+            <div class="form-row">
+              <input v-model="newUser.first_name" type="text" class="input-glass" placeholder="Nome" required />
+              <input v-model="newUser.last_name" type="text" class="input-glass" placeholder="Sobrenome" required />
+            </div>
+            <input v-model="newUser.department" type="text" class="input-glass" placeholder="Área de Atuação (ex: Vendas, Suporte)" />
+            <input v-model="newUser.username" type="text" class="input-glass" placeholder="Usuário (login)" required />
+            <input v-model="newUser.email" type="email" class="input-glass" placeholder="E-mail" required />
+            <input v-model="newUser.password" type="password" class="input-glass" :placeholder="editingId ? 'Senha (deixe em branco para não alterar)' : 'Senha'" :required="!editingId" />
+            <select v-model="newUser.role" class="input-glass">
+              <option value="attendant">Atendente</option>
+              <option value="admin">Administrador</option>
+            </select>
+            <div class="modal-actions">
+              <button type="button" @click="closeModal" class="btn-secondary">Cancelar</button>
+              <button type="submit" class="submit-btn">{{ editingId ? 'Salvar Alterações' : 'Criar Usuário' }}</button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
@@ -83,10 +85,7 @@ const newUser = ref({
 })
 
 const fetchUsers = async () => {
-  const token = localStorage.getItem('token')
-  const response = await axios.get(`/api/v1/users/`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
+  const response = await axios.get(`/api/v1/users/`)
   users.value = response.data
 }
 
@@ -104,19 +103,13 @@ const closeModal = () => {
 
 const saveUser = async () => {
   try {
-    const token = localStorage.getItem('token')
-    
     const payload = { ...newUser.value }
     if (editingId.value && !payload.password) delete payload.password
 
     if (editingId.value) {
-      await axios.patch(`/api/v1/users/${editingId.value}/`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await axios.patch(`/api/v1/users/${editingId.value}/`, payload)
     } else {
-      await axios.post(`/api/v1/users/`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await axios.post(`/api/v1/users/`, payload)
     }
     
     closeModal()
@@ -128,10 +121,7 @@ const saveUser = async () => {
 
 const deleteUser = async (id) => {
   if (!confirm('Deseja realmente remover este usuário?')) return
-  const token = localStorage.getItem('token')
-  await axios.delete(`/api/v1/users/${id}/`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
+  await axios.delete(`/api/v1/users/${id}/`)
   fetchUsers()
 }
 const handleStatusChange = (e) => {
@@ -232,40 +222,17 @@ onUnmounted(() => {
 .delete-btn, .edit-btn {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+  opacity: 0.6;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: all 0.2s;
   padding: 5px;
 }
-.delete-btn:hover { color: #ef4444; }
-.edit-btn:hover { color: var(--accent); }
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.modal-content {
-  width: 450px;
-  padding: 30px;
-  border-radius: 20px;
-}
+.delete-btn:hover { color: #ef4444; opacity: 1; }
+.edit-btn:hover { color: var(--accent); opacity: 1; }
 
 .user-form { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
 .form-row { display: flex; gap: 10px; }
-.user-form input, .user-form select {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  padding: 12px;
-  border-radius: 8px;
-  color: white;
-}
 
 .modal-actions {
   display: flex;
@@ -274,7 +241,6 @@ onUnmounted(() => {
   margin-top: 10px;
 }
 
-.cancel-btn { background: none; border: none; color: white; cursor: pointer; }
 .submit-btn {
   background: var(--accent);
   color: white;

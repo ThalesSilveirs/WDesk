@@ -287,10 +287,7 @@ const changeStatus = (status) => {
 
 const fetchDashboardStats = async () => {
   try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get('/api/v1/tickets/stats/', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const response = await axios.get('/api/v1/tickets/stats/')
     stats.value = response.data
   } catch (e) {
     console.error("Erro ao carregar estatísticas do dashboard", e)
@@ -304,10 +301,7 @@ const verifyInstance = async () => {
   }
   verifying.value = true
   try {
-    const token = localStorage.getItem('token')
-    const response = await axios.post(`/api/v1/connections/${stats.value.connection.id}/sync_status/`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const response = await axios.post(`/api/v1/connections/${stats.value.connection.id}/sync_status/`, {})
     alert(`Status atualizado: Instância ${response.data.status}`)
     await fetchDashboardStats()
   } catch (e) {
@@ -321,26 +315,21 @@ const openBroadcast = () => {
   chatStore.showBroadcastModal = true
 }
 
-const downloadReport = () => {
-  const token = localStorage.getItem('token')
-  const url = `/api/v1/tickets/generate_report/`
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', 'relatorio_atendimentos.csv')
-  fetch(url, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-  .then(res => res.blob())
-  .then(blob => {
-    const fileUrl = window.URL.createObjectURL(blob)
+const downloadReport = async () => {
+  try {
+    const response = await axios.get('/api/v1/tickets/generate_report/', {
+      responseType: 'blob'
+    })
+    const fileUrl = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
     link.href = fileUrl
+    link.setAttribute('download', 'relatorio_atendimentos.csv')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-  })
-  .catch(() => {
+  } catch (e) {
     alert("Erro ao baixar o relatório CSV.")
-  })
+  }
 }
 
 const getBarHeight = (count) => {

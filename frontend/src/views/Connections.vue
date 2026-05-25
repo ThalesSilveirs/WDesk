@@ -55,83 +55,87 @@
     </main>
 
     <!-- Modal Adicionar Conexão (Premium Design) -->
-    <div v-if="showAddModal" class="modal-overlay animate-fade-in">
-      <div class="modal-content glass-effect premium-modal">
-        <div class="modal-header">
-          <div class="header-icon">
-            <PlusIcon :size="24" />
-          </div>
-          <div>
-            <h2>Nova Instância</h2>
-            <p>Configure uma nova conexão com o WhatsApp</p>
-          </div>
-          <button @click="showAddModal = false" class="close-btn-round"><XIcon :size="20" /></button>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-group premium">
-            <label>Nome de Exibição</label>
-            <div class="input-wrapper">
-              <MessageCircleIcon :size="18" class="input-icon" />
-              <input 
-                v-model="newConn.name" 
-                placeholder="Ex: Departamento de Vendas" 
-                class="premium-input-v2" 
-              />
+    <Transition name="modal-fade">
+      <div v-if="showAddModal" class="modal-overlay" @click="showAddModal = false">
+        <div class="modal-content premium-modal" @click.stop>
+          <div class="modal-header">
+            <div class="header-icon">
+              <PlusIcon :size="24" />
             </div>
-            <small>Apenas para identificação interna no dashboard.</small>
-          </div>
-
-          <div class="form-group premium">
-            <label>ID da Instância (Evolution)</label>
-            <div class="input-wrapper">
-              <ZapIcon :size="18" class="input-icon" />
-              <input 
-                v-model="newConn.instance_name" 
-                placeholder="Ex: vendas_01" 
-                class="premium-input-v2" 
-              />
+            <div>
+              <h2>Nova Instância</h2>
+              <p>Configure uma nova conexão com o WhatsApp</p>
             </div>
-            <small>Identificador único na API. Use apenas letras e números.</small>
+            <button @click="showAddModal = false" class="close-btn-round"><XIcon :size="20" /></button>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button @click="showAddModal = false" class="btn-secondary-v2">Cancelar</button>
-          <button 
-            @click="createConn" 
-            class="btn-primary-v2" 
-            :disabled="!newConn.name || !newConn.instance_name || creating"
-          >
-            <LoaderIcon v-if="creating" class="animate-spin" :size="20" />
-            <span v-else>Criar Instância</span>
-          </button>
+          <div class="modal-body">
+            <div class="form-group premium">
+              <label>Nome de Exibição</label>
+              <div class="input-wrapper">
+                <MessageCircleIcon :size="18" class="input-icon" />
+                <input 
+                  v-model="newConn.name" 
+                  placeholder="Ex: Departamento de Vendas" 
+                  class="input-glass premium-input-v2" 
+                />
+              </div>
+              <small>Apenas para identificação interna no dashboard.</small>
+            </div>
+
+            <div class="form-group premium">
+              <label>ID da Instância (Evolution)</label>
+              <div class="input-wrapper">
+                <ZapIcon :size="18" class="input-icon" />
+                <input 
+                  v-model="newConn.instance_name" 
+                  placeholder="Ex: vendas_01" 
+                  class="input-glass premium-input-v2" 
+                />
+              </div>
+              <small>Identificador único na API. Use apenas letras e números.</small>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button @click="showAddModal = false" class="btn-secondary">Cancelar</button>
+            <button 
+              @click="createConn" 
+              class="btn-primary-v2" 
+              :disabled="!newConn.name || !newConn.instance_name || creating"
+            >
+              <LoaderIcon v-if="creating" class="animate-spin" :size="20" />
+              <span v-else>Criar Instância</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Modal QR Code -->
-    <div v-if="showQRModal" class="modal-overlay">
-      <div class="modal-content glass-effect qr-modal">
-        <div class="qr-header">
-          <h2>Conectar WhatsApp</h2>
-          <button @click="showQRModal = false" class="close-btn"><XIcon :size="24" /></button>
-        </div>
-        <p>Abra o WhatsApp no seu celular, vá em Aparelhos Conectados e escaneie o código abaixo:</p>
-        
-        <div class="qr-container">
-          <img v-if="activeQR" :src="activeQR" alt="QR Code" />
-          <div v-else class="qr-placeholder">
-            <LoaderIcon class="animate-spin" :size="48" />
+    <Transition name="modal-fade">
+      <div v-if="showQRModal" class="modal-overlay" @click="showQRModal = false">
+        <div class="modal-content qr-modal" @click.stop>
+          <div class="qr-header">
+            <h2>Conectar WhatsApp</h2>
+            <button @click="showQRModal = false" class="close-btn-round"><XIcon :size="20" /></button>
+          </div>
+          <p class="qr-description">Abra o WhatsApp no seu celular, vá em Aparelhos Conectados e escaneie o código abaixo:</p>
+          
+          <div class="qr-container">
+            <img v-if="activeQR" :src="activeQR" alt="QR Code" />
+            <div v-else class="qr-placeholder">
+              <LoaderIcon class="animate-spin" :size="48" />
+            </div>
+          </div>
+          
+          <div class="qr-footer">
+            <span class="status-tag connecting">Aguardando leitura...</span>
+            <p>O dashboard atualizará automaticamente após a conexão.</p>
           </div>
         </div>
-        
-        <div class="qr-footer">
-          <span class="status-tag connecting">Aguardando leitura...</span>
-          <p>O dashboard atualizará automaticamente após a conexão.</p>
-        </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
@@ -164,20 +168,14 @@ const creating = ref(false)
 const newConn = ref({ name: '', instance_name: '' })
 
 const fetchConnections = async () => {
-  const token = localStorage.getItem('token')
-  const response = await axios.get(`/api/v1/connections/`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
+  const response = await axios.get(`/api/v1/connections/`)
   connections.value = response.data
 }
 
 const syncStatus = async (conn) => {
   syncing.value = conn.id
   try {
-    const token = localStorage.getItem('token')
-    const response = await axios.post(`/api/v1/connections/${conn.id}/sync_status/`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const response = await axios.post(`/api/v1/connections/${conn.id}/sync_status/`, {})
     const index = connections.value.findIndex(c => c.id === conn.id)
     if (index !== -1) {
       connections.value[index].status = response.data.status
@@ -206,10 +204,7 @@ const formatStatus = (status) => {
 const createConn = async () => {
   creating.value = true
   try {
-    const token = localStorage.getItem('token')
-    await axios.post(`/api/v1/connections/`, newConn.value, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    await axios.post(`/api/v1/connections/`, newConn.value)
     showAddModal.value = false
     newConn.value = { name: '', instance_name: '' }
     fetchConnections()
@@ -223,10 +218,7 @@ const createConn = async () => {
 
 const deleteConn = async (id) => {
   if (!confirm("Deseja realmente remover esta conexão?")) return
-  const token = localStorage.getItem('token')
-  await axios.delete(`/api/v1/connections/${id}/`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
+  await axios.delete(`/api/v1/connections/${id}/`)
   fetchConnections()
 }
 
@@ -235,10 +227,7 @@ const getQRCode = async (conn) => {
   activeQR.value = null
   showQRModal.value = true
   try {
-    const token = localStorage.getItem('token')
-    const response = await axios.post(`/api/v1/connections/${conn.id}/connect/`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const response = await axios.post(`/api/v1/connections/${conn.id}/connect/`, {})
     activeQR.value = response.data.qrcode
   } catch (e) {
     alert("Erro ao gerar QR Code")
@@ -251,10 +240,7 @@ const getQRCode = async (conn) => {
 const disconnect = async (id) => {
   if (!confirm("Deseja desconectar esta instância?")) return
   try {
-    const token = localStorage.getItem('token')
-    await axios.post(`/api/v1/connections/${id}/logout/`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    await axios.post(`/api/v1/connections/${id}/logout/`, {})
     fetchConnections()
   } catch (e) {
     alert("Erro ao desconectar")
@@ -397,17 +383,15 @@ onUnmounted(() => {
   width: 90%;
   padding: 0 !important;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .modal-header {
   padding: 25px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-card);
   display: flex;
   align-items: center;
   gap: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border);
 }
 
 .header-icon {
@@ -425,9 +409,9 @@ onUnmounted(() => {
 
 .close-btn-round {
   margin-left: auto;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: none;
-  color: white;
+  color: var(--text-primary);
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -443,45 +427,22 @@ onUnmounted(() => {
 .modal-body { padding: 25px; }
 
 .form-group.premium { margin-bottom: 20px; }
-.form-group.premium label { font-weight: 700; color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px; display: block; }
+.form-group.premium label { font-weight: 700; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px; display: block; }
 
 .input-wrapper { position: relative; display: flex; align-items: center; }
 .input-icon { position: absolute; left: 14px; color: var(--accent); opacity: 0.7; }
 
 .premium-input-v2 {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 12px 12px 12px 42px;
-  border-radius: 12px;
-  color: white;
-  font-size: 0.95rem;
-  transition: all 0.2s;
-}
-
-.premium-input-v2:focus {
-  border-color: var(--accent);
-  background: rgba(0, 0, 0, 0.3);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+  padding-left: 42px;
 }
 
 .modal-footer {
   padding: 20px 25px;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.btn-secondary-v2 {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
+  border-top: 1px solid var(--border);
 }
 
 .btn-primary-v2 {
