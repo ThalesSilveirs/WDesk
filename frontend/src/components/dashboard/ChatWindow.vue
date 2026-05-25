@@ -105,6 +105,7 @@
         <input 
           v-model="newMessage" 
           @keyup.enter="send"
+          @paste="handlePaste"
           :placeholder="chatStore.activeTicket.user ? 'Digite uma mensagem...' : 'Aceite o atendimento para responder...'" 
           type="text" 
           :disabled="!chatStore.activeTicket.user"
@@ -321,6 +322,23 @@ const handleFileUpload = async (event) => {
   if (file) {
     await chatStore.sendMedia(file)
     event.target.value = '' 
+  }
+}
+
+const handlePaste = async (event) => {
+  const clipboardData = event.clipboardData || window.clipboardData
+  if (!clipboardData) return
+  
+  const items = clipboardData.items
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    if (item.type.indexOf('image') !== -1) {
+      const file = item.getAsFile()
+      if (file) {
+        event.preventDefault()
+        await chatStore.sendMedia(file)
+      }
+    }
   }
 }
 
