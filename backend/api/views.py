@@ -101,6 +101,93 @@ class TicketViewSet(TenantModelViewSet):
         ticket = serializer.save()
         self.broadcast_ticket_update(ticket)
 
+    def send_system_whatsapp_message(self, ticket, body_text):
+        connection = Connection.objects.filter(company=ticket.company).first()
+        if not connection:
+            return
+
+        # 1. Salvar no banco
+        message = Message.objects.create(
+            ticket=ticket,
+            user=None,
+            from_me=True,
+            body=body_text,
+            message_id=f"system_{ticket.id}_{int(time.time() * 1000)}"
+        )
+
+        # 2. Enviar via Evolution API
+        evo_token = "your-token-here"
+        try:
+            import psycopg2
+            import os
+            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
+            db_host = os.environ.get('DB_HOST', 'db')
+            conn = psycopg2.connect(
+                dbname="evogo_users",
+                user="postgres",
+                password=db_pass,
+                host=db_host
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
+            row = cur.fetchone()
+            if row:
+                evo_token = row[0]
+            cur.close()
+            conn.close()
+        except:
+            pass
+
+        evo_url = "http://evolution-go:8080"
+        evo_key = evo_token
+        url = f"{evo_url}/send/text?apikey={evo_key}&instance={connection.instance_name}"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_key,
+            "ApiKey": evo_key,
+            "api-key": evo_key,
+            "Authorization": f"Bearer {evo_key}",
+            "instance": connection.instance_name
+        }
+        
+        clean_number = ticket.contact.remote_jid.split('@')[0]
+        payload = {
+            "instance": connection.instance_name,
+            "number": clean_number,
+            "text": body_text
+        }
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=5)
+            if response.status_code in [200, 201]:
+                evolution_data = response.json()
+                message.message_id = evolution_data.get('key', {}).get('id', message.message_id)
+                message.save()
+        except Exception as e:
+            print(f"[SYSTEM SEND] Erro ao enviar mensagem automatizada: {str(e)}")
+
+        # Atualizar prévia do ticket
+        ticket.last_message = body_text
+        ticket.save()
+
+        # Notificar Realtime via Redis Pub/Sub
+        try:
+            import redis
+            import json
+            r = redis.Redis(host='redis', port=6379, db=0)
+            from .serializers import MessageSerializer
+            serializer = MessageSerializer(message)
+            r.publish(
+                f"company_{ticket.company.id}_chats",
+                json.dumps({
+                    "type": "new_message",
+                    "ticket_id": ticket.id,
+                    "message": serializer.data
+                })
+            )
+        except Exception as redis_err:
+            print(f"[SYSTEM SEND] Erro ao notificar Redis: {str(redis_err)}")
+
     @action(detail=True, methods=['post'])
     def reset_unread(self, request, pk=None):
         ticket = self.get_object()
@@ -132,6 +219,12 @@ class TicketViewSet(TenantModelViewSet):
         ticket.user = request.user
         ticket.save()
         self.broadcast_ticket_update(ticket)
+        
+        # Envia mensagem do sistema
+        atendente_nome = request.user.first_name or request.user.username
+        msg_text = f"Seu atendimento foi iniciado por {atendente_nome}"
+        self.send_system_whatsapp_message(ticket, msg_text)
+        
         return Response(TicketSerializer(ticket).data)
 
     @action(detail=True, methods=['post'])
@@ -147,6 +240,12 @@ class TicketViewSet(TenantModelViewSet):
             ticket.user = new_user
             ticket.save()
             self.broadcast_ticket_update(ticket)
+            
+            # Envia mensagem do sistema
+            atendente_nome = new_user.first_name or new_user.username
+            msg_text = f"Seu atendimento foi transferido para {atendente_nome}"
+            self.send_system_whatsapp_message(ticket, msg_text)
+            
             return Response(TicketSerializer(ticket).data)
         except User.DoesNotExist:
             return Response({"error": "Usuário não encontrado na sua empresa"}, status=404)
