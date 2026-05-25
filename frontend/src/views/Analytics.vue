@@ -17,22 +17,30 @@
         <div class="kpi-card glass-effect">
           <span class="kpi-label">TOTAL DE ATENDIMENTOS</span>
           <h3>{{ stats.total_tickets }}</h3>
-          <span class="kpi-sub positive">+14% vs período anterior</span>
+          <span class="kpi-sub" :class="stats.trends?.total_tickets?.class || ''">
+            {{ stats.trends?.total_tickets?.text || 'Carregando...' }}
+          </span>
         </div>
         <div class="kpi-card glass-effect">
           <span class="kpi-label">TEMPO MÉDIO DE FILA</span>
           <h3>{{ stats.avg_wait_time }}</h3>
-          <span class="kpi-sub negative">+45s de espera</span>
+          <span class="kpi-sub" :class="stats.trends?.avg_wait_time?.class || ''">
+            {{ stats.trends?.avg_wait_time?.text || 'Carregando...' }}
+          </span>
         </div>
         <div class="kpi-card glass-effect">
           <span class="kpi-label">TEMPO DE PRIMEIRA RESPOSTA</span>
           <h3>{{ stats.first_response }}</h3>
-          <span class="kpi-sub positive">-1m 15s mais rápido</span>
+          <span class="kpi-sub" :class="stats.trends?.first_response?.class || ''">
+            {{ stats.trends?.first_response?.text || 'Carregando...' }}
+          </span>
         </div>
         <div class="kpi-card glass-effect">
           <span class="kpi-label">NÍVEL DE SATISFAÇÃO (CSAT)</span>
           <h3>{{ stats.csat }}%</h3>
-          <span class="kpi-sub positive">Meta recomendada: 90%</span>
+          <span class="kpi-sub" :class="stats.trends?.csat?.class || ''">
+            {{ stats.trends?.csat?.text || 'Carregando...' }}
+          </span>
         </div>
       </div>
 
@@ -42,14 +50,14 @@
         <div class="chart-card glass-effect">
           <h4>Distribuição por Status</h4>
           <div class="progress-bar-stack">
-            <div class="progress-segment open" style="width: 45%" title="Abertos (45%)"></div>
-            <div class="progress-segment pending" style="width: 30%" title="Pendentes (30%)"></div>
-            <div class="progress-segment closed" style="width: 25%" title="Fechados (25%)"></div>
+            <div class="progress-segment open" :style="{ width: (stats.status_distribution?.open?.percentage || 0) + '%' }" :title="`Abertos (${stats.status_distribution?.open?.percentage || 0}%)`"></div>
+            <div class="progress-segment pending" :style="{ width: (stats.status_distribution?.pending?.percentage || 0) + '%' }" :title="`Pendentes (${stats.status_distribution?.pending?.percentage || 0}%)`"></div>
+            <div class="progress-segment closed" :style="{ width: (stats.status_distribution?.closed?.percentage || 0) + '%' }" :title="`Resolvidos (${stats.status_distribution?.closed?.percentage || 0}%)`"></div>
           </div>
           <div class="chart-legend">
-            <div class="legend-item"><span class="dot open"></span> Abertos (45%)</div>
-            <div class="legend-item"><span class="dot pending"></span> Pendentes (30%)</div>
-            <div class="legend-item"><span class="dot closed"></span> Resolvidos (25%)</div>
+            <div class="legend-item"><span class="dot open"></span> Abertos ({{ stats.status_distribution?.open?.count || 0 }} - {{ stats.status_distribution?.open?.percentage || 0 }}%)</div>
+            <div class="legend-item"><span class="dot pending"></span> Pendentes ({{ stats.status_distribution?.pending?.count || 0 }} - {{ stats.status_distribution?.pending?.percentage || 0 }}%)</div>
+            <div class="legend-item"><span class="dot closed"></span> Resolvidos ({{ stats.status_distribution?.closed?.count || 0 }} - {{ stats.status_distribution?.closed?.percentage || 0 }}%)</div>
           </div>
         </div>
 
@@ -60,23 +68,23 @@
             <div class="bar-row">
               <span class="bar-name">WhatsApp Direct</span>
               <div class="bar-track">
-                <div class="bar-fill green" style="width: 82%"></div>
+                <div class="bar-fill green" :style="{ width: (stats.channels?.whatsapp?.percentage || 0) + '%' }"></div>
               </div>
-              <span class="bar-value">82%</span>
+              <span class="bar-value">{{ stats.channels?.whatsapp?.percentage || 0 }}%</span>
             </div>
             <div class="bar-row">
               <span class="bar-name">Transmissões (Broadcast)</span>
               <div class="bar-track">
-                <div class="bar-fill blue" style="width: 12%"></div>
+                <div class="bar-fill blue" :style="{ width: (stats.channels?.broadcast?.percentage || 0) + '%' }"></div>
               </div>
-              <span class="bar-value">12%</span>
+              <span class="bar-value">{{ stats.channels?.broadcast?.percentage || 0 }}%</span>
             </div>
             <div class="bar-row">
               <span class="bar-name">API Integrations</span>
               <div class="bar-track">
-                <div class="bar-fill purple" style="width: 6%"></div>
+                <div class="bar-fill purple" :style="{ width: (stats.channels?.api?.percentage || 0) + '%' }"></div>
               </div>
-              <span class="bar-value">6%</span>
+              <span class="bar-value">{{ stats.channels?.api?.percentage || 0 }}%</span>
             </div>
           </div>
         </div>
@@ -86,37 +94,72 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Download as DownloadIcon } from 'lucide-vue-next'
 import axios from 'axios'
 
 const timeRange = ref('7d')
 const stats = ref({
   total_tickets: 0,
-  avg_wait_time: '1m 24s',
-  first_response: '2m 15s',
-  csat: 94.8
+  avg_wait_time: '0s',
+  first_response: '0s',
+  csat: 0,
+  trends: {
+    total_tickets: { text: 'Carregando...', class: '' },
+    avg_wait_time: { text: 'Carregando...', class: '' },
+    first_response: { text: 'Carregando...', class: '' },
+    csat: { text: 'Carregando...', class: '' }
+  },
+  status_distribution: {
+    open: { count: 0, percentage: 0 },
+    pending: { count: 0, percentage: 0 },
+    closed: { count: 0, percentage: 0 }
+  },
+  channels: {
+    whatsapp: { percentage: 0 },
+    broadcast: { percentage: 0 },
+    api: { percentage: 0 }
+  }
 })
 
 const fetchAnalyticsData = async () => {
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/v1/tickets/stats/', {
+    const response = await axios.get('/api/v1/tickets/analytics/', {
+      params: { time_range: timeRange.value },
       headers: { Authorization: `Bearer ${token}` }
     })
-    // Map ticket stats to analytics values
-    stats.value.total_tickets = (response.data.active_chats || 0) * 4 + 15
-    stats.value.first_response = response.data.avg_response_time || '2m 15s'
+    stats.value = response.data
   } catch (e) {
     console.error("Erro ao carregar dados do analytics", e)
   }
 }
 
 const exportData = () => {
-  // Chamada de exportação
   const token = localStorage.getItem('token')
-  window.open(`/api/v1/tickets/generate_report/`, '_blank')
+  const url = `/api/v1/tickets/generate_report/`
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', 'relatorio_atendimentos.csv')
+  fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  .then(res => res.blob())
+  .then(blob => {
+    const fileUrl = window.URL.createObjectURL(blob)
+    link.href = fileUrl
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  })
+  .catch(() => {
+    alert("Erro ao baixar o relatório CSV.")
+  })
 }
+
+watch(timeRange, () => {
+  fetchAnalyticsData()
+})
 
 onMounted(() => {
   fetchAnalyticsData()
