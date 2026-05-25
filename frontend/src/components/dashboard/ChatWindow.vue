@@ -989,7 +989,12 @@ watch(() => chatStore.messages.length, scrollToBottom)
   }
 
   .media-image {
-    max-width: 100% !important;
+    max-width: 180px !important;
+    margin: 4px 0 !important;
+  }
+
+  .media-image img {
+    max-height: 180px !important;
   }
 
   .media-audio {

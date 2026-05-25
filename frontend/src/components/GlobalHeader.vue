@@ -775,15 +775,58 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .global-header {
-    padding: 10px 15px;
+    padding: 12px 15px;
+    height: auto;
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 12px;
   }
   
-  .header-left h1 {
-    font-size: 1.1rem;
+  .header-left, .header-right {
+    display: contents;
+  }
+  
+  .global-header h1 {
+    grid-row: 1;
+    grid-column: 1 / span 3;
+    font-size: 1.25rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 120px;
+    max-width: 100%;
+    align-self: center;
+    margin: 0;
+  }
+
+  .profile-dropdown-container {
+    grid-row: 1;
+    grid-column: 4;
+    justify-self: end;
+    align-self: center;
+    border-left: none !important;
+    padding-left: 0 !important;
+  }
+
+  .status-dropdown {
+    grid-row: 2;
+    grid-column: 1;
+    align-self: center;
+  }
+
+  .notification-container {
+    grid-row: 2;
+    grid-column: 2;
+    align-self: center;
+  }
+
+  .header-search {
+    grid-row: 2;
+    grid-column: 3 / span 2;
+    display: flex !important;
+    width: 100% !important;
+    max-width: none !important;
+    align-self: center;
   }
 
   .status-btn span.status-text-label {
@@ -792,10 +835,6 @@ onUnmounted(() => {
 
   .history-btn {
     display: none !important;
-  }
-
-  .header-search {
-    display: none;
   }
   
   .profile-name {
