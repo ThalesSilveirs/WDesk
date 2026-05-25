@@ -98,10 +98,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useChatStore } from '../../store/chat'
 
 const chatStore = useChatStore()
+
+// Watch search query for debugging / reactivity check
+watch(() => chatStore.searchQuery, (newVal) => {
+  console.log("Busca alterada para:", newVal)
+})
 
 const filteredMyTickets = computed(() => {
   const query = (chatStore.searchQuery || '').toLowerCase().trim()
@@ -110,7 +115,22 @@ const filteredMyTickets = computed(() => {
     const contactName = (ticket.contact_details?.name || '').toLowerCase()
     const remoteJid = (ticket.contact_details?.remote_jid || '').toLowerCase()
     const lastMsg = (ticket.last_message || '').toLowerCase()
-    return contactName.includes(query) || remoteJid.includes(query) || lastMsg.includes(query)
+    const subject = (ticket.subject || '').toLowerCase()
+    
+    // Customer details fields
+    const customerName = (ticket.customer_details?.name || '').toLowerCase()
+    const customerPhone = (ticket.customer_details?.phone || '').toLowerCase()
+    const customerEmail = (ticket.customer_details?.email || '').toLowerCase()
+    const customerDoc = (ticket.customer_details?.document || '').toLowerCase()
+
+    return contactName.includes(query) || 
+           remoteJid.includes(query) || 
+           lastMsg.includes(query) || 
+           subject.includes(query) ||
+           customerName.includes(query) || 
+           customerPhone.includes(query) || 
+           customerEmail.includes(query) || 
+           customerDoc.includes(query)
   })
 })
 
@@ -121,7 +141,22 @@ const filteredTickets = computed(() => {
     const contactName = (ticket.contact_details?.name || '').toLowerCase()
     const remoteJid = (ticket.contact_details?.remote_jid || '').toLowerCase()
     const lastMsg = (ticket.last_message || '').toLowerCase()
-    return contactName.includes(query) || remoteJid.includes(query) || lastMsg.includes(query)
+    const subject = (ticket.subject || '').toLowerCase()
+    
+    // Customer details fields
+    const customerName = (ticket.customer_details?.name || '').toLowerCase()
+    const customerPhone = (ticket.customer_details?.phone || '').toLowerCase()
+    const customerEmail = (ticket.customer_details?.email || '').toLowerCase()
+    const customerDoc = (ticket.customer_details?.document || '').toLowerCase()
+
+    return contactName.includes(query) || 
+           remoteJid.includes(query) || 
+           lastMsg.includes(query) || 
+           subject.includes(query) ||
+           customerName.includes(query) || 
+           customerPhone.includes(query) || 
+           customerEmail.includes(query) || 
+           customerDoc.includes(query)
   })
 })
 

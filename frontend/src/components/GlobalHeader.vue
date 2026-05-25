@@ -89,7 +89,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore } from '../store/chat'
 import { 
@@ -107,6 +107,13 @@ const chatStore = useChatStore()
 const currentStatus = ref('online')
 const showStatusMenu = ref(false)
 const showNotificationDropdown = ref(false)
+
+// Redirect to Conversations view when search query is typed from elsewhere
+watch(() => chatStore.searchQuery, (newQuery) => {
+  if (newQuery && route.path !== '/conversations') {
+    router.push('/conversations')
+  }
+})
 
 // Computes dynamic page title based on active route
 const pageTitle = computed(() => {
