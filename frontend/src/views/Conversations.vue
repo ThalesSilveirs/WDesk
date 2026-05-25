@@ -26,7 +26,6 @@
       <div v-else class="empty-state">
         <div class="empty-content">
           <img src="/logo.png" alt="WDesk Watermark" class="watermark-logo" />
-          <h1>WDesk</h1>
           <p>Selecione uma conversa para começar a atender.</p>
         </div>
       </div>
@@ -211,34 +210,29 @@ onMounted(() => {
 
 .empty-content {
   text-align: center;
-  opacity: 0.5;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .watermark-logo {
-  width: 280px;
-  height: 280px;
+  width: 380px;
+  height: 380px;
   object-fit: contain;
-  margin-bottom: 30px;
-  filter: drop-shadow(0 0 30px rgba(16, 185, 129, 0.15));
-  opacity: 0.7;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 35px rgba(16, 185, 129, 0.25));
   transition: all 0.5s ease;
 }
 
 .empty-content:hover .watermark-logo {
-  transform: scale(1.05);
-  opacity: 0.9;
+  transform: scale(1.03);
 }
 
-.empty-content h1 {
-  font-size: 3rem;
-  font-weight: 800;
-  letter-spacing: -1px;
-  background: linear-gradient(to bottom, #ffffff, #94a3b8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.empty-content p {
+  font-size: 1.15rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin: 0;
 }
 
 .attendants-list {

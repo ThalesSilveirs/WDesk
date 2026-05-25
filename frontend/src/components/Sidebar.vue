@@ -152,7 +152,7 @@ const logout = () => {
 
 .brand-logo-img {
   width: 100%;
-  max-height: 90px;
+  max-height: fit-content;
   object-fit: contain;
   transform: scale(1.2);
   filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.25));
