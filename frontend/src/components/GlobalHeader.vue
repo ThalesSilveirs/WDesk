@@ -119,36 +119,40 @@
     </div>
 
     <!-- Logout Modal -->
-    <Transition name="modal-fade">
-      <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
-        <div class="modal-content small-modal" @click.stop>
-          <h2>Sair do Sistema</h2>
-          <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
-          <div class="modal-actions">
-            <button @click="showLogoutModal = false" class="btn-secondary">Cancelar</button>
-            <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
+          <div class="modal-content small-modal" @click.stop>
+            <h2>Sair do Sistema</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
+            <div class="modal-actions">
+              <button @click="showLogoutModal = false" class="btn-secondary">Cancelar</button>
+              <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+            </div>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
 
     <!-- Help Modal -->
-    <Transition name="modal-fade">
-      <div v-if="showHelpModal" class="modal-overlay" @click="showHelpModal = false">
-        <div class="modal-content" @click.stop>
-          <h2>Central de Ajuda</h2>
-          <p style="color: var(--text-secondary); margin-bottom: 20px;">Precisa de auxílio no OmniChat?</p>
-          <div style="display: flex; flex-direction: column; gap: 10px; text-align: left; color: var(--text-secondary);">
-            <p>• Para conectar seu WhatsApp, acesse <strong>Conexões</strong> no menu Configurações.</p>
-            <p>• Use a aba <strong>Conversas</strong> para responder aos seus clientes em tempo real.</p>
-            <p>• Crie campanhas em massa usando o botão <strong>Nova Transmissão</strong>.</p>
-          </div>
-          <div class="modal-actions" style="margin-top: 25px;">
-            <button @click="showHelpModal = false" class="btn-success-sm">Entendido</button>
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="showHelpModal" class="modal-overlay" @click="showHelpModal = false">
+          <div class="modal-content" @click.stop>
+            <h2>Central de Ajuda</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">Precisa de auxílio no OmniChat?</p>
+            <div style="display: flex; flex-direction: column; gap: 10px; text-align: left; color: var(--text-secondary);">
+              <p>• Para conectar seu WhatsApp, acesse <strong>Conexões</strong> no menu Configurações.</p>
+              <p>• Use a aba <strong>Conversas</strong> para responder aos seus clientes em tempo real.</p>
+              <p>• Crie campanhas em massa usando o botão <strong>Nova Transmissão</strong>.</p>
+            </div>
+            <div class="modal-actions" style="margin-top: 25px;">
+              <button @click="showHelpModal = false" class="btn-success-sm">Entendido</button>
+            </div>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </header>
 </template>
 
