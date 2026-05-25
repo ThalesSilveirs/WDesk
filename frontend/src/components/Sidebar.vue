@@ -3,21 +3,7 @@
     <aside class="sidebar glass-effect">
       <!-- Brand Logo Header -->
       <div class="logo-section">
-        <div class="logo-icon">
-          <MessageSquareIcon :size="24" />
-        </div>
-        <div class="logo-text">
-          <span class="brand-name">wDesk</span>
-          <span class="brand-sub">WhatsApp CRM</span>
-        </div>
-      </div>
-
-      <!-- New Broadcast Action Button -->
-      <div class="broadcast-section">
-        <button @click="chatStore.showBroadcastModal = true" class="btn-broadcast-main">
-          <MegaphoneIcon :size="18" />
-          <span>New Broadcast</span>
-        </button>
+        <img src="/logo.png" alt="wDesk Logo" class="brand-logo-img" />
       </div>
 
       <!-- Navigation Links -->
@@ -41,6 +27,12 @@
           <BarChartIcon :size="20" />
           <span class="link-label">Métricas</span>
         </router-link>
+
+        <!-- Nova Transmissão -->
+        <button @click="chatStore.showBroadcastModal = true" class="nav-link-item broadcast-link">
+          <MegaphoneIcon :size="20" />
+          <span class="link-label">Nova Transmissão</span>
+        </button>
 
         <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active">
           <SettingsIcon :size="20" />
@@ -69,32 +61,36 @@
     </aside>
 
     <!-- Logout Modal -->
-    <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
-      <div class="modal-content glass-effect small-modal" @click.stop>
-        <h2>Sair do Sistema</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
-        <div class="modal-actions">
-          <button @click="showLogoutModal = false" class="cancel-btn">Cancelar</button>
-          <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+    <Transition name="modal-fade">
+      <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
+        <div class="modal-content small-modal" @click.stop>
+          <h2>Sair do Sistema</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
+          <div class="modal-actions">
+            <button @click="showLogoutModal = false" class="btn-secondary">Cancelar</button>
+            <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Help Modal -->
-    <div v-if="showHelpModal" class="modal-overlay" @click="showHelpModal = false">
-      <div class="modal-content glass-effect" @click.stop>
-        <h2>Central de Ajuda</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 20px;">Precisa de auxílio no OmniChat?</p>
-        <div style="display: flex; flex-direction: column; gap: 10px; text-align: left; color: var(--text-secondary);">
-          <p>• Para conectar seu WhatsApp, acesse <strong>Conexões</strong> no menu Configurações.</p>
-          <p>• Use a aba <strong>Conversas</strong> para responder aos seus clientes em tempo real.</p>
-          <p>• Crie campanhas em massa usando o botão <strong>New Broadcast</strong>.</p>
-        </div>
-        <div class="modal-actions" style="margin-top: 25px;">
-          <button @click="showHelpModal = false" class="btn-success-sm">Entendido</button>
+    <Transition name="modal-fade">
+      <div v-if="showHelpModal" class="modal-overlay" @click="showHelpModal = false">
+        <div class="modal-content" @click.stop>
+          <h2>Central de Ajuda</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 20px;">Precisa de auxílio no OmniChat?</p>
+          <div style="display: flex; flex-direction: column; gap: 10px; text-align: left; color: var(--text-secondary);">
+            <p>• Para conectar seu WhatsApp, acesse <strong>Conexões</strong> no menu Configurações.</p>
+            <p>• Use a aba <strong>Conversas</strong> para responder aos seus clientes em tempo real.</p>
+            <p>• Crie campanhas em massa usando o botão <strong>Nova Transmissão</strong>.</p>
+          </div>
+          <div class="modal-actions" style="margin-top: 25px;">
+            <button @click="showHelpModal = false" class="btn-success-sm">Entendido</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
@@ -149,68 +145,15 @@ const logout = () => {
 .logo-section {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 5px 10px;
+  justify-content: center;
+  padding: 10px 5px;
   margin-bottom: 25px;
 }
 
-.logo-icon {
-  width: 38px;
-  height: 38px;
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
-}
-
-.logo-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-name {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: white;
-  letter-spacing: -0.5px;
-}
-
-.brand-sub {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-/* Broadcast Button */
-.broadcast-section {
-  margin-bottom: 25px;
-}
-
-.btn-broadcast-main {
-  width: 100%;
-  background: #10b981;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  padding: 12px;
-  font-weight: 700;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);
-}
-
-.btn-broadcast-main:hover {
-  background: #059669;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+.brand-logo-img {
+  max-height: 45px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.25));
 }
 
 /* Navigation Links */
@@ -233,6 +176,11 @@ const logout = () => {
   text-decoration: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
 }
 
 .nav-link-item:hover {
@@ -266,32 +214,6 @@ const logout = () => {
 }
 
 /* Modal Styling */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.modal-content {
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border);
-  width: 100%;
-  max-width: 500px;
-  padding: 30px;
-  border-radius: 24px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-  color: var(--text-primary);
-  text-align: center;
-}
-
 .small-modal {
   max-width: 400px;
 }
@@ -301,21 +223,6 @@ const logout = () => {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 20px;
-}
-
-.cancel-btn {
-  background: rgba(255, 255, 255, 0.05);
-  color: #94a3b8;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background 0.2s;
-  font-weight: 600;
-}
-
-.cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .btn-danger-sm {
@@ -360,7 +267,7 @@ const logout = () => {
     border-top: 1px solid var(--border);
   }
 
-  .logo-section, .broadcast-section, .link-label, .bottom-section {
+  .logo-section, .broadcast-section, .link-label, .bottom-section, .broadcast-link {
     display: none !important;
   }
 
