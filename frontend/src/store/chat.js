@@ -94,6 +94,16 @@ export const useChatStore = defineStore('chat', {
       if (this.activeTicket && this.activeTicket.id === ticketId) {
         this.activeTicket = { ...this.activeTicket, ...response.data }
       }
+      
+      const updateInList = (list) => {
+        const index = list.findIndex(t => t.id === ticketId)
+        if (index !== -1) {
+          list[index] = { ...list[index], ...response.data }
+        }
+      }
+      updateInList(this.tickets)
+      updateInList(this.myTickets)
+
       return response.data
     },
 

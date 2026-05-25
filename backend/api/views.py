@@ -97,6 +97,10 @@ class TicketViewSet(TenantModelViewSet):
         from django.core.serializers.json import DjangoJSONEncoder
         redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
 
+    def perform_update(self, serializer):
+        ticket = serializer.save()
+        self.broadcast_ticket_update(ticket)
+
     @action(detail=True, methods=['post'])
     def reset_unread(self, request, pk=None):
         ticket = self.get_object()
