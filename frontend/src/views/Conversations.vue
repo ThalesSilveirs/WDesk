@@ -161,8 +161,14 @@ const openTransfer = () => {
 }
 
 const confirmTransfer = async (userId) => {
-  await chatStore.transferTicket(chatStore.activeTicket.id, userId)
+  if (!chatStore.activeTicket) return
+  const ticketId = chatStore.activeTicket.id
   showTransferModal.value = false
+  try {
+    await chatStore.transferTicket(ticketId, userId)
+  } catch (e) {
+    console.error("Erro ao transferir atendimento:", e)
+  }
 }
 
 const confirmClose = async () => {
