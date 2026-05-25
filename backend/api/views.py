@@ -221,7 +221,7 @@ class TicketViewSet(TenantModelViewSet):
         self.broadcast_ticket_update(ticket)
         
         # Envia mensagem do sistema
-        atendente_nome = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+        atendente_nome = request.user.first_name.strip() or request.user.username
         msg_text = f"_Seu atendimento foi iniciado por *{atendente_nome}*_"
         self.send_system_whatsapp_message(ticket, msg_text)
         
@@ -242,7 +242,7 @@ class TicketViewSet(TenantModelViewSet):
             self.broadcast_ticket_update(ticket)
             
             # Envia mensagem do sistema
-            atendente_nome = f"{new_user.first_name} {new_user.last_name}".strip() or new_user.username
+            atendente_nome = new_user.first_name.strip() or new_user.username
             msg_text = f"_Seu atendimento foi transferido para *{atendente_nome}*_"
             self.send_system_whatsapp_message(ticket, msg_text)
             

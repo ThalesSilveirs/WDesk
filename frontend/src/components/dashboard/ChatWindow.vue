@@ -351,22 +351,26 @@ const handlePaste = async (event) => {
 }
 
 const isSystemMessage = (msg) => {
-  return msg.from_me && !msg.user && (
-    msg.body?.startsWith('Seu atendimento foi') || 
-    msg.body?.startsWith('Seu atendimento iniciado') ||
-    msg.body?.includes('atendimento foi transferido')
+  if (!msg.from_me || msg.user) return false
+  const cleanText = msg.body?.replace(/^[\s_]+|[\s_]+$/g, '') || ''
+  return (
+    cleanText.startsWith('Seu atendimento foi') || 
+    cleanText.startsWith('Seu atendimento iniciado') ||
+    cleanText.includes('atendimento foi transferido')
   )
 }
 
 const cleanSystemText = (body) => {
   if (!body) return ''
-  const escaped = body
+  let text = body
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
-  return escaped.replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+  text = text.replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+  text = text.replace(/_(.*?)_/g, '<em>$1</em>')
+  return text
 }
 
 const send = async () => {
