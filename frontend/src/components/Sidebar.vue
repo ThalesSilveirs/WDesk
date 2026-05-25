@@ -151,7 +151,8 @@ const logout = () => {
 }
 
 .brand-logo-img {
-  max-height: 45px;
+  max-height: 60px;
+  max-width: 90%;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.25));
 }
@@ -184,8 +185,8 @@ const logout = () => {
 }
 
 .nav-link-item:hover {
-  background: rgba(255, 255, 255, 0.03);
-  color: white;
+  background: var(--border);
+  color: var(--text-primary);
 }
 
 .nav-link-item.active {
