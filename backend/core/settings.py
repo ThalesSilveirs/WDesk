@@ -16,6 +16,7 @@ environ.Env.read_env(os.path.join(BASE_DIR.parent, '.env'))
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-default')
 DEBUG = env('DEBUG', default=True)
 ALLOWED_HOSTS = ['*']
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True # Para rede interna, isso facilita o acesso de qualquer IP
