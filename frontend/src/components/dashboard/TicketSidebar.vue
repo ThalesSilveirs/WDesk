@@ -226,8 +226,8 @@ const formatTime = (dateStr) => {
 .avatar.small { width: 40px; height: 40px; font-size: 1rem; }
 
 .ticket-info { flex: 1; overflow: hidden; }
-.ticket-info .top { display: flex; justify-content: space-between; margin-bottom: 5px; }
-.name { font-weight: 600; color: var(--text-primary); }
+.ticket-info .top { display: flex; justify-content: space-between; margin-bottom: 5px; min-width: 0; gap: 8px; }
+.name { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
 .time { font-size: 0.8rem; color: var(--text-secondary); }
 .last-msg {
   font-size: 0.9rem;

@@ -100,4 +100,16 @@ button {
   margin-top: 10px;
   height: 48px;
 }
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 30px 20px;
+    width: 95%;
+    border-radius: 16px;
+  }
+  
+  .brand-logo h1 {
+    font-size: 2.2rem;
+  }
+}
 </style>

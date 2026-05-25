@@ -978,4 +978,48 @@ watch(() => chatStore.messages.length, scrollToBottom)
   transform: none !important;
   box-shadow: none !important;
 }
+
+@media (max-width: 768px) {
+  .messages-container {
+    padding: 15px;
+  }
+
+  .message-bubble {
+    max-width: 85%;
+  }
+
+  .media-image {
+    max-width: 100% !important;
+  }
+
+  .media-audio {
+    width: 100%;
+    min-width: 200px;
+  }
+
+  .media-audio audio {
+    width: 100%;
+    display: block;
+  }
+
+  .chat-input {
+    padding: 10px 15px;
+    gap: 8px;
+  }
+
+  .chat-input input[type="text"] {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+
+  .attach-btn, .send-btn, .rec-btn, .cancel-rec-btn, .stop-rec-btn, .send-rec-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  .recording-canvas {
+    display: none;
+  }
+}
 </style>

@@ -5,10 +5,10 @@
       <h1>{{ pageTitle }}</h1>
       
       <!-- User Status Dropdown -->
-      <div class="status-dropdown">
+      <div class="status-dropdown" @click.stop>
         <button @click="showStatusMenu = !showStatusMenu" class="status-btn" :class="currentStatus">
           <span class="status-dot"></span>
-          {{ formatStatusName(currentStatus) }}
+          <span class="status-text-label">{{ formatStatusName(currentStatus) }}</span>
           <ChevronDownIcon :size="16" />
         </button>
         <div v-if="showStatusMenu" class="status-menu glass-effect">
@@ -77,14 +77,78 @@
         <HistoryIcon :size="20" />
       </button>
       
-      <!-- Logged In User Profile -->
-      <div class="profile-avatar">
-        <div class="profile-initials">
-          {{ userInitials }}
-        </div>
-        <span class="profile-name">{{ userDisplayName }}</span>
+      <!-- Logged In User Profile Dropdown -->
+      <div class="profile-dropdown-container" @click.stop>
+        <button @click="showProfileMenu = !showProfileMenu" class="profile-avatar-btn" title="Menu do Usuário">
+          <div class="profile-avatar">
+            <div class="profile-initials">
+              {{ userInitials }}
+            </div>
+            <span class="profile-name">{{ userDisplayName }}</span>
+          </div>
+          <ChevronDownIcon :size="14" class="profile-arrow" />
+        </button>
+        
+        <Transition name="modal-fade">
+          <div v-if="showProfileMenu" class="profile-menu glass-effect">
+            <div class="profile-menu-header">
+              <strong>{{ userDisplayName }}</strong>
+              <span class="profile-role">{{ chatStore.userRole === 'admin' ? 'Administrador' : 'Atendente' }}</span>
+            </div>
+            <div class="profile-menu-items">
+              <!-- Mobile only menu items (normally in Sidebar bottom-section) -->
+              <div class="mobile-only-items">
+                <button @click="toggleTheme" class="menu-item">
+                  <SunIcon v-if="chatStore.theme === 'dark'" :size="16" />
+                  <MoonIcon v-else :size="16" />
+                  <span>Tema: {{ chatStore.theme === 'dark' ? 'Claro' : 'Escuro' }}</span>
+                </button>
+                <button @click="triggerHelp" class="menu-item">
+                  <HelpCircleIcon :size="16" />
+                  <span>Ajuda</span>
+                </button>
+              </div>
+              <button @click="triggerLogout" class="menu-item logout">
+                <LogOutIcon :size="16" />
+                <span>Sair</span>
+              </button>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
+
+    <!-- Logout Modal -->
+    <Transition name="modal-fade">
+      <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
+        <div class="modal-content small-modal" @click.stop>
+          <h2>Sair do Sistema</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
+          <div class="modal-actions">
+            <button @click="showLogoutModal = false" class="btn-secondary">Cancelar</button>
+            <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Help Modal -->
+    <Transition name="modal-fade">
+      <div v-if="showHelpModal" class="modal-overlay" @click="showHelpModal = false">
+        <div class="modal-content" @click.stop>
+          <h2>Central de Ajuda</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 20px;">Precisa de auxílio no OmniChat?</p>
+          <div style="display: flex; flex-direction: column; gap: 10px; text-align: left; color: var(--text-secondary);">
+            <p>• Para conectar seu WhatsApp, acesse <strong>Conexões</strong> no menu Configurações.</p>
+            <p>• Use a aba <strong>Conversas</strong> para responder aos seus clientes em tempo real.</p>
+            <p>• Crie campanhas em massa usando o botão <strong>Nova Transmissão</strong>.</p>
+          </div>
+          <div class="modal-actions" style="margin-top: 25px;">
+            <button @click="showHelpModal = false" class="btn-success-sm">Entendido</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </header>
 </template>
 
@@ -97,12 +161,39 @@ import {
   Search as SearchIcon,
   Bell as BellIcon,
   History as HistoryIcon,
-  MessageSquare as MessageSquareIcon
+  MessageSquare as MessageSquareIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon,
+  HelpCircle as HelpCircleIcon,
+  LogOut as LogOutIcon
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const chatStore = useChatStore()
+
+const showProfileMenu = ref(false)
+const showLogoutModal = ref(false)
+const showHelpModal = ref(false)
+
+const toggleTheme = () => {
+  chatStore.toggleTheme()
+}
+
+const triggerLogout = () => {
+  showProfileMenu.value = false
+  showLogoutModal.value = true
+}
+
+const logout = () => {
+  localStorage.removeItem('token')
+  router.push('/login')
+}
+
+const triggerHelp = () => {
+  showProfileMenu.value = false
+  showHelpModal.value = true
+}
 
 const currentStatus = ref('online')
 const showStatusMenu = ref(false)
@@ -213,6 +304,7 @@ onMounted(() => {
   window.addEventListener('click', () => {
     showNotificationDropdown.value = false
     showStatusMenu.value = false
+    showProfileMenu.value = false
   })
 
   window.addEventListener('user-status-synced', handleStatusSynced)
@@ -510,13 +602,41 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
-/* Logged In User Profile */
+/* Logged In User Profile & Dropdown */
+.profile-dropdown-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-left: 15px;
+  border-left: 1px solid var(--border);
+}
+
+.profile-avatar-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 12px;
+  transition: background 0.2s;
+  color: var(--text-primary);
+}
+
+.profile-avatar-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.profile-arrow {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
 .profile-avatar {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-left: 15px;
-  border-left: 1px solid var(--border);
 }
 
 .profile-initials {
@@ -538,17 +658,155 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
+.profile-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 10px;
+  width: 220px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-sidebar);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+  z-index: 1010;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-menu-header {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.profile-menu-header strong {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.profile-role {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.profile-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.menu-item.logout {
+  color: #ef4444;
+}
+
+.menu-item.logout:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.mobile-only-items {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Modal styling copy for global header integration */
+.small-modal {
+  max-width: 400px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-danger-sm {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-danger-sm:hover {
+  background: #dc2626;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.btn-success-sm {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 @media (max-width: 768px) {
   .global-header {
     padding: 10px 15px;
   }
   
+  .header-left h1 {
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+  }
+
+  .status-btn span.status-text-label {
+    display: none;
+  }
+
+  .history-btn {
+    display: none !important;
+  }
+
   .header-search {
     display: none;
   }
   
   .profile-name {
     display: none;
+  }
+
+  .mobile-only-items {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
   }
 }
 </style>
