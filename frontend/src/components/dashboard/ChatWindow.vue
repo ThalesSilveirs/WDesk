@@ -58,9 +58,7 @@
               <img :src="msg.media_url || msg.body" />
             </div>
             <div v-else-if="msg.media_type === 'audio'" class="media-audio">
-              <audio controls>
-                <source :src="msg.media_url" type="audio/mpeg">
-              </audio>
+              <AudioPlayer :src="msg.media_url" :from-me="msg.from_me" />
             </div>
             <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(msg.media_url)">
               <div class="doc-card">
@@ -166,6 +164,7 @@
 <script setup>
 import { ref, watch, nextTick, onUnmounted } from 'vue'
 import { useChatStore } from '../../store/chat'
+import AudioPlayer from './AudioPlayer.vue'
 import { 
   Contact as ContactIcon, 
   CheckCircle as CheckIcon, 
