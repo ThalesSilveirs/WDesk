@@ -1480,10 +1480,33 @@ class WebhookView(viewsets.ViewSet):
         return Response({"status": "received"}, status=status.HTTP_200_OK)
 
 class UserSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'password', 'department']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'password', 'department', 'status']
         extra_kwargs = {'password': {'write_only': True}}
+
+    def get_status(self, obj):
+        import redis
+        from django.conf import settings
+        try:
+            redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
+            r = redis.Redis.from_url(redis_url)
+            status_key = f"user_status_{obj.id}"
+            status_bytes = r.get(status_key)
+            if status_bytes:
+                status = status_bytes.decode('utf-8')
+                if status == 'away':
+                    return "Ausente"
+                elif status == 'offline':
+                    return "Offline"
+                elif status == 'online':
+                    return "Online"
+            is_active = r.exists(f"user_active_{obj.id}")
+            return "Online" if is_active else "Offline"
+        except Exception:
+            return "Offline"
 
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)

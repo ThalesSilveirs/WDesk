@@ -335,6 +335,12 @@ onUnmounted(() => {
   box-shadow: 0 0 8px #10b981;
 }
 
+.status-dot-indicator.away,
+.status-dot-indicator.ausente {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
 .status-dot-indicator.offline {
   background: #94a3b8;
 }

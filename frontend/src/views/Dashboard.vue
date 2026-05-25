@@ -1103,6 +1103,8 @@ onUnmounted(() => {
 }
 
 .status-dot-indicator.online { background: #10b981; }
+.status-dot-indicator.away,
+.status-dot-indicator.ausente { background: #f59e0b; }
 .status-dot-indicator.offline { background: #94a3b8; }
 
 .member-info h5 {
