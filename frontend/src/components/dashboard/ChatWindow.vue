@@ -54,19 +54,19 @@
         <div v-for="msg in chatStore.messages" :key="msg.id" class="message" :class="{ 'me': msg.from_me }">
           <div class="message-bubble">
             <!-- Media Display -->
-            <div v-if="msg.media_type === 'image'" class="media-image clickable" @click="emit('openImage', msg.media_url || msg.body)">
-              <img :src="msg.media_url || msg.body" />
+            <div v-if="msg.media_type === 'image'" class="media-image clickable" @click="emit('openImage', resolvedUrls[msg.id] || msg.media_url || msg.body)">
+              <img :src="resolvedUrls[msg.id] || msg.media_url || msg.body" />
             </div>
             <div v-else-if="msg.media_type === 'audio'" class="media-audio">
-              <AudioPlayer :src="msg.media_url" :from-me="msg.from_me" />
+              <AudioPlayer :src="resolvedUrls[msg.id] || msg.media_url" :from-me="msg.from_me" />
             </div>
-            <div v-else-if="msg.media_type === 'video'" class="media-video">
-              <video controls preload="metadata">
-                <source :src="msg.media_url || msg.body" />
-                Seu navegador não suporta a exibição de vídeos.
-              </video>
+            <div v-else-if="msg.media_type === 'video'" class="media-video clickable" @click="emit('openVideo', resolvedUrls[msg.id] || msg.media_url || msg.body)">
+              <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="metadata"></video>
+              <div class="video-play-overlay">
+                <PlayIcon :size="24" class="play-icon" />
+              </div>
             </div>
-            <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(msg.media_url || msg.body)">
+            <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(resolvedUrls[msg.id] || msg.media_url || msg.body)">
               <div class="doc-card">
                 <FileIcon :size="32" />
                 <div class="doc-info">
@@ -181,7 +181,8 @@ import {
   ChevronLeft as ChevronLeftIcon,
   Mic as MicIcon,
   Trash2 as TrashIcon,
-  Square as SquareIcon
+  Square as SquareIcon,
+  Play as PlayIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -193,13 +194,56 @@ const emit = defineEmits([
   'openPriorityModal', 
   'openTransferModal', 
   'openCloseModal', 
-  'openImage'
+  'openImage',
+  'openVideo'
 ])
 
 const chatStore = useChatStore()
 const newMessage = ref('')
 const messageRef = ref(null)
 const fileInput = ref(null)
+
+const resolvedUrls = ref({})
+
+watch(() => chatStore.messages, (newMessages) => {
+  if (!newMessages) return
+  newMessages.forEach(msg => {
+    const url = msg.media_url || msg.body
+    if (url && !resolvedUrls.value[msg.id]) {
+      if (url.startsWith('data:')) {
+        try {
+          const parts = url.split(',')
+          const contentType = parts[0].split(':')[1].split(';')[0]
+          const raw = window.atob(parts[1])
+          const rawLength = raw.length
+          const uInt8Array = new Uint8Array(rawLength)
+          for (let i = 0; i < rawLength; ++i) {
+            uInt8Array[i] = raw.charCodeAt(i)
+          }
+          const blob = new Blob([uInt8Array], { type: contentType })
+          resolvedUrls.value[msg.id] = URL.createObjectURL(blob)
+        } catch (e) {
+          console.error("Erro ao resolver base64 para msg " + msg.id, e)
+          resolvedUrls.value[msg.id] = url
+        }
+      } else {
+        resolvedUrls.value[msg.id] = url
+      }
+    }
+  })
+}, { immediate: true, deep: true })
+
+onUnmounted(() => {
+  Object.values(resolvedUrls.value).forEach(url => {
+    if (url && url.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        console.error("Erro ao revogar object URL", e)
+      }
+    }
+  })
+})
 
 const goBack = () => {
   chatStore.activeTicket = null
@@ -751,19 +795,61 @@ watch(() => chatStore.messages.length, scrollToBottom)
 
 .media-video {
   margin: 8px 0 !important;
-  max-width: 280px !important;
+  max-width: 250px !important;
   border-radius: 12px !important;
   overflow: hidden !important;
   border: 2px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: transform 0.2s !important;
+}
+
+.media-video:hover {
+  transform: scale(1.03) !important;
 }
 
 .media-video video {
   width: 100% !important;
-  max-height: 250px !important;
+  height: auto !important;
   display: block !important;
-  object-fit: contain !important;
+  object-fit: cover !important;
+  max-height: 200px !important;
   background: #000 !important;
+}
+
+.video-play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.media-video:hover .video-play-overlay {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.video-play-overlay .play-icon {
+  color: white;
+  background: rgba(16, 185, 129, 0.9);
+  padding: 10px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-video:hover .play-icon {
+  transform: scale(1.1);
+  background: var(--accent);
 }
 
 .doc-card {

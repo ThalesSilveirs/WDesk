@@ -15,6 +15,7 @@
           @openTransferModal="openTransfer"
           @openCloseModal="showCloseModal = true"
           @openImage="openImage"
+          @openVideo="openVideo"
         />
 
         <CrmPanel 
@@ -125,6 +126,14 @@
       </div>
     </Transition>
 
+    <!-- Visualizador de Vídeo -->
+    <Transition name="fade">
+      <div v-if="selectedVideo" class="modal-overlay image-viewer" @click="selectedVideo = null">
+        <button class="close-viewer"><XIcon :size="32" /></button>
+        <video :src="selectedVideo" class="full-video" controls autoplay @click.stop></video>
+      </div>
+    </Transition>
+
   </div>
 </template>
 
@@ -142,6 +151,7 @@ const showTransferModal = ref(false)
 const showPriorityModal = ref(false)
 const showCloseModal = ref(false)
 const selectedImage = ref(null)
+const selectedVideo = ref(null)
 const showCRM = ref(false)
 const resolutionSummary = ref('')
 
@@ -177,6 +187,7 @@ const setPriority = async (level) => {
 }
 
 const openImage = (url) => { selectedImage.value = url }
+const openVideo = (url) => { selectedVideo.value = url }
 
 onMounted(() => {
   chatStore.fetchTickets()
@@ -356,6 +367,14 @@ onMounted(() => {
   max-height: 90%;
   object-fit: contain;
   border-radius: 12px;
+}
+.full-video {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  background: #000;
+  outline: none;
 }
 .close-viewer {
   position: absolute;
