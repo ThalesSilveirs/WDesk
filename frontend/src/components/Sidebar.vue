@@ -34,7 +34,7 @@
           <span class="link-label">Nova Transmissão</span>
         </button>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item mobile-only" active-class="active">
           <SettingsIcon :size="20" />
           <span class="link-label">Configurações</span>
         </router-link>
@@ -53,26 +53,14 @@
           <span class="link-label">Ajuda</span>
         </button>
 
-        <button @click="showLogoutModal = true" class="nav-link-item logout-item">
-          <LogOutIcon :size="20" />
-          <span class="link-label">Sair</span>
-        </button>
+        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active">
+          <SettingsIcon :size="20" />
+          <span class="link-label">Configurações</span>
+        </router-link>
       </div>
     </aside>
 
-    <!-- Logout Modal -->
-    <Transition name="modal-fade">
-      <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
-        <div class="modal-content small-modal" @click.stop>
-          <h2>Sair do Sistema</h2>
-          <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
-          <div class="modal-actions">
-            <button @click="showLogoutModal = false" class="btn-secondary">Cancelar</button>
-            <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
+
 
     <!-- Help Modal -->
     <Transition name="modal-fade">
@@ -107,20 +95,13 @@ import {
   BarChart3 as BarChartIcon,
   Settings as SettingsIcon,
   HelpCircle as HelpCircleIcon,
-  LogOut as LogOutIcon,
   Sun as SunIcon,
   Moon as MoonIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
 const chatStore = useChatStore()
-const showLogoutModal = ref(false)
 const showHelpModal = ref(false)
-
-const logout = () => {
-  localStorage.removeItem('token')
-  router.push('/login')
-}
 </script>
 
 <style scoped>
@@ -286,5 +267,13 @@ const logout = () => {
     padding: 10px;
     border-radius: 10px;
   }
+
+  .mobile-only {
+    display: flex !important;
+  }
+}
+
+.mobile-only {
+  display: none !important;
 }
 </style>
