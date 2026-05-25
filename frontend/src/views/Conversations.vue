@@ -70,9 +70,13 @@
               class="attendant-option"
             >
               <div class="avatar small">{{ user.username.charAt(0).toUpperCase() }}</div>
-              <div>
+              <div class="attendant-info">
                 <span class="name">{{ user.first_name }} {{ user.last_name }}</span>
-                <span class="dept">{{ user.department }}</span>
+                <span class="dept">{{ user.department || 'Sem departamento' }}</span>
+              </div>
+              <div class="attendant-status" :class="user.status?.toLowerCase() || 'offline'">
+                <span class="status-dot"></span>
+                <span class="status-text">{{ user.status || 'Offline' }}</span>
               </div>
             </button>
           </div>
@@ -255,6 +259,8 @@ onMounted(() => {
 .attendants-list {
   max-height: 300px;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px;
 }
 
 .attendant-option { 
@@ -270,12 +276,67 @@ onMounted(() => {
   cursor: pointer; 
   margin-bottom: 10px; 
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
 }
 
 .attendant-option:hover {
   background: rgba(16, 185, 129, 0.1);
   border-color: var(--accent);
-  transform: translateX(8px);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.attendant-info {
+  flex: 1;
+  text-align: left;
+}
+
+.attendant-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  margin-left: auto;
+}
+
+.attendant-status .status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.attendant-status.online {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.06);
+}
+.attendant-status.online .status-dot {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.attendant-status.ausente {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.2);
+  background: rgba(245, 158, 11, 0.06);
+}
+.attendant-status.ausente .status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+}
+
+.attendant-status.offline {
+  color: var(--text-secondary);
+  border-color: var(--border);
+  background: rgba(148, 163, 184, 0.05);
+}
+.attendant-status.offline .status-dot {
+  background: #94a3b8;
 }
 
 .avatar {

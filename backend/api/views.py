@@ -243,7 +243,7 @@ class TicketViewSet(TenantModelViewSet):
             
             # Envia mensagem do sistema
             atendente_nome = f"{new_user.first_name} {new_user.last_name}".strip() or new_user.username
-            msg_text = f"   _Seu atendimento foi transferido para *{atendente_nome}* _"
+            msg_text = f"_Seu atendimento foi transferido para *{atendente_nome}*_"
             self.send_system_whatsapp_message(ticket, msg_text)
             
             return Response(TicketSerializer(ticket).data)
