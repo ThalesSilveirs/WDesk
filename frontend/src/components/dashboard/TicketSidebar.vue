@@ -3,11 +3,11 @@
     <div class="ticket-list-wrapper top">
       <div class="list-header">
         <h3>Meus Atendimentos</h3>
-        <span class="badge green">{{ chatStore.myTickets.length }}</span>
+        <span class="badge green">{{ filteredMyTickets.length }}</span>
       </div>
       <div class="ticket-list">
         <div 
-          v-for="ticket in chatStore.myTickets" 
+          v-for="ticket in filteredMyTickets" 
           :key="ticket.id"
           class="ticket-item"
           :class="{ active: chatStore.activeTicket?.id === ticket.id }"
@@ -39,7 +39,7 @@
       <div class="list-header">
         <div class="header-main">
           <h3>{{ chatStore.currentFilter === 'closed' ? 'Histórico' : (chatStore.currentFilter === 'all' ? 'Todos' : 'Fila') }}</h3>
-          <span class="badge">{{ chatStore.tickets.length }}</span>
+          <span class="badge">{{ filteredTickets.length }}</span>
         </div>
         <div class="tabs-top-inline">
           <button 
@@ -68,7 +68,7 @@
       </div>
       <div class="ticket-list">
         <div 
-          v-for="ticket in chatStore.tickets" 
+          v-for="ticket in filteredTickets" 
           :key="ticket.id"
           class="ticket-item"
           :class="{ active: chatStore.activeTicket?.id === ticket.id }"
@@ -98,9 +98,32 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useChatStore } from '../../store/chat'
 
 const chatStore = useChatStore()
+
+const filteredMyTickets = computed(() => {
+  const query = (chatStore.searchQuery || '').toLowerCase().trim()
+  if (!query) return chatStore.myTickets
+  return chatStore.myTickets.filter(ticket => {
+    const contactName = (ticket.contact_details?.name || '').toLowerCase()
+    const remoteJid = (ticket.contact_details?.remote_jid || '').toLowerCase()
+    const lastMsg = (ticket.last_message || '').toLowerCase()
+    return contactName.includes(query) || remoteJid.includes(query) || lastMsg.includes(query)
+  })
+})
+
+const filteredTickets = computed(() => {
+  const query = (chatStore.searchQuery || '').toLowerCase().trim()
+  if (!query) return chatStore.tickets
+  return chatStore.tickets.filter(ticket => {
+    const contactName = (ticket.contact_details?.name || '').toLowerCase()
+    const remoteJid = (ticket.contact_details?.remote_jid || '').toLowerCase()
+    const lastMsg = (ticket.last_message || '').toLowerCase()
+    return contactName.includes(query) || remoteJid.includes(query) || lastMsg.includes(query)
+  })
+})
 
 const formatTime = (dateStr) => {
   if (!dateStr) return ''

@@ -16,7 +16,8 @@ export const useChatStore = defineStore('chat', {
     userRole: localStorage.getItem('role') || 'attendant',
     theme: localStorage.getItem('theme') || 'dark',
     showBroadcastModal: false,
-    notifications: []
+    notifications: [],
+    searchQuery: ''
   }),
 
   actions: {
