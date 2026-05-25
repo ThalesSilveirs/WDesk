@@ -61,7 +61,7 @@
               <AudioPlayer :src="resolvedUrls[msg.id] || msg.media_url" :from-me="msg.from_me" />
             </div>
             <div v-else-if="msg.media_type === 'video'" class="media-video clickable" @click="emit('openVideo', resolvedUrls[msg.id] || msg.media_url || msg.body)">
-              <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="metadata"></video>
+              <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="auto" muted playsinline></video>
               <div class="video-play-overlay">
                 <PlayIcon :size="24" class="play-icon" />
               </div>
@@ -204,12 +204,33 @@ const messageRef = ref(null)
 const fileInput = ref(null)
 
 const resolvedUrls = ref({})
+const resolvedSources = ref({})
+
+watch(() => chatStore.activeTicket?.id, () => {
+  Object.values(resolvedUrls.value).forEach(url => {
+    if (url && url.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        console.error("Erro ao revogar object URL", e)
+      }
+    }
+  })
+  resolvedUrls.value = {}
+  resolvedSources.value = {}
+})
 
 watch(() => chatStore.messages, (newMessages) => {
   if (!newMessages) return
   newMessages.forEach(msg => {
     const url = msg.media_url || msg.body
-    if (url && !resolvedUrls.value[msg.id]) {
+    if (url && resolvedSources.value[msg.id] !== url) {
+      if (resolvedUrls.value[msg.id] && resolvedUrls.value[msg.id].startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(resolvedUrls.value[msg.id])
+        } catch (e) {}
+      }
+
       if (url.startsWith('data:')) {
         try {
           const parts = url.split(',')
@@ -222,12 +243,15 @@ watch(() => chatStore.messages, (newMessages) => {
           }
           const blob = new Blob([uInt8Array], { type: contentType })
           resolvedUrls.value[msg.id] = URL.createObjectURL(blob)
+          resolvedSources.value[msg.id] = url
         } catch (e) {
           console.error("Erro ao resolver base64 para msg " + msg.id, e)
           resolvedUrls.value[msg.id] = url
+          resolvedSources.value[msg.id] = url
         }
       } else {
         resolvedUrls.value[msg.id] = url
+        resolvedSources.value[msg.id] = url
       }
     }
   })

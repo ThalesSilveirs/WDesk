@@ -130,7 +130,7 @@
     <Transition name="fade">
       <div v-if="selectedVideo" class="modal-overlay image-viewer" @click="selectedVideo = null">
         <button class="close-viewer"><XIcon :size="32" /></button>
-        <video :src="selectedVideo" class="full-video" controls autoplay @click.stop></video>
+        <video :src="selectedVideo" class="full-video" controls autoplay playsinline @click.stop></video>
       </div>
     </Transition>
 
