@@ -60,7 +60,13 @@
             <div v-else-if="msg.media_type === 'audio'" class="media-audio">
               <AudioPlayer :src="msg.media_url" :from-me="msg.from_me" />
             </div>
-            <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(msg.media_url)">
+            <div v-else-if="msg.media_type === 'video'" class="media-video">
+              <video controls preload="metadata">
+                <source :src="msg.media_url || msg.body" />
+                Seu navegador não suporta a exibição de vídeos.
+              </video>
+            </div>
+            <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(msg.media_url || msg.body)">
               <div class="doc-card">
                 <FileIcon :size="32" />
                 <div class="doc-info">
@@ -70,7 +76,7 @@
               </div>
             </div>
             
-            <p v-if="msg.body && msg.media_type !== 'audio' && msg.media_type !== 'document'">
+            <p v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio'">
               {{ cleanBody(msg.body, msg.from_me) }}
             </p>
             <span class="msg-time">
@@ -205,13 +211,42 @@ const handleAccept = async () => {
   emit('openPriorityModal')
 }
 
+const isPlaceholder = (body) => {
+  if (!body) return false
+  const content = body.includes(':*\n\n') ? body.split(/:\*\n\n/).slice(1).join(':*\n\n') : body
+  return ['Enviou um image', 'Enviou um video', 'Enviou um document', 'Enviou um audio', 'Enviou um sticker'].some(phrase => content.trim() === phrase)
+}
+
 const cleanBody = (body, fromMe) => {
-  if (!fromMe || !body) return body
+  if (!body) return ''
+  if (!fromMe) return body
   const parts = body.split(/:\*\n\n/)
   return parts.length > 1 ? parts.slice(1).join(/:\*\n\n/) : body
 }
 
-const openDocument = (url) => { window.open(url, '_blank') }
+const openDocument = (url) => {
+  if (!url) return
+  if (url.startsWith('data:')) {
+    try {
+      const parts = url.split(',')
+      const contentType = parts[0].split(':')[1].split(';')[0]
+      const raw = window.atob(parts[1])
+      const rawLength = raw.length
+      const uInt8Array = new Uint8Array(rawLength)
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i)
+      }
+      const blob = new Blob([uInt8Array], { type: contentType })
+      const blobUrl = URL.createObjectURL(blob)
+      window.open(blobUrl, '_blank')
+    } catch (e) {
+      console.error("Erro ao converter base64 para blob", e)
+      window.open(url, '_blank')
+    }
+  } else {
+    window.open(url, '_blank')
+  }
+}
 
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
@@ -714,6 +749,23 @@ watch(() => chatStore.messages.length, scrollToBottom)
   max-height: 300px !important;
 }
 
+.media-video {
+  margin: 8px 0 !important;
+  max-width: 280px !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  border: 2px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+.media-video video {
+  width: 100% !important;
+  max-height: 250px !important;
+  display: block !important;
+  object-fit: contain !important;
+  background: #000 !important;
+}
+
 .doc-card {
   display: flex;
   align-items: center;
@@ -993,6 +1045,15 @@ watch(() => chatStore.messages.length, scrollToBottom)
   }
 
   .media-image img {
+    max-height: 180px !important;
+  }
+
+  .media-video {
+    max-width: 220px !important;
+    margin: 4px 0 !important;
+  }
+
+  .media-video video {
     max-height: 180px !important;
   }
 
