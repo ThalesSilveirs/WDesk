@@ -1282,7 +1282,7 @@ class WebhookView(viewsets.ViewSet):
                     data.get('data', {}).get('key', {}).get('remoteJid')
                 )
                 
-                if not remote_jid or 'status@broadcast' in str(remote_jid):
+                if not remote_jid or 'status@broadcast' in str(remote_jid) or '@g.us' in str(remote_jid):
                     if not remote_jid:
                         print(f"[WEBHOOK] remote_jid não encontrado. msg_item keys: {list(msg_item.keys())}")
                     continue
@@ -1544,10 +1544,11 @@ class WebhookView(viewsets.ViewSet):
                     ).order_by('-id').select_for_update().first()
                     
                     if not ticket:
+                        ticket_status = 'closed' if from_me else 'open'
                         ticket = Ticket.objects.create(
                             contact=contact,
                             company=connection.company,
-                            status='open'
+                            status=ticket_status
                         )
 
                     # 3. Salva a Mensagem

@@ -23,6 +23,8 @@ def process_webhook_event(connection_id, payload):
         from_me = data.get('key', {}).get('fromMe', False)
 
         if not body: return
+        if not remote_jid or 'status@broadcast' in str(remote_jid) or '@g.us' in str(remote_jid):
+            return
 
         # 1. Obter ou criar contato
         contact, _ = Contact.objects.get_or_create(
@@ -32,14 +34,21 @@ def process_webhook_event(connection_id, payload):
         )
 
         # 2. Obter ou criar ticket aberto
-        ticket, created = Ticket.objects.get_or_create(
+        ticket = Ticket.objects.filter(
             company=company,
             contact=contact,
-            status='open',
-            defaults={'last_message': body}
-        )
-        
-        if not created:
+            status__in=['open', 'pending']
+        ).order_by('-id').first()
+
+        if not ticket:
+            status = 'closed' if from_me else 'open'
+            ticket = Ticket.objects.create(
+                company=company,
+                contact=contact,
+                status=status,
+                last_message=body
+            )
+        else:
             ticket.last_message = body
             ticket.save()
 
