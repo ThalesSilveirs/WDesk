@@ -1495,6 +1495,11 @@ class WebhookView(viewsets.ViewSet):
                         customer = additional_contact.customer
                         contact_name = additional_contact.name
 
+                if from_me and not customer:
+                    # Ignora mensagens enviadas pelo próprio celular para contatos não cadastrados no sistema
+                    print(f"[WEBHOOK] Ignorando mensagem fromMe para número não cadastrado como cliente: {phone_number}")
+                    continue
+
                 contact, contact_created = Contact.objects.update_or_create(
                     remote_jid=remote_jid,
                     company=connection.company,
@@ -1544,11 +1549,10 @@ class WebhookView(viewsets.ViewSet):
                     ).order_by('-id').select_for_update().first()
                     
                     if not ticket:
-                        ticket_status = 'closed' if from_me else 'open'
                         ticket = Ticket.objects.create(
                             contact=contact,
                             company=connection.company,
-                            status=ticket_status
+                            status='open'
                         )
 
                     # 3. Salva a Mensagem

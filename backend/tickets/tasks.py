@@ -1,5 +1,5 @@
 from celery import shared_task
-from .models import Connection, Contact, Ticket, Message
+from .models import Connection, Contact, Ticket, Message, Customer, CustomerContact
 import json
 import redis
 from django.conf import settings
@@ -26,6 +26,26 @@ def process_webhook_event(connection_id, payload):
         if not remote_jid or 'status@broadcast' in str(remote_jid) or '@g.us' in str(remote_jid):
             return
 
+        if from_me:
+            phone_number = remote_jid.split('@')[0]
+            import re
+            phone_digits = re.sub(r'\D', '', phone_number)
+            
+            customer_exists = Customer.objects.filter(
+                company=company,
+                phone__icontains=phone_digits[-8:]
+            ).exists()
+            
+            if not customer_exists:
+                customer_exists = CustomerContact.objects.filter(
+                    customer__company=company,
+                    phone__icontains=phone_digits[-8:]
+                ).exists()
+                
+            if not customer_exists:
+                print(f"[WEBHOOK TASK] Ignorando mensagem fromMe para número não cadastrado: {phone_number}")
+                return
+
         # 1. Obter ou criar contato
         contact, _ = Contact.objects.get_or_create(
             company=company,
@@ -41,11 +61,10 @@ def process_webhook_event(connection_id, payload):
         ).order_by('-id').first()
 
         if not ticket:
-            status = 'closed' if from_me else 'open'
             ticket = Ticket.objects.create(
                 company=company,
                 contact=contact,
-                status=status,
+                status='open',
                 last_message=body
             )
         else:

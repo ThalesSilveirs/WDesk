@@ -110,13 +110,14 @@
         <button class="attach-btn" @click="fileInput.click()" :disabled="!chatStore.activeTicket.user" title="Enviar Mídia">
           <PlusIcon :size="22" />
         </button>
-        <input 
+        <textarea 
+          ref="messageInput"
           v-model="newMessage" 
-          @keyup.enter="send"
+          @keydown="handleKeyDown"
           @paste="handlePaste"
           :placeholder="chatStore.activeTicket.user ? 'Digite uma mensagem...' : 'Aceite o atendimento para responder...'" 
-          type="text" 
           :disabled="!chatStore.activeTicket.user"
+          rows="1"
         />
         <button 
           v-if="newMessage.trim()" 
@@ -211,6 +212,7 @@ const chatStore = useChatStore()
 const newMessage = ref('')
 const messageRef = ref(null)
 const fileInput = ref(null)
+const messageInput = ref(null)
 
 const resolvedUrls = ref({})
 const resolvedSources = ref({})
@@ -377,9 +379,31 @@ const send = async () => {
   if (!newMessage.value.trim()) return
   const text = newMessage.value
   newMessage.value = ''
+  if (messageInput.value) {
+    messageInput.value.style.height = 'auto'
+  }
   await chatStore.sendMessage(text)
   scrollToBottom()
 }
+
+const handleKeyDown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+    e.preventDefault()
+    send()
+  }
+}
+
+const autoResize = () => {
+  nextTick(() => {
+    if (!messageInput.value) return
+    messageInput.value.style.height = 'auto'
+    messageInput.value.style.height = `${messageInput.value.scrollHeight}px`
+  })
+}
+
+watch(newMessage, () => {
+  autoResize()
+})
 
 const scrollToBottom = () => {
   nextTick(() => { 
@@ -987,7 +1011,7 @@ watch(() => chatStore.messages.length, scrollToBottom)
   border-top: 1px solid var(--border);
 }
 
-.chat-input input[type="text"] {
+.chat-input textarea {
   flex: 1;
   background: var(--glass);
   border: 1px solid var(--border);
@@ -995,9 +1019,16 @@ watch(() => chatStore.messages.length, scrollToBottom)
   border-radius: 12px;
   color: var(--text-primary);
   outline: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  height: 44px;
+  max-height: 150px;
+  overflow-y: auto;
 }
 
-.chat-input input:disabled {
+.chat-input textarea:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   background: rgba(0, 0, 0, 0.1);
@@ -1257,7 +1288,7 @@ watch(() => chatStore.messages.length, scrollToBottom)
     gap: 8px;
   }
 
-  .chat-input input[type="text"] {
+  .chat-input textarea {
     padding: 10px;
     font-size: 0.9rem;
   }

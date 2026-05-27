@@ -156,7 +156,7 @@ const showPriorityModal = ref(false)
 const showCloseModal = ref(false)
 const selectedImage = ref(null)
 const selectedVideo = ref(null)
-const showCRM = ref(false)
+const showCRM = ref(window.innerWidth > 768)
 const resolutionSummary = ref('')
 
 const openTransfer = () => {
