@@ -11,6 +11,11 @@
             <SearchIcon :size="20" />
             <input v-model="search" placeholder="Buscar por nome ou telefone..." type="text" />
           </div>
+          <button @click="showFilters = !showFilters" :class="{ 'btn-filter-active': showFilters || activeFiltersCount > 0 }" class="btn-filter-toggle" title="Filtrar Clientes">
+            <FilterIcon :size="18" />
+            <span>Filtros</span>
+            <span v-if="activeFiltersCount > 0" class="filter-count-badge">{{ activeFiltersCount }}</span>
+          </button>
           <div class="view-switcher-toggle">
             <button @click="setViewMode('grid')" :class="{ active: viewMode === 'grid' }" class="toggle-btn" title="Visualização em Grade">
               <LayoutGridIcon :size="18" />
@@ -26,38 +31,40 @@
       </header>
 
       <div class="content-wrapper">
-        <!-- Barra de Filtros (CRM) -->
-        <div class="filters-container glass-effect animate-in">
-          <div class="filter-group">
-            <label>Status</label>
-            <select v-model="filterStatus" class="select-glass">
-              <option value="all">Todos os Status</option>
-              <option value="active">Ativos</option>
-              <option value="blocked">Bloqueados</option>
-            </select>
-          </div>
-          
-          <div class="filter-group">
-            <label>Tipo de Cliente</label>
-            <select v-model="filterType" class="select-glass">
-              <option value="all">Todos os Tipos</option>
-              <option value="pj">Pessoa Jurídica (CNPJ)</option>
-              <option value="pf">Pessoa Física (CPF)</option>
-            </select>
-          </div>
+        <!-- Barra de Filtros (CRM) - Expansível -->
+        <Transition name="slide-fade">
+          <div class="filters-container glass-effect" v-if="showFilters">
+            <div class="filter-group">
+              <label>Status</label>
+              <select v-model="filterStatus" class="select-glass">
+                <option value="all">Todos os Status</option>
+                <option value="active">Ativos</option>
+                <option value="blocked">Bloqueados</option>
+              </select>
+            </div>
+            
+            <div class="filter-group">
+              <label>Tipo de Cliente</label>
+              <select v-model="filterType" class="select-glass">
+                <option value="all">Todos os Tipos</option>
+                <option value="pj">Pessoa Jurídica (CNPJ)</option>
+                <option value="pf">Pessoa Física (CPF)</option>
+              </select>
+            </div>
 
-          <div class="filter-group">
-            <label>Estado (UF)</label>
-            <select v-model="filterState" class="select-glass">
-              <option value="all">Todos os Estados</option>
-              <option v-for="uf in availableStates" :key="uf" :value="uf">{{ uf }}</option>
-            </select>
-          </div>
+            <div class="filter-group">
+              <label>Estado (UF)</label>
+              <select v-model="filterState" class="select-glass">
+                <option value="all">Todos os Estados</option>
+                <option v-for="uf in availableStates" :key="uf" :value="uf">{{ uf }}</option>
+              </select>
+            </div>
 
-          <button v-if="hasActiveFilters" @click="clearFilters" class="btn-clear-filters">
-            Limpar Filtros
-          </button>
-        </div>
+            <button v-if="hasActiveFilters" @click="clearFilters" class="btn-clear-filters">
+              Limpar Filtros
+            </button>
+          </div>
+        </Transition>
 
         <!-- Visualização em Grade (Cards) -->
         <div class="customers-grid" v-if="filteredCustomers.length > 0 && viewMode === 'grid'">
@@ -633,7 +640,8 @@ import {
   MessageSquarePlus as MessageSquarePlusIcon,
   Copy as CopyIcon,
   LayoutGrid as LayoutGridIcon,
-  List as ListIcon
+  List as ListIcon,
+  Filter as FilterIcon
 } from 'lucide-vue-next'
 import { useChatStore } from '../store/chat'
 
@@ -652,6 +660,7 @@ const setViewMode = (mode) => {
 }
 
 // Estados dos filtros (CRM)
+const showFilters = ref(false)
 const filterStatus = ref('all')
 const filterType = ref('all')
 const filterState = ref('all')
@@ -659,6 +668,14 @@ const filterState = ref('all')
 const availableStates = computed(() => {
   const states = customers.value.map(c => c.state).filter(Boolean).map(s => s.trim().toUpperCase())
   return [...new Set(states)].sort()
+})
+
+const activeFiltersCount = computed(() => {
+  let count = 0
+  if (filterStatus.value !== 'all') count++
+  if (filterType.value !== 'all') count++
+  if (filterState.value !== 'all') count++
+  return count
 })
 
 const hasActiveFilters = computed(() => {
@@ -1728,6 +1745,68 @@ onMounted(fetchCustomers)
   box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
 }
 
+.btn-filter-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  height: 38px;
+}
+
+.btn-filter-toggle:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-filter-toggle.btn-filter-active {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.filter-count-badge {
+  background: #10b981;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+/* Slide Fade Transition for filter drawer */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 300px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+}
+
 .filter-group {
   display: flex;
   flex-direction: column;
@@ -1798,7 +1877,13 @@ onMounted(fetchCustomers)
     justify-content: center;
   }
   .view-switcher-toggle {
-    display: none;
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+  .view-switcher-toggle .toggle-btn {
+    flex: 1;
+    justify-content: center;
   }
   .page-header {
     padding: 15px 20px;
