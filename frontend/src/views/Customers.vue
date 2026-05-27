@@ -11,6 +11,14 @@
             <SearchIcon :size="20" />
             <input v-model="search" placeholder="Buscar por nome ou telefone..." type="text" />
           </div>
+          <div class="view-switcher-toggle">
+            <button @click="setViewMode('grid')" :class="{ active: viewMode === 'grid' }" class="toggle-btn" title="Visualização em Grade">
+              <LayoutGridIcon :size="18" />
+            </button>
+            <button @click="setViewMode('list')" :class="{ active: viewMode === 'list' }" class="toggle-btn" title="Visualização em Lista">
+              <ListIcon :size="18" />
+            </button>
+          </div>
           <button @click="openCreateModal" class="btn-primary">
             <PlusIcon :size="20" /> Novo Cliente
           </button>
@@ -18,7 +26,41 @@
       </header>
 
       <div class="content-wrapper">
-        <div class="customers-grid" v-if="filteredCustomers.length > 0">
+        <!-- Barra de Filtros (CRM) -->
+        <div class="filters-container glass-effect animate-in">
+          <div class="filter-group">
+            <label>Status</label>
+            <select v-model="filterStatus" class="select-glass">
+              <option value="all">Todos os Status</option>
+              <option value="active">Ativos</option>
+              <option value="blocked">Bloqueados</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label>Tipo de Cliente</label>
+            <select v-model="filterType" class="select-glass">
+              <option value="all">Todos os Tipos</option>
+              <option value="pj">Pessoa Jurídica (CNPJ)</option>
+              <option value="pf">Pessoa Física (CPF)</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label>Estado (UF)</label>
+            <select v-model="filterState" class="select-glass">
+              <option value="all">Todos os Estados</option>
+              <option v-for="uf in availableStates" :key="uf" :value="uf">{{ uf }}</option>
+            </select>
+          </div>
+
+          <button v-if="hasActiveFilters" @click="clearFilters" class="btn-clear-filters">
+            Limpar Filtros
+          </button>
+        </div>
+
+        <!-- Visualização em Grade (Cards) -->
+        <div class="customers-grid" v-if="filteredCustomers.length > 0 && viewMode === 'grid'">
           <div v-for="customer in filteredCustomers" :key="customer.id" class="customer-card glass-effect animate-in" :class="{ 'blocked-card': customer.is_blocked }">
             <div class="card-header">
               <div class="avatar" :class="{ 'blocked-avatar': customer.is_blocked }">
@@ -63,6 +105,65 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Visualização em Tabela (List Table) -->
+        <div class="customers-list-view glass-effect animate-in" v-else-if="filteredCustomers.length > 0 && viewMode === 'list'">
+          <table class="customers-table">
+            <thead>
+              <tr>
+                <th>Nome / Razão Social</th>
+                <th>Nome Fantasia</th>
+                <th>Documento</th>
+                <th>Telefone</th>
+                <th>Cidade/UF</th>
+                <th>E-mail</th>
+                <th>Status</th>
+                <th class="actions-col">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="customer in filteredCustomers" :key="customer.id" :class="{ 'blocked-row': customer.is_blocked }">
+                <td>
+                  <div class="table-name-cell">
+                    <div class="table-avatar" :class="{ 'blocked-avatar': customer.is_blocked }">
+                      {{ customer.name.charAt(0).toUpperCase() }}
+                    </div>
+                    <span class="table-customer-name">{{ customer.name }}</span>
+                  </div>
+                </td>
+                <td>{{ customer.fantasy_name || '-' }}</td>
+                <td>{{ customer.cnpj || customer.cpf || '-' }}</td>
+                <td>{{ customer.phone }}</td>
+                <td>
+                  <span v-if="customer.city">{{ customer.city }}</span>
+                  <span v-if="customer.state" class="state-pill">{{ customer.state }}</span>
+                  <span v-if="!customer.city && !customer.state">-</span>
+                </td>
+                <td>{{ customer.email || '-' }}</td>
+                <td>
+                  <span v-if="customer.is_blocked" class="blocked-badge">Bloqueado</span>
+                  <span v-else class="active-badge">Ativo</span>
+                </td>
+                <td class="actions-col">
+                  <div class="table-actions">
+                    <button @click="openTicket(customer)" class="table-action-btn" title="Abrir Ticket">
+                      <MessageSquarePlusIcon :size="16" />
+                    </button>
+                    <button @click="manageContacts(customer)" class="table-action-btn" title="Contatos Adicionais">
+                      <UsersIcon :size="16" />
+                    </button>
+                    <button @click="editCustomer(customer)" class="table-action-btn" title="Editar">
+                      <EditIcon :size="16" />
+                    </button>
+                    <button @click="confirmDelete(customer)" class="table-action-btn delete" title="Excluir">
+                      <TrashIcon :size="16" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div v-else class="empty-state animate-in">
@@ -530,7 +631,9 @@ import {
   Trash2 as TrashIcon,
   X as XIcon,
   MessageSquarePlus as MessageSquarePlusIcon,
-  Copy as CopyIcon
+  Copy as CopyIcon,
+  LayoutGrid as LayoutGridIcon,
+  List as ListIcon
 } from 'lucide-vue-next'
 import { useChatStore } from '../store/chat'
 
@@ -540,6 +643,34 @@ const customers = ref([])
 const search = ref('')
 const showModal = ref(false)
 const showContactsModal = ref(false)
+
+// Modo de visualização (grade ou lista)
+const viewMode = ref(localStorage.getItem('wdesk_customers_view_mode') || 'grid')
+const setViewMode = (mode) => {
+  viewMode.value = mode
+  localStorage.setItem('wdesk_customers_view_mode', mode)
+}
+
+// Estados dos filtros (CRM)
+const filterStatus = ref('all')
+const filterType = ref('all')
+const filterState = ref('all')
+
+const availableStates = computed(() => {
+  const states = customers.value.map(c => c.state).filter(Boolean).map(s => s.trim().toUpperCase())
+  return [...new Set(states)].sort()
+})
+
+const hasActiveFilters = computed(() => {
+  return filterStatus.value !== 'all' || filterType.value !== 'all' || filterState.value !== 'all' || search.value !== ''
+})
+
+const clearFilters = () => {
+  filterStatus.value = 'all'
+  filterType.value = 'all'
+  filterState.value = 'all'
+  search.value = ''
+}
 const loading = ref(false)
 const loadingContact = ref(false)
 const selectedCustomer = ref(null)
@@ -620,16 +751,36 @@ const newContact = ref({
 })
 
 const filteredCustomers = computed(() => {
-  if (!search.value) return customers.value
-  const s = search.value.toLowerCase()
-  return customers.value.filter(c => 
-    c.name.toLowerCase().includes(s) || 
-    c.phone.includes(s) || 
-    (c.email && c.email.toLowerCase().includes(s)) ||
-    (c.fantasy_name && c.fantasy_name.toLowerCase().includes(s)) ||
-    (c.cnpj && c.cnpj.includes(s)) ||
-    (c.cpf && c.cpf.includes(s))
-  )
+  return customers.value.filter(c => {
+    // 1. Filtro por texto de busca
+    if (search.value) {
+      const s = search.value.toLowerCase()
+      const matchesSearch = 
+        c.name.toLowerCase().includes(s) || 
+        c.phone.includes(s) || 
+        (c.email && c.email.toLowerCase().includes(s)) ||
+        (c.fantasy_name && c.fantasy_name.toLowerCase().includes(s)) ||
+        (c.cnpj && c.cnpj.includes(s)) ||
+        (c.cpf && c.cpf.includes(s))
+      if (!matchesSearch) return false
+    }
+    
+    // 2. Filtro por status
+    if (filterStatus.value === 'active' && c.is_blocked) return false
+    if (filterStatus.value === 'blocked' && !c.is_blocked) return false
+    
+    // 3. Filtro por tipo de cliente (PF / PJ)
+    if (filterType.value === 'pj' && !c.cnpj) return false
+    if (filterType.value === 'pf' && !c.cpf) return false
+    
+    // 4. Filtro por estado (UF)
+    if (filterState.value !== 'all') {
+      const cState = (c.state || '').trim().toUpperCase()
+      if (cState !== filterState.value) return false
+    }
+    
+    return true
+  })
 })
 
 const fetchCustomers = async () => {
@@ -1393,7 +1544,262 @@ onMounted(fetchCustomers)
 
 .empty-mini { text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 20px; }
 
+/* View switcher styles */
+.view-switcher-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.toggle-btn.active {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+/* List view table styles */
+.customers-list-view {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-card, rgba(255, 255, 255, 0.03));
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+}
+
+.customers-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.customers-table th {
+  padding: 16px 20px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.customers-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.customers-table tr:last-child td {
+  border-bottom: none;
+}
+
+.customers-table tr {
+  transition: background-color 0.2s ease;
+}
+
+.customers-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.blocked-row {
+  opacity: 0.75;
+  background: rgba(239, 68, 68, 0.02) !important;
+}
+
+.blocked-row:hover {
+  background: rgba(239, 68, 68, 0.04) !important;
+}
+
+.table-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.table-avatar.blocked-avatar {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%) !important;
+}
+
+.table-customer-name {
+  font-weight: 500;
+}
+
+.state-pill {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.active-badge {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.actions-col {
+  text-align: right !important;
+}
+
+.table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.table-action-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.table-action-btn:hover {
+  color: #10b981;
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.table-action-btn.delete:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+/* CRM Filter styles */
+.filters-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-card, rgba(255, 255, 255, 0.02));
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.select-glass {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  min-width: 160px;
+  transition: all 0.2s ease;
+}
+
+.select-glass:focus {
+  border-color: #10b981;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.select-glass option {
+  background: #1e1e24;
+  color: white;
+}
+
+.btn-clear-filters {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 38px;
+  display: flex;
+  align-items: center;
+}
+
+.btn-clear-filters:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: #ef4444;
+}
+
 @media (max-width: 768px) {
+  .filters-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  .select-glass {
+    width: 100%;
+  }
+  .btn-clear-filters {
+    justify-content: center;
+  }
+  .view-switcher-toggle {
+    display: none;
+  }
   .page-header {
     padding: 15px 20px;
     flex-direction: column;
