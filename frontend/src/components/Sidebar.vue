@@ -18,6 +18,11 @@
           <span class="link-label">Conversas</span>
         </router-link>
 
+        <router-link to="/customers" class="nav-link-item" active-class="active">
+          <ContactIcon :size="20" />
+          <span class="link-label">Clientes</span>
+        </router-link>
+
         <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active">
           <UsersIcon :size="20" />
           <span class="link-label">Equipes</span>
@@ -96,7 +101,8 @@ import {
   Settings as SettingsIcon,
   HelpCircle as HelpCircleIcon,
   Sun as SunIcon,
-  Moon as MoonIcon
+  Moon as MoonIcon,
+  Contact as ContactIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
