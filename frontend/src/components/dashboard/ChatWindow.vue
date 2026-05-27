@@ -893,6 +893,12 @@ watch(() => chatStore.messages.length, scrollToBottom)
 }
 .message.me .message-bubble { background: var(--accent); }
 
+.message-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .media-image {
   margin: 8px 0 !important;
   max-width: 250px !important;
@@ -1006,7 +1012,7 @@ watch(() => chatStore.messages.length, scrollToBottom)
   padding: 15px 25px;
   display: flex;
   gap: 15px;
-  align-items: center;
+  align-items: flex-end;
   background: var(--bg-sidebar);
   border-top: 1px solid var(--border);
 }

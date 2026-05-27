@@ -40,12 +40,85 @@ class Connection(models.Model):
 
 class Customer(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='customers')
-    name = models.CharField(max_length=255)
-    phone = models.CharField(max_length=20, db_index=True)
+    
+    # Identificação
+    name = models.CharField(max_length=255, verbose_name="Razão Social / Nome")
+    fantasy_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Nome Fantasia")
+    cnpj = models.CharField(max_length=14, null=True, blank=True, db_index=True)
+    cpf = models.CharField(max_length=11, null=True, blank=True, db_index=True)
+    rg = models.CharField(max_length=20, null=True, blank=True)
+    state_inscription = models.CharField(max_length=20, null=True, blank=True, verbose_name="Inscrição Estadual")
+    municipal_inscription = models.CharField(max_length=20, null=True, blank=True, verbose_name="Inscrição Municipal")
+    birth_date = models.DateField(null=True, blank=True, verbose_name="Data de Nascimento")
+    foundation_date = models.DateField(null=True, blank=True, verbose_name="Data de Fundação")
+    
+    # Contatos
+    phone = models.CharField(max_length=20, db_index=True, verbose_name="Telefone Principal")
+    phone2 = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone 2")
+    mobile = models.CharField(max_length=20, null=True, blank=True, verbose_name="Celular")
+    whatsapp = models.CharField(max_length=20, null=True, blank=True, verbose_name="WhatsApp")
     email = models.EmailField(null=True, blank=True)
-    document = models.CharField(max_length=20, null=True, blank=True) # CPF/CNPJ
+    email_commercial = models.EmailField(max_length=100, null=True, blank=True, verbose_name="E-mail Comercial")
+    email_financial = models.EmailField(max_length=100, null=True, blank=True, verbose_name="E-mail Financeiro")
+    contact_name = models.CharField(max_length=100, null=True, blank=True, verbose_name="Contato Principal")
+    contact_name2 = models.CharField(max_length=100, null=True, blank=True, verbose_name="Contato 2")
+    
+    # Endereço Principal (compatível com campo antigo 'address')
     address = models.TextField(null=True, blank=True)
+    zip_code = models.CharField(max_length=10, null=True, blank=True)
+    number = models.CharField(max_length=20, null=True, blank=True)
+    complement = models.CharField(max_length=100, null=True, blank=True)
+    neighborhood = models.CharField(max_length=100, null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True)
+    state = models.CharField(max_length=2, null=True, blank=True)
+    
+    # Endereço de Cobrança
+    billing_zip_code = models.CharField(max_length=10, null=True, blank=True)
+    billing_address = models.CharField(max_length=150, null=True, blank=True)
+    billing_number = models.CharField(max_length=20, null=True, blank=True)
+    billing_neighborhood = models.CharField(max_length=100, null=True, blank=True)
+    billing_city = models.CharField(max_length=100, null=True, blank=True)
+    billing_state = models.CharField(max_length=2, null=True, blank=True)
+    
+    # Endereço de Entrega
+    delivery_zip_code = models.CharField(max_length=10, null=True, blank=True)
+    delivery_address = models.CharField(max_length=150, null=True, blank=True)
+    delivery_number = models.CharField(max_length=20, null=True, blank=True)
+    delivery_neighborhood = models.CharField(max_length=100, null=True, blank=True)
+    delivery_city = models.CharField(max_length=100, null=True, blank=True)
+    delivery_state = models.CharField(max_length=2, null=True, blank=True)
+
+    # Financeiro / Crédito
+    credit_limit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    credit_limit_expiry = models.DateField(null=True, blank=True)
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    discount_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    bank_code = models.IntegerField(null=True, blank=True)
+    bank_agency = models.CharField(max_length=20, null=True, blank=True)
+    bank_account = models.CharField(max_length=20, null=True, blank=True)
+    due_day = models.IntegerField(null=True, blank=True)
+    payment_method = models.CharField(max_length=50, null=True, blank=True)
+    optante_simples = models.BooleanField(default=False)
+    consumidor_final = models.BooleanField(default=True)
+    nao_contribuinte = models.BooleanField(default=False)
+    
+    # Outros Campos Auxiliares do ERP
+    representative_id = models.IntegerField(null=True, blank=True)
+    carrier_id = models.IntegerField(null=True, blank=True)
+    region_id = models.IntegerField(null=True, blank=True)
+    group_id = models.IntegerField(null=True, blank=True)
+    
+    # Observações e Controles
+    obs = models.TextField(null=True, blank=True)
+    obs_financial = models.TextField(null=True, blank=True)
+    obs_invoice = models.TextField(null=True, blank=True)
+    credit_opinion = models.TextField(null=True, blank=True)
+    
+    # Status e Sistema
+    is_blocked = models.BooleanField(default=False)
     profile_pic = models.URLField(null=True, blank=True)
+    document = models.CharField(max_length=20, null=True, blank=True) # CPF/CNPJ original para compatibilidade
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
