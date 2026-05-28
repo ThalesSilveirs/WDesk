@@ -1237,6 +1237,8 @@ watch(() => chatStore.messages.length, scrollToBottom)
 }
 
 .chat-input {
+  position: relative;
+  z-index: 10;
   padding: 15px 25px;
   display: flex;
   gap: 15px;
