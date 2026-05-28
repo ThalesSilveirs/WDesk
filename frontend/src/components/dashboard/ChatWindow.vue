@@ -884,6 +884,7 @@ watch(() => chatStore.messages.length, scrollToBottom)
   position: relative;
   overflow: hidden;
   display: flex;
+  background: var(--chat-bg);
 }
 
 .messages-container {
@@ -914,13 +915,19 @@ watch(() => chatStore.messages.length, scrollToBottom)
 .message.me { justify-content: flex-end; }
 .message-bubble {
   max-width: 65%;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 12px;
   background: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
-.message.me .message-bubble { background: var(--accent); }
+.message.me .message-bubble { 
+  background: var(--accent); 
+  color: #ffffff;
+  border-color: rgba(16, 185, 129, 0.2);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+}
 
 .message-bubble p {
   margin: 0;
