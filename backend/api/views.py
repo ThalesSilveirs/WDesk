@@ -522,12 +522,37 @@ class TicketViewSet(TenantModelViewSet):
         connection = Connection.objects.filter(company=company).first()
         connection_data = None
         if connection:
+            import time
+            import requests
+            from django.conf import settings
+            
+            evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+            evo_key = company.evolution_api_key or getattr(settings, 'EVOLUTION_API_TOKEN', '')
+            
+            latency_str = "Instável"
+            start_time = time.time()
+            try:
+                url = f"{evo_url}/instance/all"
+                headers = {
+                    "apikey": evo_key,
+                    "ApiKey": evo_key,
+                    "api-key": evo_key,
+                    "Authorization": f"Bearer {evo_key}"
+                }
+                res = requests.get(url, headers=headers, timeout=1.5)
+                end_time = time.time()
+                if res.status_code == 200:
+                    latency_ms = int((end_time - start_time) * 1000)
+                    latency_str = f"{latency_ms}ms"
+            except Exception as e:
+                print(f"[LATENCY TEST] Erro ao medir latência: {str(e)}")
+
             connection_data = {
                 "id": connection.id,
                 "name": connection.name,
                 "instance_name": connection.instance_name,
                 "status": connection.status.upper(),
-                "latency": "24ms",
+                "latency": latency_str,
                 "protocol": "Websocket-Secure"
             }
             

@@ -16,7 +16,7 @@
               <p>#{{ stats.connection?.instance_name || 'nenhuma_ativa' }}</p>
             </div>
             <span class="badge-status" :class="connectionStatus">
-              {{ stats.connection?.status || 'DESCONECTADO' }}
+              {{ formatConnectionStatus(stats.connection?.status) }}
             </span>
             <button @click="verifyInstance" class="btn-verify" :disabled="verifying">
               <RefreshCwIcon :class="{'animate-spin': verifying}" :size="16" />
@@ -181,12 +181,15 @@
                 <div class="member-avatar">
                   {{ agent.first_name?.charAt(0).toUpperCase() || agent.username?.charAt(0).toUpperCase() }}
                 </div>
-                <span class="status-dot-indicator" :class="agent.status.toLowerCase()"></span>
+                <span class="status-dot-indicator" :class="agent.status?.toLowerCase() || 'offline'"></span>
               </div>
               <div class="member-info">
                 <h5>{{ agent.first_name }} {{ agent.last_name }}</h5>
-                <p v-if="agent.active_chats > 0">Atendendo: {{ agent.active_chats }} chats</p>
-                <p v-else class="offline">Offline / Ausente</p>
+                <p v-if="agent.status === 'Online'">
+                  {{ agent.active_chats > 0 ? `Atendendo: ${agent.active_chats} ${agent.active_chats === 1 ? 'chat' : 'chats'}` : 'Disponível' }}
+                </p>
+                <p v-else-if="agent.status === 'Ausente'" class="away">Ausente</p>
+                <p v-else class="offline">Offline</p>
               </div>
             </div>
           </div>
@@ -268,7 +271,7 @@ const connectionStatus = computed(() => {
 })
 
 const activeAgentsCount = computed(() => {
-  return stats.value.team_activity.filter(a => a.active_chats > 0).length
+  return stats.value.team_activity.filter(a => a.status === 'Online').length
 })
 
 const formatStatusName = (status) => {
@@ -278,6 +281,16 @@ const formatStatusName = (status) => {
     'offline': 'Offline'
   }
   return map[status] || status
+}
+
+const formatConnectionStatus = (status) => {
+  if (!status) return 'DESCONECTADO'
+  const map = {
+    'CONNECTED': 'CONECTADO',
+    'CONNECTING': 'CONECTANDO',
+    'DISCONNECTED': 'DESCONECTADO'
+  }
+  return map[status.toUpperCase()] || status.toUpperCase()
 }
 
 const changeStatus = (status) => {
