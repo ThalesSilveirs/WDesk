@@ -26,8 +26,8 @@
   --text-secondary: #64748b;
   --border: rgba(0, 0, 0, 0.08);
   --glass: rgba(0, 0, 0, 0.02);
-  --pattern-opacity: 0.05;
-  --pattern-filter: grayscale(1) brightness(1.5);
+  --pattern-opacity: 0.04;
+  --pattern-filter: grayscale(1) brightness(0.4);
   --empty-bg-inner: #ffffff;
   --empty-bg-outer: #e2e8f0;
   --chat-bg: #efeae2;
