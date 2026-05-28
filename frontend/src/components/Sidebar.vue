@@ -1,71 +1,75 @@
 <template>
-  <div class="sidebar-container">
+  <div class="sidebar-container" :class="{ 'collapsed': isCollapsed }">
     <aside class="sidebar glass-effect">
+      <!-- Collapse Toggle Button (Desktop Only) -->
+      <button class="collapse-toggle-btn" @click="toggleCollapse" :title="isCollapsed ? 'Expandir Menu' : 'Recolher Menu'">
+        <ChevronRightIcon v-if="isCollapsed" :size="16" />
+        <ChevronLeftIcon v-else :size="16" />
+      </button>
+
       <!-- Brand Logo Header -->
       <div class="logo-section">
-        <img src="/logo.png" alt="wDesk Logo" class="brand-logo-img" />
+        <img :src="isCollapsed ? '/favicon.png' : '/logo.png'" alt="wDesk Logo" class="brand-logo-img" :class="{ 'mini-logo': isCollapsed }" />
       </div>
 
       <!-- Navigation Links -->
       <nav class="nav-links">
-        <router-link to="/" class="nav-link-item" exact-active-class="active">
+        <router-link to="/" class="nav-link-item" exact-active-class="active" :title="isCollapsed ? 'Dashboard' : ''">
           <LayoutGridIcon :size="20" />
-          <span class="link-label">Dashboard</span>
+          <span v-if="!isCollapsed" class="link-label">Dashboard</span>
         </router-link>
 
-        <router-link to="/conversations" class="nav-link-item" active-class="active">
+        <router-link to="/conversations" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Conversas' : ''">
           <MessageSquareIcon :size="20" />
-          <span class="link-label">Conversas</span>
+          <span v-if="!isCollapsed" class="link-label">Conversas</span>
         </router-link>
 
-        <router-link to="/customers" class="nav-link-item" active-class="active">
+        <router-link to="/customers" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Clientes' : ''">
           <ContactIcon :size="20" />
-          <span class="link-label">Clientes</span>
+          <span v-if="!isCollapsed" class="link-label">Clientes</span>
         </router-link>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Equipes' : ''">
           <UsersIcon :size="20" />
-          <span class="link-label">Equipes</span>
+          <span v-if="!isCollapsed" class="link-label">Equipes</span>
         </router-link>
 
-        <router-link to="/analytics" class="nav-link-item" active-class="active">
+        <router-link to="/analytics" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Métricas' : ''">
           <BarChartIcon :size="20" />
-          <span class="link-label">Métricas</span>
+          <span v-if="!isCollapsed" class="link-label">Métricas</span>
         </router-link>
 
         <!-- Nova Transmissão -->
-        <button @click="chatStore.showBroadcastModal = true" class="nav-link-item broadcast-link">
+        <button @click="chatStore.showBroadcastModal = true" class="nav-link-item broadcast-link" :title="isCollapsed ? 'Nova Transmissão' : ''">
           <MegaphoneIcon :size="20" />
-          <span class="link-label">Nova Transmissão</span>
+          <span v-if="!isCollapsed" class="link-label">Nova Transmissão</span>
         </button>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item mobile-only" active-class="active">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item mobile-only" active-class="active" :title="isCollapsed ? 'Configurações' : ''">
           <SettingsIcon :size="20" />
-          <span class="link-label">Configurações</span>
+          <span v-if="!isCollapsed" class="link-label">Configurações</span>
         </router-link>
       </nav>
 
       <!-- Bottom Actions -->
-      <div class="bottom-section">
-        <button @click="chatStore.toggleTheme" class="nav-link-item theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
+      <div class="bottom-section" :class="{ 'collapsed-bottom': isCollapsed }">
+        <button @click="chatStore.toggleTheme" class="nav-link-item theme-toggle" :title="isCollapsed ? (chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro') : (chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro')">
           <SunIcon v-if="chatStore.theme === 'dark'" :size="20" />
           <MoonIcon v-else :size="20" />
-          <span class="link-label">Tema</span>
+          <span v-if="!isCollapsed" class="link-label">Tema</span>
         </button>
 
-        <button @click="showHelpModal = true" class="nav-link-item">
+        <button @click="showHelpModal = true" class="nav-link-item" :title="isCollapsed ? 'Ajuda' : ''">
           <HelpCircleIcon :size="20" />
-          <span class="link-label">Ajuda</span>
+          <span v-if="!isCollapsed" class="link-label">Ajuda</span>
         </button>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Configurações' : ''">
           <SettingsIcon :size="20" />
-          <span class="link-label">Configurações</span>
+          <span v-if="!isCollapsed" class="link-label">Configurações</span>
         </router-link>
       </div>
     </aside>
-
-
 
     <!-- Help Modal -->
     <Transition name="modal-fade">
@@ -102,12 +106,20 @@ import {
   HelpCircle as HelpCircleIcon,
   Sun as SunIcon,
   Moon as MoonIcon,
-  Contact as ContactIcon
+  Contact as ContactIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
 const chatStore = useChatStore()
 const showHelpModal = ref(false)
+
+const isCollapsed = ref(localStorage.getItem('sidebar-collapsed') === 'true')
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
+  localStorage.setItem('sidebar-collapsed', isCollapsed.value ? 'true' : 'false')
+}
 </script>
 
 <style scoped>
@@ -116,6 +128,12 @@ const showHelpModal = ref(false)
   height: 100%;
   flex-shrink: 0;
   z-index: 100;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.sidebar-container.collapsed {
+  width: 80px;
 }
 
 .sidebar {
@@ -126,6 +144,39 @@ const showHelpModal = ref(false)
   display: flex;
   flex-direction: column;
   padding: 25px 15px;
+  position: relative;
+  transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-container.collapsed .sidebar {
+  padding: 25px 10px;
+}
+
+/* Collapse Toggle Button (Desktop Only) */
+.collapse-toggle-btn {
+  position: absolute;
+  top: 32px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 110;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.collapse-toggle-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--border);
+  transform: scale(1.1);
 }
 
 /* Brand Section */
@@ -135,6 +186,7 @@ const showHelpModal = ref(false)
   justify-content: center;
   padding: 0;
   margin-bottom: 30px;
+  transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .brand-logo-img {
@@ -143,6 +195,13 @@ const showHelpModal = ref(false)
   object-fit: contain;
   transform: scale(1.2);
   filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.25));
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.brand-logo-img.mini-logo {
+  max-width: 32px;
+  max-height: 32px;
+  transform: scale(1);
 }
 
 /* Navigation Links */
@@ -151,6 +210,12 @@ const showHelpModal = ref(false)
   flex-direction: column;
   gap: 6px;
   flex: 1;
+}
+
+.sidebar-container.collapsed .nav-link-item {
+  padding: 12px 0;
+  justify-content: center;
+  gap: 0;
 }
 
 .nav-link-item {
@@ -243,8 +308,12 @@ const showHelpModal = ref(false)
 /* Responsiveness */
 @media (max-width: 768px) {
   .sidebar-container {
-    width: 100%;
+    width: 100% !important;
     height: 60px;
+  }
+
+  .collapse-toggle-btn {
+    display: none !important;
   }
 
   .sidebar {
