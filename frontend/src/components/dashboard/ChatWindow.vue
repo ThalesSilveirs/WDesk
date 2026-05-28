@@ -88,9 +88,10 @@
                 </div>
               </div>
               
-              <p v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio'">
-                {{ cleanBody(msg.body, msg.from_me) }}
-              </p>
+              <p 
+                v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio'"
+                v-html="parseWhatsAppMarkdown(msg.body, msg.from_me)"
+              ></p>
               <span class="msg-time">
                 <span v-if="msg.from_me && msg.user_details" class="msg-attendant">{{ msg.user_details.first_name }} {{ msg.user_details.last_name }} • </span>
                 {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
@@ -102,6 +103,36 @@
     </div>
 
     <footer v-if="chatStore.activeTicket.status !== 'closed'" class="chat-input glass-effect">
+      <!-- EMOJI PICKER POPUP -->
+      <Transition name="fade">
+        <div v-if="showEmojiPicker" class="emoji-picker-container glass-effect">
+          <div class="emoji-picker-header">
+            <button 
+              v-for="(cat, idx) in emojiCategories" 
+              :key="idx"
+              class="emoji-category-tab"
+              :class="{ active: activeCategoryIndex === idx }"
+              @click="activeCategoryIndex = idx"
+              :title="cat.name"
+            >
+              {{ cat.icon }}
+            </button>
+          </div>
+          <div class="emoji-picker-body">
+            <div class="emoji-grid">
+              <span 
+                v-for="emoji in emojiCategories[activeCategoryIndex].emojis" 
+                :key="emoji"
+                class="emoji-item"
+                @click="insertEmoji(emoji)"
+              >
+                {{ emoji }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
       <input 
         type="file" 
         ref="fileInput" 
@@ -114,6 +145,9 @@
       <template v-if="!isRecording && !hasRecording">
         <button class="attach-btn" @click="fileInput.click()" :disabled="!chatStore.activeTicket.user" title="Enviar Mídia">
           <PlusIcon :size="22" />
+        </button>
+        <button class="emoji-btn" @click="toggleEmojiPicker" :disabled="!chatStore.activeTicket.user" title="Inserir Emoji">
+          <SmileIcon :size="22" />
         </button>
         <textarea 
           ref="messageInput"
@@ -183,7 +217,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../../store/chat'
 import AudioPlayer from './AudioPlayer.vue'
 import { 
@@ -197,7 +231,8 @@ import {
   Mic as MicIcon,
   Trash2 as TrashIcon,
   Square as SquareIcon,
-  Play as PlayIcon
+  Play as PlayIcon,
+  Smile as SmileIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -222,6 +257,163 @@ const messageInput = ref(null)
 
 const resolvedUrls = ref({})
 const resolvedSources = ref({})
+
+// --- EMOJI PICKER & WHATSAPP MARKDOWN ---
+const showEmojiPicker = ref(false)
+const activeCategoryIndex = ref(0)
+
+const emojiCategories = [
+  {
+    name: 'Carinhas',
+    icon: '😊',
+    emojis: ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🫣','🤭','🤫','🫡','✍️','👏','🙌','👐','🤲','🤝','🙏','👍','👎','👊','✊','🤛','🤜','🤞','🤟','🤘','👌','🤌','🤏','✌️','🤞','🤙','👈','👉','👆','🖕','👇','☝️']
+  },
+  {
+    name: 'Animais & Natureza',
+    icon: '🐱',
+    emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐻‍❄️','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🪱','🐛','🦋','🐌','🐞','🐜','🪰','🪲','🪳','🦟','🦗','🕷️','🕸️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🦣','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🐈','🐈‍⬛','🐓','🦃','🦚','🦜','\uD83E\uDDF0','🦩','🕊️','🐇','\uD83E\uDD9D','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿️','🦔','🐾','🐉','🐲','🌵','🎄','🌲','🌳','🌴','🪵','🌱','🌿','☘️','🍀','🎍','🪴','🍃','🍂','🍁','🍄','🐚','🪨','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','\uD83C\uDF16','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','🪐','💫','⭐️','🌟','✨','⚡️','☄️','💥','🔥','🌪️','🌈','☀️','🌤️','\uD83C\uDF24','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄️','💨','💧','💦','🌪️','🌫️']
+  },
+  {
+    name: 'Comida & Bebida',
+    icon: '🍏',
+    emojis: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑',' broccoli','🥬','🥒','🌶️','🫑','🧅','🧄','🥔','🥕','🌽','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🫓','🥪','🥙','🧆','🌮','🌯','🥘','🍲','🫕','🥣','🥗','🍿','🧂','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦀','🦞','🦐','🦑','🦪','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕️','🫖','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🥤','🧋','🧃','🧉','🧊']
+  },
+  {
+    name: 'Atividades & Esportes',
+    icon: '⚽',
+    emojis: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳️','🪁','🏹','\uD83C\uDFA3','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','\uD83C\uDFC2','🏂','🪂','🏋️‍♀️','🏋️‍♂️','🏋️','🤼‍♀️','🤼‍♂️','🤼','🤸‍♀️','🤸‍♂️','🤸','⛹️‍♀️','⛹️‍♂️','⛹️','🤾‍♀️','🤾‍♂️','🤾','🏌️‍♀️','🏌️‍♂️','🏌️','🏄‍♀️','🏄‍♂️','🏄','🏊‍♀️','🏊‍♂️','🏊','\uD83E\uDD3D','🚣‍♀️','🚣‍♂️','🚣','🧗‍♀️','🧗‍♂️','🧗','🚴‍♀️','🚴‍♂️','🚴','🚵‍♀️','🚵‍♂️','🚵','🏆','\uD83E\uDD47','🥈','🥉','🏅','🎖️','🎫','🎟️','🎭','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🪗','🎸','🪕','🎻','🎲','🧩','🎳','🎯','🎮','🎰']
+  },
+  {
+    name: 'Objetos & Símbolos',
+    icon: '💡',
+    emojis: ['⌚️','📱','📲','💻','⌨️','🖥️','🖨️','🖱️','🖲️','🕹️','🗜️','💽','💾','💿','📀','📼','📷','📸','📹','🎥','📽️','🎞️','📞','☎️','📟','📠','📺','📻','🎙️','🎚️','🎛️','🧭','⏱️','⏲️','⏰','🕰️','\uD83E\uDDF3','⏳','📡','🔋','🔌','💡',' flashlight','🕯️','🪔','🧯','🛢️','💸','💵','\uD83D\uDCB4','💶','💷','🪙','💰','💳','💎','⚖️','\uD83E\uDE9C','🔧','🔨','⚒️','🛠️','⛏️','🪛','🔩','⚙️','🧱','⛓️','🧲','🔫','💣','🧨','🪓','🔪','🗡️','⚔️','🛡️','🚬','⚰️','🪦','⚱️','🏺','🔮','📿','🧿','💈','🧫','🧪','🌡️','🧬','🔬','🔭','📡','🛰️','💉','🩸','💊','🩹','🩺','🚪','🛗','🪞','🪟','🛏️','🛋️','🪑','🚽','🪠','🚿','🛁','🪒','🧴','🧷','🧹','🧺','🧻','🧼','🧽','🪣','🔑','🗝️']
+  }
+]
+
+const toggleEmojiPicker = (e) => {
+  e.stopPropagation()
+  showEmojiPicker.value = !showEmojiPicker.value
+}
+
+const insertEmoji = (emoji) => {
+  const textarea = messageInput.value
+  if (!textarea) {
+    newMessage.value += emoji
+    return
+  }
+  
+  const startPos = textarea.selectionStart
+  const endPos = textarea.selectionEnd
+  const text = newMessage.value
+  
+  newMessage.value = text.substring(0, startPos) + emoji + text.substring(endPos)
+  
+  setTimeout(() => {
+    textarea.focus()
+    const newCursorPos = startPos + emoji.length
+    textarea.setSelectionRange(newCursorPos, newCursorPos)
+  }, 10)
+}
+
+const handleWindowClick = (e) => {
+  if (showEmojiPicker.value) {
+    const picker = document.querySelector('.emoji-picker-container')
+    const btn = document.querySelector('.emoji-btn')
+    if (picker && !picker.contains(e.target) && btn && !btn.contains(e.target)) {
+      showEmojiPicker.value = false
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('click', handleWindowClick)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleWindowClick)
+})
+
+// WhatsApp Markdown Parser
+const escapeHtml = (text) => {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+const applyInlineFormatting = (line) => {
+  // Bold (*bold*)
+  line = line.replace(/\*([^*]+?)\*/g, '<strong>$1</strong>')
+  // Italic (_italic_)
+  line = line.replace(/_([^_]+?)_/g, '<em>$1</em>')
+  // Strikethrough (~strike~)
+  line = line.replace(/~([^~]+?)~/g, '<del>$1</del>')
+  return line
+}
+
+const parseWhatsAppMarkdown = (body, fromMe) => {
+  let text = cleanBody(body, fromMe)
+  if (!text) return ''
+  text = escapeHtml(text)
+  
+  // 1. Monospace blocks (```code```)
+  text = text.replace(/```([\s\S]+?)```/g, '<pre><code>$1</code></pre>')
+  
+  // 2. Inline code (`code`)
+  text = text.replace(/`([^`\n]+?)`/g, '<code>$1</code>')
+  
+  // Split into lines for blockquotes and lists
+  const lines = text.split('\n')
+  const processedLines = []
+  
+  for (let line of lines) {
+    // Blockquote
+    if (line.startsWith('&gt;')) {
+      let content = line.substring(4)
+      content = applyInlineFormatting(content)
+      processedLines.push(`<blockquote>${content}</blockquote>`)
+      continue
+    }
+    
+    // Bullet list (* or -)
+    const bulletMatch = line.match(/^(\*|-)\s+(.*)/)
+    if (bulletMatch) {
+      let content = applyInlineFormatting(bulletMatch[2])
+      processedLines.push(`<ul><li>${content}</li></ul>`)
+      continue
+    }
+    
+    // Numbered list (1. 2. etc.)
+    const numMatch = line.match(/^(\d+)\.\s+(.*)/)
+    if (numMatch) {
+      let content = applyInlineFormatting(numMatch[2])
+      processedLines.push(`<ol start="${numMatch[1]}"><li>${content}</li></ol>`)
+      continue
+    }
+    
+    processedLines.push(applyInlineFormatting(line))
+  }
+  
+  text = processedLines.join('\n')
+  
+  // Merge consecutive list items
+  text = text.replace(/<\/ul>\n<ul>/g, '')
+  text = text.replace(/<\/ol>\n<ol[^>]*>/g, '')
+  
+  // Convert newlines (outside of pre/list blocks) to <br>
+  text = text.split('\n').map((line) => {
+    if (line.endsWith('</li>') || line.endsWith('</ul>') || line.endsWith('</ol>') || line.endsWith('</blockquote>') || line.startsWith('<pre>') || line.startsWith('</pre>') || line.startsWith('<code>') || line.startsWith('</code>')) {
+      return line
+    }
+    return line + '<br>'
+  }).join('\n')
+  
+  text = text.replace(/<br>\n*(<\/ul>|<\/ol>|<blockquote>|<\/blockquote>|<pre>|<\/pre>)/g, '$1')
+  
+  return text
+}
 
 watch(() => chatStore.activeTicket?.id, () => {
   Object.values(resolvedUrls.value).forEach(url => {
@@ -1335,7 +1527,7 @@ watch(() => chatStore.messages.length, scrollToBottom)
     font-size: 0.9rem;
   }
 
-  .attach-btn, .send-btn, .rec-btn, .cancel-rec-btn, .stop-rec-btn, .send-rec-btn {
+  .attach-btn, .send-btn, .rec-btn, .cancel-rec-btn, .stop-rec-btn, .send-rec-btn, .emoji-btn {
     width: 36px;
     height: 36px;
     border-radius: 8px;
@@ -1344,5 +1536,164 @@ watch(() => chatStore.messages.length, scrollToBottom)
   .recording-canvas {
     display: none;
   }
+}
+
+/* --- Emoji Picker Style --- */
+.emoji-picker-container {
+  position: absolute;
+  bottom: 75px;
+  left: 20px;
+  width: 320px;
+  height: 350px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme='light'] .emoji-picker-container {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.emoji-picker-header {
+  display: flex;
+  justify-content: space-around;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.emoji-category-tab {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emoji-category-tab:hover {
+  background: var(--glass);
+}
+
+.emoji-category-tab.active {
+  background: rgba(16, 185, 129, 0.15);
+  border-bottom: 2px solid var(--accent);
+  border-radius: 8px 8px 0 0;
+}
+
+.emoji-picker-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.emoji-item {
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: transform 0.1s, background 0.1s;
+  user-select: none;
+}
+
+.emoji-item:hover {
+  background: var(--glass);
+  transform: scale(1.15);
+}
+
+.emoji-item:active {
+  transform: scale(0.95);
+}
+
+.emoji-btn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.emoji-btn:hover {
+  color: var(--accent);
+  background: var(--border);
+  transform: scale(1.05);
+}
+
+/* --- WhatsApp Formatting Styles --- */
+.message-bubble blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 5px 0;
+  padding: 2px 10px;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 0 4px 4px 0;
+}
+
+.message-bubble pre {
+  background: rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.message-bubble code {
+  font-family: 'Courier New', Courier, monospace;
+  background: rgba(0, 0, 0, 0.1);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.message.me .message-bubble code {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.message.me .message-bubble blockquote {
+  border-left-color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.message-bubble pre code {
+  background: none;
+  padding: 0;
+}
+
+.message-bubble ul, .message-bubble ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.message-bubble li {
+  margin: 3px 0;
 }
 </style>
