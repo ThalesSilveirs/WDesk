@@ -76,6 +76,16 @@ export const useChatStore = defineStore('chat', {
       await this.fetchMyTickets()
     },
 
+    async deleteTicket(ticketId) {
+      await axios.delete(`/api/v1/tickets/${ticketId}/`)
+      if (this.activeTicket && this.activeTicket.id === ticketId) {
+        this.activeTicket = null
+        this.messages = []
+      }
+      await this.fetchTickets()
+      await this.fetchMyTickets()
+    },
+
     async updateTicket(ticketId, payload) {
       const response = await axios.patch(`/api/v1/tickets/${ticketId}/`,
         payload
@@ -202,6 +212,16 @@ export const useChatStore = defineStore('chat', {
         }
         this.fetchTickets()
         this.fetchMyTickets()
+      })
+
+      this.socket.on('ticket_deleted', (payload) => {
+        const ticketId = payload.id
+        if (this.activeTicket && this.activeTicket.id === ticketId) {
+          this.activeTicket = null
+          this.messages = []
+        }
+        this.tickets = this.tickets.filter(t => t.id !== ticketId)
+        this.myTickets = this.myTickets.filter(t => t.id !== ticketId)
       })
 
       this.socket.on('connection_update', (payload) => {

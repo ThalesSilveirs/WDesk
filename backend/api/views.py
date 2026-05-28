@@ -101,6 +101,22 @@ class TicketViewSet(TenantModelViewSet):
         ticket = serializer.save()
         self.broadcast_ticket_update(ticket)
 
+    def perform_destroy(self, instance):
+        ticket_id = instance.id
+        company_id = str(instance.company.id)
+        instance.delete()
+        
+        event_payload = {
+            "company_id": company_id,
+            "type": "ticket_deleted",
+            "payload": {"id": ticket_id}
+        }
+        from django.core.serializers.json import DjangoJSONEncoder
+        try:
+            redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+        except Exception as e:
+            print(f"[DELETE BROADCAST] Erro ao notificar Redis: {str(e)}")
+
     def send_system_whatsapp_message(self, ticket, body_text):
         connection = Connection.objects.filter(company=ticket.company).first()
         if not connection:

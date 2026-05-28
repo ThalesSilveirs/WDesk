@@ -14,6 +14,7 @@
           @openPriorityModal="showPriorityModal = true"
           @openTransferModal="openTransfer"
           @openCloseModal="showCloseModal = true"
+          @openDeleteModal="showDeleteModal = true"
           @openImage="openImage"
           @openVideo="openVideo"
         />
@@ -122,6 +123,27 @@
       </div>
     </Transition>
 
+    <!-- Modal de Confirmação de Exclusão -->
+    <Transition name="modal-fade">
+      <div v-if="showDeleteModal" class="modal-overlay" @click="showDeleteModal = false">
+        <div class="modal-content small-modal" @click.stop>
+          <h2 style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
+            <TrashIcon :size="24" />
+            Excluir Atendimento
+          </h2>
+          <p style="color: var(--text-secondary); margin: 15px 0; line-height: 1.5; font-size: 0.9rem;">
+            Tem certeza que deseja excluir permanentemente este atendimento? Esta ação apagará todas as mensagens associadas e não pode ser desfeita.
+          </p>
+          <div class="modal-actions" style="margin-top: 20px;">
+            <button @click="showDeleteModal = false" class="btn-secondary">Cancelar</button>
+            <button @click="confirmDelete" class="btn-danger" :disabled="isDeleting">
+              {{ isDeleting ? 'Excluindo...' : 'Confirmar e Excluir' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Visualizador de Imagem -->
     <Transition name="fade">
       <div v-if="selectedImage" class="modal-overlay image-viewer" @click="selectedImage = null">
@@ -144,7 +166,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useChatStore } from '../store/chat'
-import { X as XIcon } from 'lucide-vue-next'
+import { X as XIcon, Trash2 as TrashIcon } from 'lucide-vue-next'
 import TicketSidebar from '../components/dashboard/TicketSidebar.vue'
 import ChatWindow from '../components/dashboard/ChatWindow.vue'
 import CrmPanel from '../components/dashboard/CrmPanel.vue'
@@ -154,10 +176,12 @@ const chatStore = useChatStore()
 const showTransferModal = ref(false)
 const showPriorityModal = ref(false)
 const showCloseModal = ref(false)
+const showDeleteModal = ref(false)
 const selectedImage = ref(null)
 const selectedVideo = ref(null)
 const showCRM = ref(window.innerWidth > 768)
 const resolutionSummary = ref('')
+const isDeleting = ref(false)
 
 const openTransfer = () => {
   chatStore.fetchAttendants()
@@ -180,6 +204,20 @@ const confirmClose = async () => {
   await chatStore.closeTicket(chatStore.activeTicket.id, resolutionSummary.value)
   showCloseModal.value = false
   resolutionSummary.value = ''
+}
+
+const confirmDelete = async () => {
+  if (!chatStore.activeTicket) return
+  isDeleting.value = true
+  try {
+    await chatStore.deleteTicket(chatStore.activeTicket.id)
+    showDeleteModal.value = false
+  } catch (e) {
+    console.error("Erro ao excluir atendimento:", e)
+    alert("Erro ao excluir atendimento: " + (e.response?.data?.error || e.message))
+  } finally {
+    isDeleting.value = false
+  }
 }
 
 const updateTicketPriority = async () => {
@@ -380,6 +418,32 @@ onMounted(() => {
 }
 
 .btn-success-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:hover:not(:disabled) { 
+  background: #dc2626; 
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

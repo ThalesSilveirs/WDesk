@@ -29,6 +29,11 @@
           <ContactIcon :size="18" />
           <span>Info</span>
         </button>
+
+        <button @click="emit('openDeleteModal')" class="btn-danger-sm" title="Excluir Atendimento">
+          <TrashIcon :size="18" />
+          <span>Excluir</span>
+        </button>
         
         <template v-if="chatStore.activeTicket.status !== 'closed'">
           <button v-if="!chatStore.activeTicket.user" @click="handleAccept" class="accept-btn">
@@ -204,6 +209,7 @@ const emit = defineEmits([
   'openPriorityModal', 
   'openTransferModal', 
   'openCloseModal', 
+  'openDeleteModal',
   'openImage',
   'openVideo'
 ])
@@ -822,6 +828,29 @@ watch(() => chatStore.messages.length, scrollToBottom)
   background: #059669; 
   transform: translateY(-2px);
   box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+}
+
+.btn-danger-sm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  color: #f87171;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-danger-sm:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
 }
 
 .accept-btn {
