@@ -14,6 +14,8 @@
   --empty-bg-outer: #0b0f1a;
   --sidebar-width: 350px;
   --chat-bg: #090d16;
+  --bg-nav-sidebar: #0b0f1a;
+  --bg-ticket-sidebar: #0f172a;
 }
 
 [data-theme='light'] {
@@ -27,8 +29,10 @@
   --pattern-opacity: 0.05;
   --pattern-filter: grayscale(1) brightness(1.5);
   --empty-bg-inner: #ffffff;
-  --empty-bg-outer: #f1f5f9;
+  --empty-bg-outer: #e2e8f0;
   --chat-bg: #efeae2;
+  --bg-nav-sidebar: #f1f5f9;
+  --bg-ticket-sidebar: #ffffff;
 }
 
 * {

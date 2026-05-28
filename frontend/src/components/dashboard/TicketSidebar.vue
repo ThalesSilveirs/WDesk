@@ -174,7 +174,7 @@ const formatTime = (dateStr) => {
 <style scoped>
 .sidebar {
   width: var(--sidebar-width);
-  background: var(--bg-sidebar);
+  background: var(--bg-ticket-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;

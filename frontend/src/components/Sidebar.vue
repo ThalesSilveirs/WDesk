@@ -121,7 +121,7 @@ const showHelpModal = ref(false)
 .sidebar {
   width: 100%;
   height: 100%;
-  background: var(--bg-sidebar);
+  background: var(--bg-nav-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
