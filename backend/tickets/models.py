@@ -181,3 +181,6 @@ class Message(models.Model):
     media_type = models.CharField(max_length=50, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     message_id = models.CharField(max_length=255, unique=True) # WhatsApp Message ID
+
+    class Meta:
+        ordering = ['timestamp', 'id']

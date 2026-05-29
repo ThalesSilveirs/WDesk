@@ -291,7 +291,13 @@ export const useChatStore = defineStore('chat', {
 
       const response = await axios.get(`/api/v1/tickets/${ticket.id}/`)
       this.activeTicket = response.data
-      this.messages = response.data.last_messages
+      
+      const sortedMessages = (response.data.last_messages || []).sort((a, b) => {
+        const timeDiff = new Date(a.timestamp) - new Date(b.timestamp)
+        if (timeDiff !== 0) return timeDiff
+        return a.id - b.id
+      })
+      this.messages = sortedMessages
     },
 
     async sendMedia(file) {
