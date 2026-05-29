@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tickets', '0010_ticket_unread_count'),
+        ('tickets', '0011_customer_bank_account_customer_bank_agency_and_more'),
     ]
 
     operations = [
