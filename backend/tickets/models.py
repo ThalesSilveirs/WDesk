@@ -183,6 +183,11 @@ class Message(models.Model):
     message_id = models.CharField(max_length=255, unique=True) # WhatsApp Message ID
     is_edited = models.BooleanField(default=False)
     edited_at = models.DateTimeField(null=True, blank=True)
+    
+    # Suporte a Citação / Resposta (Quoting/Replies)
+    quoted_message_id = models.CharField(max_length=255, null=True, blank=True)
+    quoted_message_body = models.TextField(null=True, blank=True)
+    quoted_message_sender = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         ordering = ['timestamp', 'id']

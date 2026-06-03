@@ -340,10 +340,14 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    async sendMessage(body) {
+    async sendMessage(body, quotedMessageId = null) {
       if (!this.activeTicket) return
+      const payload = { body }
+      if (quotedMessageId) {
+        payload.quoted_message_id = quotedMessageId
+      }
       const response = await axios.post(`/api/v1/tickets/${this.activeTicket.id}/send_message/`,
-        { body }
+        payload
       )
 
       // Verifica duplicata antes de dar push (caso o socket tenha sido mais rápido)

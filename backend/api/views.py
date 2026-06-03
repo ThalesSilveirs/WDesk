@@ -392,6 +392,7 @@ class TicketViewSet(TenantModelViewSet):
     def send_message(self, request, pk=None):
         ticket = self.get_object()
         raw_body = request.data.get('body')
+        quoted_msg_id = request.data.get('quoted_message_id')
         
         # 0. Adiciona Assinatura (Nome | Área:)
         user = request.user
@@ -404,6 +405,14 @@ class TicketViewSet(TenantModelViewSet):
         if not connection:
             return Response({"error": "Nenhuma conexão WhatsApp encontrada"}, status=400)
 
+        # Busca a mensagem citada se houver
+        quoted_msg = None
+        if quoted_msg_id:
+            from django.db.models import Q
+            quoted_msg = Message.objects.filter(ticket=ticket).filter(
+                Q(id=quoted_msg_id) | Q(message_id=quoted_msg_id)
+            ).first()
+
         # 2. Salvar mensagem no banco
         temp_id = f"pending_{ticket.id}_{int(time.time() * 1000)}"
         message = Message.objects.create(
@@ -411,7 +420,10 @@ class TicketViewSet(TenantModelViewSet):
             user=request.user,
             from_me=True,
             body=body,
-            message_id=temp_id
+            message_id=temp_id,
+            quoted_message_id=quoted_msg.message_id if quoted_msg else None,
+            quoted_message_body=quoted_msg.body if quoted_msg else None,
+            quoted_message_sender="Você" if quoted_msg and quoted_msg.from_me else (ticket.contact.name or "Cliente")
         )
 
         # Tenta buscar o token real diretamente no banco da Evolution (fallback definitivo)
@@ -460,6 +472,12 @@ class TicketViewSet(TenantModelViewSet):
             "number": clean_number,
             "text": body
         }
+        
+        if quoted_msg:
+            payload["quoted"] = {
+                "messageId": quoted_msg.message_id,
+                "participant": ticket.contact.remote_jid
+            }
         
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=5)
@@ -1869,6 +1887,61 @@ class WebhookView(viewsets.ViewSet):
                 if not body and not media_url:
                     continue
 
+                # --- EXTRAÇÃO DE CITADOS / RESPOSTAS ---
+                quoted_msg_id = None
+                quoted_msg_body = None
+                quoted_msg_sender = None
+
+                context_info = None
+                for key_type in ['extendedTextMessage', 'imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage']:
+                    msg_type_data = message_content.get(key_type)
+                    if isinstance(msg_type_data, dict):
+                        context_info = msg_type_data.get('contextInfo')
+                        if context_info:
+                            break
+                if not context_info:
+                    context_info = message_content.get('contextInfo')
+
+                if context_info:
+                    quoted_msg_id = context_info.get('stanzaId') or context_info.get('stanzaID')
+                    if quoted_msg_id:
+                        # Tenta buscar do banco primeiro para máxima fidelidade
+                        db_quoted = Message.objects.filter(message_id=quoted_msg_id).first()
+                        if db_quoted:
+                            quoted_msg_body = db_quoted.body
+                            quoted_msg_sender = "Você" if db_quoted.from_me else (contact_name or "Cliente")
+                        else:
+                            participant = context_info.get('participant')
+                            if participant:
+                                p_num = str(participant).split('@')[0].split(':')[0]
+                                c_num = str(remote_jid).split('@')[0].split(':')[0]
+                                if p_num == c_num:
+                                    quoted_msg_sender = contact_name or "Cliente"
+                                else:
+                                    quoted_msg_sender = "Você"
+                            else:
+                                quoted_msg_sender = "Você"
+
+                            # Extrai o corpo/texto da citação do payload
+                            quoted_msg_content = context_info.get('quotedMessage') or {}
+                            if quoted_msg_content:
+                                quoted_body = quoted_msg_content.get('conversation') or \
+                                              quoted_msg_content.get('extendedTextMessage', {}).get('text')
+                                
+                                if not quoted_body:
+                                    if 'imageMessage' in quoted_msg_content:
+                                        quoted_body = quoted_msg_content['imageMessage'].get('caption') or "📷 Foto"
+                                    elif 'videoMessage' in quoted_msg_content:
+                                        quoted_body = quoted_msg_content['videoMessage'].get('caption') or "🎥 Vídeo"
+                                    elif 'audioMessage' in quoted_msg_content:
+                                        quoted_body = "🎵 Áudio"
+                                    elif 'documentMessage' in quoted_msg_content:
+                                        quoted_body = quoted_msg_content['documentMessage'].get('title') or "📄 Documento"
+                                    elif 'stickerMessage' in quoted_msg_content:
+                                        quoted_body = "🎨 Figurinha"
+                                
+                                quoted_msg_body = quoted_body
+
                 # 1. Cria/Recupera Contato
                 contact_name = msg_item.get('pushName') or info.get('PushName') or data.get('data', {}).get('pushName') or remote_jid.split('@')[0]
                 
@@ -1958,7 +2031,10 @@ class WebhookView(viewsets.ViewSet):
                             'from_me': from_me,
                             'body': body or "",
                             'media_url': media_url,
-                            'media_type': media_type
+                            'media_type': media_type,
+                            'quoted_message_id': quoted_msg_id,
+                            'quoted_message_body': quoted_msg_body,
+                            'quoted_message_sender': quoted_msg_sender
                         }
                     )
 

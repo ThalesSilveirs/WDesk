@@ -62,9 +62,18 @@
             <span class="system-message-badge" v-html="cleanSystemText(msg.body)"></span>
           </div>
           <!-- Mensagem Normal -->
-          <div v-else class="message" :class="{ 'me': msg.from_me }">
+          <div v-else :id="'msg-' + msg.message_id" class="message" :class="{ 'me': msg.from_me, 'highlight-msg': highlightedMessageId === msg.message_id }">
             <div class="message-bubble-wrapper">
               <div class="message-bubble">
+                <!-- Quoted Message Display -->
+                <div 
+                  v-if="msg.quoted_message_body" 
+                  class="quoted-message-bubble-container"
+                  @click.stop="scrollToMessage(msg.quoted_message_id)"
+                >
+                  <span class="quoted-message-sender">{{ msg.quoted_message_sender || 'Contato' }}</span>
+                  <p class="quoted-message-text">{{ cleanBody(msg.quoted_message_body, msg.quoted_message_sender === 'Você') }}</p>
+                </div>
                 <!-- Media Display -->
                 <div v-if="msg.media_type === 'image'" class="media-image clickable" @click="emit('openImage', resolvedUrls[msg.id] || msg.media_url || msg.body)">
                   <img :src="resolvedUrls[msg.id] || msg.media_url || msg.body" />
@@ -118,6 +127,13 @@
               <div class="message-actions-trigger" v-if="chatStore.activeTicket.status !== 'closed'">
                 <button class="reaction-trigger-btn" @click.stop="toggleReactionPicker(msg.id)" title="Reagir">
                   <SmileIcon :size="16" />
+                </button>
+                <button 
+                  class="reply-trigger-btn" 
+                  @click.stop="startReplyingMessage(msg)" 
+                  title="Responder"
+                >
+                  <ReplyIcon :size="16" />
                 </button>
                 <button 
                   v-if="msg.from_me && (!msg.media_type || msg.media_type === 'text' || msg.media_type === '')" 
@@ -189,6 +205,20 @@
           </div>
         </div>
         <button class="cancel-edit-btn" @click="cancelEditingMessage" title="Cancelar edição">
+          <XIcon :size="16" />
+        </button>
+      </div>
+
+      <!-- REPLY MESSAGE BANNER -->
+      <div v-if="replyingMessage" class="edit-message-banner reply-message-banner">
+        <div class="edit-message-info">
+          <ReplyIcon :size="14" class="edit-icon-label" style="transform: scaleX(-1);" />
+          <div class="edit-message-text">
+            <span class="edit-label">Respondendo a <strong>{{ replyingMessage.from_me ? 'Você' : (chatStore.activeTicket.contact_details?.name || 'Cliente') }}</strong></span>
+            <p class="edit-preview">{{ cleanBody(replyingMessage.body, replyingMessage.from_me) || (replyingMessage.media_type ? '📷 Mídia' : '') }}</p>
+          </div>
+        </div>
+        <button class="cancel-edit-btn" @click="cancelReplyingMessage" title="Cancelar resposta">
           <XIcon :size="16" />
         </button>
       </div>
@@ -296,6 +326,7 @@ import {
   Play as PlayIcon,
   Smile as SmileIcon,
   Pencil as EditIcon,
+  Reply as ReplyIcon,
   X as XIcon
 } from 'lucide-vue-next'
 
@@ -324,8 +355,11 @@ const resolvedSources = ref({})
 
 const activeReactionPickerId = ref(null)
 const editingMessage = ref(null)
+const replyingMessage = ref(null)
+const highlightedMessageId = ref(null)
 
 const startEditingMessage = (msg) => {
+  cancelReplyingMessage()
   editingMessage.value = msg
   newMessage.value = msg.body
   setTimeout(() => {
@@ -338,6 +372,34 @@ const startEditingMessage = (msg) => {
 const cancelEditingMessage = () => {
   editingMessage.value = null
   newMessage.value = ''
+}
+
+const startReplyingMessage = (msg) => {
+  cancelEditingMessage()
+  replyingMessage.value = msg
+  setTimeout(() => {
+    if (messageInput.value) {
+      messageInput.value.focus()
+    }
+  }, 50)
+}
+
+const cancelReplyingMessage = () => {
+  replyingMessage.value = null
+}
+
+const scrollToMessage = (quotedMsgId) => {
+  if (!quotedMsgId) return
+  const element = document.getElementById('msg-' + quotedMsgId)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    highlightedMessageId.value = quotedMsgId
+    setTimeout(() => {
+      if (highlightedMessageId.value === quotedMsgId) {
+        highlightedMessageId.value = null
+      }
+    }, 2000)
+  }
 }
 
 const toggleReactionPicker = (msgId) => {
@@ -546,6 +608,9 @@ const parseWhatsAppMarkdown = (body, fromMe) => {
 }
 
 watch(() => chatStore.activeTicket?.id, () => {
+  editingMessage.value = null
+  replyingMessage.value = null
+  highlightedMessageId.value = null
   Object.values(resolvedUrls.value).forEach(url => {
     if (url && url.startsWith('blob:')) {
       try {
@@ -714,6 +779,10 @@ const send = async () => {
     const msgToEdit = editingMessage.value
     editingMessage.value = null
     await chatStore.editMessage(chatStore.activeTicket.id, msgToEdit.id, text)
+  } else if (replyingMessage.value) {
+    const msgToReply = replyingMessage.value
+    replyingMessage.value = null
+    await chatStore.sendMessage(text, msgToReply.id)
   } else {
     await chatStore.sendMessage(text)
   }
@@ -2074,5 +2143,80 @@ watch(() => chatStore.messages.length, scrollToBottom)
 .cancel-edit-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
+}
+
+.quoted-message-bubble-container {
+  background: rgba(148, 163, 184, 0.08);
+  border-left: 4px solid var(--accent);
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  max-width: 100%;
+  display: block;
+  text-align: left;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+.quoted-message-bubble-container:hover {
+  background: rgba(148, 163, 184, 0.15);
+}
+.message.me .quoted-message-bubble-container {
+  background: rgba(255, 255, 255, 0.15);
+  border-left-color: #ffffff;
+}
+.message.me .quoted-message-bubble-container:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.quoted-message-sender {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 3px;
+}
+.message.me .quoted-message-sender {
+  color: #a7f3d0;
+}
+.quoted-message-text {
+  font-size: 0.8rem;
+  margin: 0;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.message.me .quoted-message-text {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.message.highlight-msg .message-bubble {
+  box-shadow: 0 0 18px var(--accent);
+  border-color: var(--accent);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reply-trigger-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.reply-trigger-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transform: scale(1.05);
+}
+
+.reply-message-banner {
+  border-left: 4px solid var(--accent) !important;
 }
 </style>
