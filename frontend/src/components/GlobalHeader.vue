@@ -190,7 +190,7 @@ const triggerLogout = () => {
 }
 
 const logout = () => {
-  localStorage.removeItem('token')
+  chatStore.logout()
   router.push('/login')
 }
 

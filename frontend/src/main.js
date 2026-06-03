@@ -4,6 +4,7 @@ import router from './router'
 import './style.css'
 import App from './App.vue'
 import axios from 'axios'
+import { useChatStore } from './store/chat'
 
 // Setup global Axios request interceptor for Authorization headers
 axios.interceptors.request.use(
@@ -15,6 +16,21 @@ axios.interceptors.request.use(
     return config
   },
   (error) => Promise.reject(error)
+)
+
+// Setup global Axios response interceptor for Authorization/Authentication errors (401 Unauthorized)
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const chatStore = useChatStore()
+      chatStore.logout()
+      if (router.currentRoute.value.path !== '/login') {
+        router.push('/login')
+      }
+    }
+    return Promise.reject(error)
+  }
 )
 
 const app = createApp(App)

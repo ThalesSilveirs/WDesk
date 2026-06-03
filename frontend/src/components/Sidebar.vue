@@ -9,64 +9,65 @@
 
       <!-- Brand Logo Header -->
       <div class="logo-section">
-        <img :src="isCollapsed ? '/favicon.png' : '/logo.png'" alt="wDesk Logo" class="brand-logo-img" :class="{ 'mini-logo': isCollapsed }" />
+        <img src="/logo.png" alt="wDesk Logo" class="brand-logo-img full-logo" />
+        <img src="/favicon.png" alt="wDesk Logo" class="brand-logo-img mini-logo" />
       </div>
 
       <!-- Navigation Links -->
       <nav class="nav-links">
-        <router-link to="/" class="nav-link-item" exact-active-class="active" :title="isCollapsed ? 'Dashboard' : ''">
+        <router-link to="/" class="nav-link-item" exact-active-class="active" data-tooltip="Dashboard">
           <LayoutGridIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Dashboard</span>
+          <span class="link-label">Dashboard</span>
         </router-link>
 
-        <router-link to="/conversations" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Conversas' : ''">
+        <router-link to="/conversations" class="nav-link-item" active-class="active" data-tooltip="Conversas">
           <MessageSquareIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Conversas</span>
+          <span class="link-label">Conversas</span>
         </router-link>
 
-        <router-link to="/customers" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Clientes' : ''">
+        <router-link to="/customers" class="nav-link-item" active-class="active" data-tooltip="Clientes">
           <ContactIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Clientes</span>
+          <span class="link-label">Clientes</span>
         </router-link>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Equipes' : ''">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active" data-tooltip="Equipes">
           <UsersIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Equipes</span>
+          <span class="link-label">Equipes</span>
         </router-link>
 
-        <router-link to="/analytics" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Métricas' : ''">
+        <router-link to="/analytics" class="nav-link-item" active-class="active" data-tooltip="Métricas">
           <BarChartIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Métricas</span>
+          <span class="link-label">Métricas</span>
         </router-link>
 
         <!-- Nova Transmissão -->
-        <button @click="chatStore.showBroadcastModal = true" class="nav-link-item broadcast-link" :title="isCollapsed ? 'Nova Transmissão' : ''">
+        <button @click="chatStore.showBroadcastModal = true" class="nav-link-item broadcast-link" data-tooltip="Nova Transmissão">
           <MegaphoneIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Nova Transmissão</span>
+          <span class="link-label">Nova Transmissão</span>
         </button>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item mobile-only" active-class="active" :title="isCollapsed ? 'Configurações' : ''">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item mobile-only" active-class="active" data-tooltip="Configurações">
           <SettingsIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Configurações</span>
+          <span class="link-label">Configurações</span>
         </router-link>
       </nav>
 
       <!-- Bottom Actions -->
       <div class="bottom-section" :class="{ 'collapsed-bottom': isCollapsed }">
-        <button @click="chatStore.toggleTheme" class="nav-link-item theme-toggle" :title="isCollapsed ? (chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro') : (chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro')">
+        <button @click="chatStore.toggleTheme" class="nav-link-item theme-toggle" :data-tooltip="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
           <SunIcon v-if="chatStore.theme === 'dark'" :size="20" />
           <MoonIcon v-else :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Tema</span>
+          <span class="link-label">Tema</span>
         </button>
 
-        <button @click="showHelpModal = true" class="nav-link-item" :title="isCollapsed ? 'Ajuda' : ''">
+        <button @click="showHelpModal = true" class="nav-link-item" data-tooltip="Ajuda">
           <HelpCircleIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Ajuda</span>
+          <span class="link-label">Ajuda</span>
         </button>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active" :title="isCollapsed ? 'Configurações' : ''">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active" data-tooltip="Configurações">
           <SettingsIcon :size="20" />
-          <span v-if="!isCollapsed" class="link-label">Configurações</span>
+          <span class="link-label">Configurações</span>
         </router-link>
       </div>
     </aside>
@@ -130,6 +131,7 @@ const toggleCollapse = () => {
   z-index: 100;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  will-change: width;
 }
 
 .sidebar-container.collapsed {
@@ -145,11 +147,6 @@ const toggleCollapse = () => {
   flex-direction: column;
   padding: 25px 15px;
   position: relative;
-  transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sidebar-container.collapsed .sidebar {
-  padding: 25px 10px;
 }
 
 /* Collapse Toggle Button (Desktop Only) */
@@ -181,27 +178,46 @@ const toggleCollapse = () => {
 
 /* Brand Section */
 .logo-section {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  height: 48px;
   margin-bottom: 30px;
-  transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .brand-logo-img {
-  width: 100%;
-  max-height: fit-content;
+  position: absolute;
+  max-height: 100%;
   object-fit: contain;
-  transform: scale(1.2);
   filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.25));
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.brand-logo-img.mini-logo {
-  max-width: 32px;
-  max-height: 32px;
-  transform: scale(1);
+.full-logo {
+  width: 100%;
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.sidebar-container.collapsed .full-logo {
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+}
+
+.mini-logo {
+  width: 32px;
+  height: 32px;
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+}
+
+.sidebar-container.collapsed .mini-logo {
+  opacity: 1;
+  transform: scale(1.15);
+  pointer-events: auto;
 }
 
 /* Navigation Links */
@@ -212,16 +228,9 @@ const toggleCollapse = () => {
   flex: 1;
 }
 
-.sidebar-container.collapsed .nav-link-item {
-  padding: 12px 0;
-  justify-content: center;
-  gap: 0;
-}
-
 .nav-link-item {
   display: flex;
   align-items: center;
-  gap: 12px;
   color: var(--text-secondary);
   padding: 12px 15px;
   border-radius: 12px;
@@ -229,12 +238,15 @@ const toggleCollapse = () => {
   font-size: 0.95rem;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
   background: none;
   border: none;
   width: 100%;
   text-align: left;
   font-family: inherit;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .nav-link-item:hover {
@@ -246,6 +258,57 @@ const toggleCollapse = () => {
   background: #10b981;
   color: white;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.link-label {
+  margin-left: 12px;
+  opacity: 1;
+  max-width: 150px;
+  display: inline-block;
+  vertical-align: middle;
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-container.collapsed .link-label {
+  opacity: 0;
+  max-width: 0;
+  margin-left: 0;
+}
+
+/* Custom Tooltips for Collapsed State */
+@media (min-width: 769px) {
+  .sidebar-container.collapsed .nav-link-item {
+    position: relative;
+  }
+
+  .sidebar-container.collapsed .nav-link-item::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-8px);
+    background: var(--bg-nav-sidebar);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(8px);
+    z-index: 120;
+  }
+
+  .sidebar-container.collapsed .nav-link-item:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+  }
 }
 
 /* Bottom Section */

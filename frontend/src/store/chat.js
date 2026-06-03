@@ -540,6 +540,20 @@ export const useChatStore = defineStore('chat', {
       return response.data
     },
 
+    logout() {
+      localStorage.removeItem('token')
+      localStorage.removeItem('role')
+      if (this.socket) {
+        this.socket.disconnect()
+        this.socket = null
+      }
+      this.user = null
+      this.tickets = []
+      this.myTickets = []
+      this.activeTicket = null
+      this.messages = []
+    },
+
     changeUserStatus(status) {
       if (this.socket && this.socket.connected) {
         this.socket.emit('change_status', { status })
