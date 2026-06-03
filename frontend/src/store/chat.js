@@ -520,6 +520,38 @@ export const useChatStore = defineStore('chat', {
       return response.data
     },
 
+    async fetchContactAvatar(contactId, refresh = false) {
+      try {
+        const response = await axios.get(`/api/v1/contacts/${contactId}/avatar/`, {
+          params: { refresh }
+        })
+        const profilePic = response.data.profile_pic
+        
+        // Atualiza no activeTicket
+        if (this.activeTicket && this.activeTicket.contact_details && this.activeTicket.contact_details.id === contactId) {
+          this.activeTicket.contact_details.profile_pic = profilePic
+        }
+        
+        // Atualiza na lista de tickets
+        const tIdx = this.tickets.findIndex(t => t.contact_details?.id === contactId)
+        if (tIdx !== -1) {
+          if (!this.tickets[tIdx].contact_details) this.tickets[tIdx].contact_details = {}
+          this.tickets[tIdx].contact_details.profile_pic = profilePic
+        }
+        
+        const myIdx = this.myTickets.findIndex(t => t.contact_details?.id === contactId)
+        if (myIdx !== -1) {
+          if (!this.myTickets[myIdx].contact_details) this.myTickets[myIdx].contact_details = {}
+          this.myTickets[myIdx].contact_details.profile_pic = profilePic
+        }
+        
+        return profilePic
+      } catch (e) {
+        console.error("Erro ao buscar avatar do contato", e)
+        return null
+      }
+    },
+
     // Configurações da Empresa
     async fetchCompanySettings() {
       const response = await axios.get(`/api/v1/companies/mine/`)

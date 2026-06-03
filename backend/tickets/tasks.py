@@ -499,34 +499,55 @@ def process_webhook_event(connection_id, payload):
                     redis_client.setex(profile_pic_cache_key, 86400, "1") # 24 horas de "já tentamos"
                     try:
                         evo_url = connection.company.evolution_api_url or settings.EVOLUTION_API_URL
+                        from tickets.utils import get_evolution_token
                         evo_key = get_evolution_token(connection.instance_name)
-                        
                         clean_number = remote_jid.split('@')[0]
-                        pic_url = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{clean_number}"
-                        pic_res = requests.get(pic_url, headers={
-                            "apikey": evo_key,
-                            "ApiKey": evo_key,
-                            "api-key": evo_key,
-                            "Authorization": f"Bearer {evo_key}"
-                        }, timeout=8)
                         
-                        if pic_res.status_code == 200:
-                            data_pic = pic_res.json()
-                            url = None
-                            if isinstance(data_pic, dict):
-                                data_block = data_pic.get('data') or {}
-                                if isinstance(data_block, dict):
-                                    url = data_block.get('profilePictureUrl') or data_block.get('url')
-                                else:
-                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
+                        headers = {
+                            "Content-Type": "application/json",
+                            "apikey": evo_key,
+                            "Authorization": f"Bearer {evo_key}"
+                        }
+                        
+                        url = None
+                        
+                        # Tentativa 1: POST /user/avatar (Evolution GO)
+                        try:
+                            url_post = f"{evo_url}/user/avatar?instance={connection.instance_name}"
+                            payload = {"number": clean_number, "preview": False}
+                            res = requests.post(url_post, json=payload, headers=headers, timeout=5)
+                            if res.status_code == 200:
+                                data_pic = res.json()
+                                url = data_pic.get('profilePictureUrl') or data_pic.get('url')
+                                if isinstance(data_pic, dict) and not url:
+                                    data_block = data_pic.get('data') or {}
+                                    if isinstance(data_block, dict):
+                                        url = data_block.get('profilePictureUrl') or data_block.get('url')
+                        except Exception as e:
+                            print(f"[WEBHOOK PIC] Falha na tentativa 1 (POST): {e}")
                             
-                            if url:
-                                contact.profile_pic = url
-                                contact.save()
-                                
-                                if contact.customer:
-                                    contact.customer.profile_pic = url
-                                    contact.customer.save()
+                        # Tentativa 2: GET /chat/findProfilePhoto (Legacy / Node)
+                        if not url:
+                            try:
+                                pic_url = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{clean_number}"
+                                pic_res = requests.get(pic_url, headers=headers, timeout=5)
+                                if pic_res.status_code == 200:
+                                    data_pic = pic_res.json()
+                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
+                                    if isinstance(data_pic, dict) and not url:
+                                        data_block = data_pic.get('data') or {}
+                                        if isinstance(data_block, dict):
+                                            url = data_block.get('profilePictureUrl') or data_block.get('url')
+                            except Exception as e:
+                                print(f"[WEBHOOK PIC] Falha na tentativa 2 (GET): {e}")
+                        
+                        if url:
+                            contact.profile_pic = url
+                            contact.save()
+                            
+                            if contact.customer:
+                                contact.customer.profile_pic = url
+                                contact.customer.save()
                     except Exception as e:
                         pass
             

@@ -23,7 +23,7 @@
 
       <template v-if="chatStore.activeTicket.customer_details">
         <div class="crm-avatar">
-          <img v-if="chatStore.activeTicket.customer_details.profile_pic" :src="chatStore.activeTicket.customer_details.profile_pic" class="avatar-img" />
+          <img v-if="chatStore.activeTicket.customer_details.profile_pic && !chatStore.activeTicket.customer_details.profile_pic_failed" :src="chatStore.activeTicket.customer_details.profile_pic" class="avatar-img" @error="chatStore.activeTicket.customer_details.profile_pic_failed = true" />
           <span v-else>{{ chatStore.activeTicket.customer_details.name.charAt(0) }}</span>
         </div>
         <h2 class="crm-name">{{ chatStore.activeTicket.customer_details.name }}</h2>

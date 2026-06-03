@@ -5,8 +5,8 @@
         <ChevronLeftIcon :size="24" />
       </button>
       <div class="avatar small">
-        <img v-if="activeTicket.contact_details?.profile_pic" :src="activeTicket.contact_details.profile_pic" class="avatar-img" />
-        <span v-else>{{ activeTicket.contact_details?.name?.charAt(0) }}</span>
+        <img v-if="activeTicket.contact_details?.profile_pic && !imageError" :src="activeTicket.contact_details.profile_pic" class="avatar-img" @error="handleImageError" />
+        <span v-else>{{ activeTicket.contact_details?.name?.charAt(0) || 'C' }}</span>
       </div>
       <div class="header-text">
         <div class="name-status">
@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useChatStore } from '../../../store/chat'
 import {
   Contact as ContactIcon,
@@ -87,6 +87,28 @@ const emit = defineEmits([
 
 const chatStore = useChatStore()
 const activeTicket = computed(() => chatStore.activeTicket || {})
+
+const imageError = ref(false)
+
+// Observa mudanças na conversa ativa para resetar erro e tentar buscar se necessário
+watch(() => activeTicket.value?.id, (newId) => {
+  imageError.value = false
+  if (activeTicket.value?.contact_details?.id && !activeTicket.value.contact_details.profile_pic) {
+    chatStore.fetchContactAvatar(activeTicket.value.contact_details.id)
+  }
+}, { immediate: true })
+
+// Se o profile_pic atualizar na store, resetamos o estado de erro
+watch(() => activeTicket.value?.contact_details?.profile_pic, () => {
+  imageError.value = false
+})
+
+const handleImageError = () => {
+  imageError.value = true
+  if (activeTicket.value?.contact_details?.id) {
+    chatStore.fetchContactAvatar(activeTicket.value.contact_details.id, true)
+  }
+}
 
 const goBack = () => {
   chatStore.activeTicket = null

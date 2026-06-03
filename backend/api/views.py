@@ -86,6 +86,102 @@ class ContactViewSet(TenantModelViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
 
+    @action(detail=True, methods=['get'])
+    def avatar(self, request, pk=None):
+        contact = self.get_object()
+        force_refresh = request.query_params.get('refresh', 'false').lower() == 'true'
+        
+        # Cache Redis
+        cache_key = f"contact_avatar_url_{contact.id}"
+        if not force_refresh:
+            try:
+                cached_url = redis_client.get(cache_key)
+                if cached_url:
+                    url_str = cached_url.decode('utf-8')
+                    return Response({"profile_pic": url_str if url_str != "none" else None})
+            except Exception as cache_err:
+                print(f"[AVATAR PROXY] Erro ao ler Redis: {cache_err}")
+        
+        # Busca conexão WhatsApp da empresa
+        connection = Connection.objects.filter(company=contact.company, status='connected').first()
+        if not connection:
+            connection = Connection.objects.filter(company=contact.company).first()
+            
+        if not connection:
+            return Response({"profile_pic": contact.profile_pic})
+            
+        from tickets.utils import get_evolution_token
+        evo_url = connection.company.evolution_api_url or settings.EVOLUTION_API_URL
+        try:
+            evo_key = get_evolution_token(connection.instance_name)
+        except Exception as evo_token_err:
+            print(f"[AVATAR PROXY] Erro ao buscar token Evolution: {evo_token_err}")
+            return Response({"profile_pic": contact.profile_pic})
+        
+        clean_number = contact.remote_jid.split('@')[0]
+        
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_key,
+            "Authorization": f"Bearer {evo_key}"
+        }
+        
+        profile_url = None
+        
+        # Tentativa 1: POST /user/avatar (Evolution GO)
+        try:
+            url_post = f"{evo_url}/user/avatar?instance={connection.instance_name}"
+            payload = {"number": clean_number, "preview": False}
+            res = requests.post(url_post, json=payload, headers=headers, timeout=5)
+            if res.status_code == 200:
+                data = res.json()
+                profile_url = data.get('profilePictureUrl') or data.get('url')
+                if isinstance(data, dict) and not profile_url:
+                    data_block = data.get('data') or {}
+                    if isinstance(data_block, dict):
+                        profile_url = data_block.get('profilePictureUrl') or data_block.get('url')
+                    else:
+                        profile_url = data.get('profilePictureUrl') or data.get('url')
+        except Exception as e:
+            print(f"[AVATAR PROXY] Erro na tentativa 1 (POST): {e}")
+            
+        # Tentativa 2: GET /chat/findProfilePhoto (Legacy / Node)
+        if not profile_url:
+            try:
+                url_get = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{clean_number}"
+                res = requests.get(url_get, headers=headers, timeout=5)
+                if res.status_code == 200:
+                    data = res.json()
+                    profile_url = data.get('profilePictureUrl') or data.get('url')
+                    if isinstance(data, dict) and not profile_url:
+                        data_block = data.get('data') or {}
+                        if isinstance(data_block, dict):
+                            profile_url = data_block.get('profilePictureUrl') or data_block.get('url')
+                        else:
+                            profile_url = data.get('profilePictureUrl') or data.get('url')
+            except Exception as e:
+                print(f"[AVATAR PROXY] Erro na tentativa 2 (GET): {e}")
+                
+        # Salva no banco de dados e no cache
+        if profile_url:
+            contact.profile_pic = profile_url
+            contact.save()
+            if contact.customer:
+                contact.customer.profile_pic = profile_url
+                contact.customer.save()
+            try:
+                redis_client.setex(cache_key, 3600, profile_url) # Cache de 1 hora
+            except:
+                pass
+        else:
+            try:
+                redis_client.setex(cache_key, 600, "none") # Cache negativo de 10 minutos
+            except:
+                pass
+            
+        return Response({"profile_pic": profile_url})
+
+
 class TicketViewSet(TenantModelViewSet):
     queryset = Ticket.objects.all().order_by('-updated_at')
     serializer_class = TicketSerializer

@@ -14,7 +14,7 @@
           @click="chatStore.selectTicket(ticket)"
         >
           <div class="avatar">
-            <img v-if="ticket.contact_details?.profile_pic" :src="ticket.contact_details.profile_pic" class="avatar-img" />
+            <img v-if="ticket.contact_details?.profile_pic && !ticket.contact_details?.profile_pic_failed" :src="ticket.contact_details.profile_pic" class="avatar-img" @error="ticket.contact_details.profile_pic_failed = true" />
             <span v-else>{{ ticket.contact_details?.name?.charAt(0) || 'C' }}</span>
           </div>
           <div class="ticket-info">
@@ -75,7 +75,7 @@
           @click="chatStore.selectTicket(ticket)"
         >
           <div class="avatar">
-            <img v-if="ticket.contact_details?.profile_pic" :src="ticket.contact_details.profile_pic" class="avatar-img" />
+            <img v-if="ticket.contact_details?.profile_pic && !ticket.contact_details?.profile_pic_failed" :src="ticket.contact_details.profile_pic" class="avatar-img" @error="ticket.contact_details.profile_pic_failed = true" />
             <span v-else>{{ ticket.contact_details?.name?.charAt(0) || 'C' }}</span>
           </div>
           <div class="ticket-info">
