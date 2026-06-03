@@ -76,13 +76,13 @@
                 </div>
                 <!-- Media Display -->
                 <div v-if="msg.media_type === 'image'" class="media-image clickable" @click="emit('openImage', resolvedUrls[msg.id] || msg.media_url || msg.body)">
-                  <img :src="resolvedUrls[msg.id] || msg.media_url || msg.body" />
+                  <img :src="resolvedUrls[msg.id] || msg.media_url || msg.body" loading="lazy" />
                 </div>
                 <div v-else-if="msg.media_type === 'audio'" class="media-audio">
                   <AudioPlayer :src="resolvedUrls[msg.id] || msg.media_url" :from-me="msg.from_me" />
                 </div>
                 <div v-else-if="msg.media_type === 'video'" class="media-video clickable" @click="emit('openVideo', resolvedUrls[msg.id] || msg.media_url || msg.body)">
-                  <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="auto" muted playsinline></video>
+                  <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="metadata" muted playsinline></video>
                   <div class="video-play-overlay">
                     <PlayIcon :size="24" class="play-icon" />
                   </div>
@@ -312,6 +312,7 @@
 import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../../store/chat'
 import AudioPlayer from './AudioPlayer.vue'
+import { emojiCategories } from '../../constants/emojis'
 import { 
   Contact as ContactIcon, 
   CheckCircle as CheckIcon, 
@@ -445,34 +446,6 @@ const toggleReaction = async (msg, emoji) => {
 // --- EMOJI PICKER & WHATSAPP MARKDOWN ---
 const showEmojiPicker = ref(false)
 const activeCategoryIndex = ref(0)
-
-const emojiCategories = [
-  {
-    name: 'Carinhas',
-    icon: '😊',
-    emojis: ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🫣','🤭','🤫','🫡','✍️','👏','🙌','👐','🤲','🤝','🙏','👍','👎','👊','✊','🤛','🤜','🤞','🤟','🤘','👌','🤌','🤏','✌️','🤞','🤙','👈','👉','👆','🖕','👇','☝️']
-  },
-  {
-    name: 'Animais & Natureza',
-    icon: '🐱',
-    emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐻‍❄️','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🪱','🐛','🦋','🐌','🐞','🐜','🪰','🪲','🪳','🦟','🦗','🕷️','🕸️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🦣','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🐈','🐈‍⬛','🐓','🦃','🦚','🦜','\uD83E\uDDF0','🦩','🕊️','🐇','\uD83E\uDD9D','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿️','🦔','🐾','🐉','🐲','🌵','🎄','🌲','🌳','🌴','🪵','🌱','🌿','☘️','🍀','🎍','🪴','🍃','🍂','🍁','🍄','🐚','🪨','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','\uD83C\uDF16','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','🪐','💫','⭐️','🌟','✨','⚡️','☄️','💥','🔥','🌪️','🌈','☀️','🌤️','\uD83C\uDF24','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄️','💨','💧','💦','🌪️','🌫️']
-  },
-  {
-    name: 'Comida & Bebida',
-    icon: '🍏',
-    emojis: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑',' broccoli','🥬','🥒','🌶️','🫑','🧅','🧄','🥔','🥕','🌽','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🫓','🥪','🥙','🧆','🌮','🌯','🥘','🍲','🫕','🥣','🥗','🍿','🧂','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦀','🦞','🦐','🦑','🦪','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕️','🫖','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🥤','🧋','🧃','🧉','🧊']
-  },
-  {
-    name: 'Atividades & Esportes',
-    icon: '⚽',
-    emojis: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳️','🪁','🏹','\uD83C\uDFA3','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','\uD83C\uDFC2','🏂','🪂','🏋️‍♀️','🏋️‍♂️','🏋️','🤼‍♀️','🤼‍♂️','🤼','🤸‍♀️','🤸‍♂️','🤸','⛹️‍♀️','⛹️‍♂️','⛹️','🤾‍♀️','🤾‍♂️','🤾','🏌️‍♀️','🏌️‍♂️','🏌️','🏄‍♀️','🏄‍♂️','🏄','🏊‍♀️','🏊‍♂️','🏊','\uD83E\uDD3D','🚣‍♀️','🚣‍♂️','🚣','🧗‍♀️','🧗‍♂️','🧗','🚴‍♀️','🚴‍♂️','🚴','🚵‍♀️','🚵‍♂️','🚵','🏆','\uD83E\uDD47','🥈','🥉','🏅','🎖️','🎫','🎟️','🎭','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🪗','🎸','🪕','🎻','🎲','🧩','🎳','🎯','🎮','🎰']
-  },
-  {
-    name: 'Objetos & Símbolos',
-    icon: '💡',
-    emojis: ['⌚️','📱','📲','💻','⌨️','🖥️','🖨️','🖱️','🖲️','🕹️','🗜️','💽','💾','💿','📀','📼','📷','📸','📹','🎥','📽️','🎞️','📞','☎️','📟','📠','📺','📻','🎙️','🎚️','🎛️','🧭','⏱️','⏲️','⏰','🕰️','\uD83E\uDDF3','⏳','📡','🔋','🔌','💡',' flashlight','🕯️','🪔','🧯','🛢️','💸','💵','\uD83D\uDCB4','💶','💷','🪙','💰','💳','💎','⚖️','\uD83E\uDE9C','🔧','🔨','⚒️','🛠️','⛏️','🪛','🔩','⚙️','🧱','⛓️','🧲','🔫','💣','🧨','🪓','🔪','🗡️','⚔️','🛡️','🚬','⚰️','🪦','⚱️','🏺','🔮','📿','🧿','💈','🧫','🧪','🌡️','🧬','🔬','🔭','📡','🛰️','💉','🩸','💊','🩹','🩺','🚪','🛗','🪞','🪟','🛏️','🛋️','🪑','🚽','🪠','🚿','🛁','🪒','🧴','🧷','🧹','🧺','🧻','🧼','🧽','🪣','🔑','🗝️']
-  }
-]
 
 const toggleEmojiPicker = (e) => {
   e.stopPropagation()
@@ -624,42 +597,54 @@ watch(() => chatStore.activeTicket?.id, () => {
   resolvedSources.value = {}
 })
 
+const resolveMessageMedia = (msg) => {
+  if (!msg) return
+  const url = msg.media_url || msg.body
+  if (!url) return
+  if (resolvedSources.value[msg.id] === url) return
+
+  if (resolvedUrls.value[msg.id] && resolvedUrls.value[msg.id].startsWith('blob:')) {
+    try {
+      URL.revokeObjectURL(resolvedUrls.value[msg.id])
+    } catch (e) {}
+  }
+
+  if (url.startsWith('data:')) {
+    try {
+      const parts = url.split(',')
+      const contentType = parts[0].split(':')[1].split(';')[0]
+      const raw = window.atob(parts[1])
+      const rawLength = raw.length
+      const uInt8Array = new Uint8Array(rawLength)
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i)
+      }
+      const blob = new Blob([uInt8Array], { type: contentType })
+      resolvedUrls.value[msg.id] = URL.createObjectURL(blob)
+      resolvedSources.value[msg.id] = url
+    } catch (e) {
+      console.error("Erro ao resolver base64 para msg " + msg.id, e)
+      resolvedUrls.value[msg.id] = url
+      resolvedSources.value[msg.id] = url
+    }
+  } else {
+    resolvedUrls.value[msg.id] = url
+    resolvedSources.value[msg.id] = url
+  }
+}
+
 watch(() => chatStore.messages, (newMessages) => {
   if (!newMessages) return
-  newMessages.forEach(msg => {
-    const url = msg.media_url || msg.body
-    if (url && resolvedSources.value[msg.id] !== url) {
-      if (resolvedUrls.value[msg.id] && resolvedUrls.value[msg.id].startsWith('blob:')) {
-        try {
-          URL.revokeObjectURL(resolvedUrls.value[msg.id])
-        } catch (e) {}
-      }
+  newMessages.forEach(resolveMessageMedia)
+}, { immediate: true })
 
-      if (url.startsWith('data:')) {
-        try {
-          const parts = url.split(',')
-          const contentType = parts[0].split(':')[1].split(';')[0]
-          const raw = window.atob(parts[1])
-          const rawLength = raw.length
-          const uInt8Array = new Uint8Array(rawLength)
-          for (let i = 0; i < rawLength; ++i) {
-            uInt8Array[i] = raw.charCodeAt(i)
-          }
-          const blob = new Blob([uInt8Array], { type: contentType })
-          resolvedUrls.value[msg.id] = URL.createObjectURL(blob)
-          resolvedSources.value[msg.id] = url
-        } catch (e) {
-          console.error("Erro ao resolver base64 para msg " + msg.id, e)
-          resolvedUrls.value[msg.id] = url
-          resolvedSources.value[msg.id] = url
-        }
-      } else {
-        resolvedUrls.value[msg.id] = url
-        resolvedSources.value[msg.id] = url
-      }
-    }
-  })
-}, { immediate: true, deep: true })
+watch(() => chatStore.messages.length, (newLength, oldLength) => {
+  if (!chatStore.messages || newLength === 0) return
+  const startIndex = oldLength && oldLength < newLength ? oldLength : 0
+  for (let i = startIndex; i < newLength; i++) {
+    resolveMessageMedia(chatStore.messages[i])
+  }
+})
 
 onUnmounted(() => {
   Object.values(resolvedUrls.value).forEach(url => {

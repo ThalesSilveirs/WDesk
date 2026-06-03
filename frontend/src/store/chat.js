@@ -45,6 +45,15 @@ export const useChatStore = defineStore('chat', {
       return false
     },
 
+    _sortTicketsByDate(tickets) {
+      return tickets.sort((a, b) => {
+        const dateA = a.updated_at || ''
+        const dateB = b.updated_at || ''
+        if (dateA === dateB) return 0
+        return dateA < dateB ? 1 : -1
+      })
+    },
+
     _processOrUpdateTicket(ticket) {
       if (!ticket) return
       
@@ -57,7 +66,7 @@ export const useChatStore = defineStore('chat', {
         } else {
           this.myTickets.unshift(ticket)
         }
-        this.myTickets.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        this._sortTicketsByDate(this.myTickets)
       } else {
         if (myTicketsIndex !== -1) {
           this.myTickets.splice(myTicketsIndex, 1)
@@ -73,7 +82,7 @@ export const useChatStore = defineStore('chat', {
         } else {
           this.tickets.unshift(ticket)
         }
-        this.tickets.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        this._sortTicketsByDate(this.tickets)
       } else {
         if (ticketsIndex !== -1) {
           this.tickets.splice(ticketsIndex, 1)
@@ -116,12 +125,12 @@ export const useChatStore = defineStore('chat', {
 
       if (myIdx !== -1) {
         updateTicketFields(this.myTickets[myIdx])
-        this.myTickets.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        this._sortTicketsByDate(this.myTickets)
       }
 
       if (tIdx !== -1) {
         updateTicketFields(this.tickets[tIdx])
-        this.tickets.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        this._sortTicketsByDate(this.tickets)
       }
     },
 
@@ -268,6 +277,8 @@ export const useChatStore = defineStore('chat', {
     },
 
     initSocket() {
+      if (this.socket && this.socket.connected) return
+
       const token = localStorage.getItem('token')
       if (!token) return
 

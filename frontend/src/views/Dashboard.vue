@@ -360,15 +360,29 @@ const handleStatusChange = (e) => {
   }
 }
 
+const fetchStatsIfVisible = () => {
+  if (!document.hidden) {
+    fetchDashboardStats()
+  }
+}
+
+const handleVisibilityChange = () => {
+  if (!document.hidden) {
+    fetchDashboardStats()
+  }
+}
+
 onMounted(() => {
   fetchDashboardStats()
-  intervalId = setInterval(fetchDashboardStats, 10000)
+  intervalId = setInterval(fetchStatsIfVisible, 30000)
   window.addEventListener('user-status-changed', handleStatusChange)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
   if (intervalId) clearInterval(intervalId)
   window.removeEventListener('user-status-changed', handleStatusChange)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
