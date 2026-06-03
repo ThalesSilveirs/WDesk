@@ -181,6 +181,19 @@ class Message(models.Model):
     media_type = models.CharField(max_length=50, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     message_id = models.CharField(max_length=255, unique=True) # WhatsApp Message ID
+    is_edited = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['timestamp', 'id']
+
+class MessageReaction(models.Model):
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='reactions')
+    emoji = models.CharField(max_length=50)
+    sender_jid = models.CharField(max_length=100)
+    from_me = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('message', 'sender_jid')
+

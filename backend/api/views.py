@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.response import Response
 from django.db import transaction
 from rest_framework.decorators import action
-from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact
+from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction
 from .serializers import (
     TicketSerializer, 
     ConnectionSerializer, 
@@ -11,7 +11,8 @@ from .serializers import (
     CustomerSerializer,
     CustomerContactSerializer,
     ContactSerializer,
-    CompanySerializer
+    CompanySerializer,
+    MessageReactionSerializer
 )
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.views.decorators.csrf import csrf_exempt
@@ -472,6 +473,188 @@ class TicketViewSet(TenantModelViewSet):
         redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
 
         return Response(MessageSerializer(message).data)
+
+    @action(detail=True, methods=['post'])
+    def react_message(self, request, pk=None):
+        ticket = self.get_object()
+        message_id = request.data.get('message_id')
+        emoji = request.data.get('emoji')
+
+        from django.shortcuts import get_object_or_404
+        message = get_object_or_404(Message, id=message_id, ticket=ticket)
+        connection = Connection.objects.filter(company=ticket.company).first()
+        if not connection:
+            return Response({"error": "Nenhuma conexão WhatsApp ativa encontrada"}, status=400)
+
+        evo_token = "your-token-here"
+        try:
+            import psycopg2
+            import os
+            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
+            db_host = os.environ.get('DB_HOST', 'db')
+            conn = psycopg2.connect(
+                dbname="evogo_users",
+                user="postgres",
+                password=db_pass,
+                host=db_host
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
+            row = cur.fetchone()
+            if row:
+                evo_token = row[0]
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"[REACT] Erro ao buscar token no banco: {str(e)}")
+
+        evo_url = getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+        url = f"{evo_url}/message/react?apikey={evo_token}&instance={connection.instance_name}"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_token,
+            "ApiKey": evo_token,
+            "api-key": evo_token,
+            "Authorization": f"Bearer {evo_token}",
+            "instance": connection.instance_name
+        }
+        
+        my_jid = connection.instance_name
+        
+        payload = {
+            "instance": connection.instance_name,
+            "number": ticket.contact.remote_jid,
+            "id": message.message_id,
+            "fromMe": message.from_me,
+            "reaction": emoji or ""
+        }
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=5)
+            if response.status_code in [200, 201]:
+                if not emoji:
+                    MessageReaction.objects.filter(message=message, sender_jid=my_jid).delete()
+                else:
+                    MessageReaction.objects.update_or_create(
+                        message=message,
+                        sender_jid=my_jid,
+                        defaults={'emoji': emoji, 'from_me': True}
+                    )
+                
+                reactions_data = MessageReactionSerializer(message.reactions.all(), many=True).data
+                event_payload = {
+                    "company_id": str(ticket.company.id),
+                    "type": "message_reactions_updated",
+                    "payload": {
+                        "message_id": message.id,
+                        "reactions": reactions_data
+                    }
+                }
+                from django.core.serializers.json import DjangoJSONEncoder
+                redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+                
+                return Response({"status": "success", "reactions": reactions_data})
+            else:
+                return Response({"error": f"Erro Evolution API: {response.text}"}, status=400)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    @action(detail=True, methods=['post'])
+    def edit_message(self, request, pk=None):
+        ticket = self.get_object()
+        message_id = request.data.get('message_id')
+        new_body = request.data.get('body')
+
+        if not message_id or not new_body:
+            return Response({"error": "Parâmetros 'message_id' e 'body' são obrigatórios"}, status=400)
+
+        from django.shortcuts import get_object_or_404
+        message = get_object_or_404(Message, id=message_id, ticket=ticket)
+        
+        if not message.from_me:
+            return Response({"error": "Você só pode editar suas próprias mensagens"}, status=400)
+
+        connection = Connection.objects.filter(company=ticket.company).first()
+        if not connection:
+            return Response({"error": "Nenhuma conexão WhatsApp ativa encontrada"}, status=400)
+
+        evo_token = "your-token-here"
+        try:
+            import psycopg2
+            import os
+            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
+            db_host = os.environ.get('DB_HOST', 'db')
+            conn = psycopg2.connect(
+                dbname="evogo_users",
+                user="postgres",
+                password=db_pass,
+                host=db_host
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
+            row = cur.fetchone()
+            if row:
+                evo_token = row[0]
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"[EDIT] Erro ao buscar token no banco: {str(e)}")
+
+        evo_url = getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+        url = f"{evo_url}/message/edit?apikey={evo_token}&instance={connection.instance_name}"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_token,
+            "ApiKey": evo_token,
+            "api-key": evo_token,
+            "Authorization": f"Bearer {evo_token}",
+            "instance": connection.instance_name
+        }
+        
+        payload = {
+            "instance": connection.instance_name,
+            "chat": ticket.contact.remote_jid,
+            "message": new_body,
+            "messageId": message.message_id
+        }
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=5)
+            if response.status_code in [200, 201]:
+                message.body = new_body
+                message.is_edited = True
+                from django.utils import timezone
+                message.edited_at = timezone.now()
+                message.save()
+                
+                last_msg = ticket.messages.order_by('-timestamp', '-id').first()
+                if last_msg and last_msg.id == message.id:
+                    ticket.last_message = new_body
+                    ticket.save()
+                    
+                    ticket_payload = {
+                        "company_id": str(ticket.company.id),
+                        "type": "ticket_updated",
+                        "payload": TicketSerializer(ticket).data
+                    }
+                    from django.core.serializers.json import DjangoJSONEncoder
+                    redis_client.publish('company_events', json.dumps(ticket_payload, cls=DjangoJSONEncoder))
+                
+                event_payload = {
+                    "company_id": str(ticket.company.id),
+                    "type": "message_updated",
+                    "payload": MessageSerializer(message).data
+                }
+                from django.core.serializers.json import DjangoJSONEncoder
+                redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+                
+                return Response({"status": "success", "message": MessageSerializer(message).data})
+            else:
+                return Response({"error": f"Erro Evolution API: {response.text}"}, status=400)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -1276,9 +1459,84 @@ class WebhookView(viewsets.ViewSet):
                 }
                 from django.core.serializers.json import DjangoJSONEncoder
                 redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
-                
                 print(f"DEBUG STATUS: Instância {instance_name} atualizada para {connection.status}")
                 return Response({"status": "updated"}, status=200)
+
+        # Tratamento de Mensagens Editadas
+        if event_type in ['messages.edited', 'messages_edited', 'message_edited', 'message.edited', 'messages.update', 'messages_update']:
+            payload_data = data.get('data', {})
+            info = payload_data.get('key', {}) or {}
+            
+            update_data = payload_data.get('update', {}) or {}
+            edited_msg = payload_data.get('editedMessage') or \
+                         payload_data.get('message') or \
+                         update_data.get('message') or \
+                         update_data.get('editedMessage')
+            
+            new_body = ""
+            msg_id = None
+            
+            if isinstance(edited_msg, dict):
+                protocol_msg = edited_msg.get('protocolMessage') or {}
+                if protocol_msg:
+                    msg_id = protocol_msg.get('key', {}).get('id')
+                    edited_payload = protocol_msg.get('editedMessage') or {}
+                    if isinstance(edited_payload, dict):
+                        new_body = edited_payload.get('conversation') or \
+                                   edited_payload.get('extendedTextMessage', {}).get('text') or \
+                                   edited_payload.get('text')
+                
+                if not new_body:
+                    new_body = edited_msg.get('conversation') or \
+                               edited_msg.get('extendedTextMessage', {}).get('text') or \
+                               payload_data.get('text')
+            elif isinstance(edited_msg, str):
+                new_body = edited_msg
+                
+            if not msg_id:
+                msg_id = info.get('id') or info.get('ID') or payload_data.get('messageId')
+            
+            if msg_id and new_body:
+                from django.db.models import Q
+                if instance_name:
+                    connection = Connection.objects.filter(
+                        Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))
+                    ).first()
+                else:
+                    connection = Connection.objects.filter(status='connected').first()
+                
+                if connection:
+                    message = Message.objects.filter(message_id=msg_id, ticket__company=connection.company).first()
+                    if message:
+                        message.body = new_body
+                        message.is_edited = True
+                        from django.utils import timezone
+                        message.edited_at = timezone.now()
+                        message.save()
+                        
+                        ticket = message.ticket
+                        last_msg = ticket.messages.order_by('-timestamp', '-id').first()
+                        if last_msg and last_msg.id == message.id:
+                            ticket.last_message = new_body
+                            ticket.save()
+                            
+                            ticket_payload = {
+                                "company_id": str(ticket.company.id),
+                                "type": "ticket_updated",
+                                "payload": TicketSerializer(ticket).data
+                            }
+                            from django.core.serializers.json import DjangoJSONEncoder
+                            redis_client.publish('company_events', json.dumps(ticket_payload, cls=DjangoJSONEncoder))
+                        
+                        event_payload = {
+                            "company_id": str(ticket.company.id),
+                            "type": "message_updated",
+                            "payload": MessageSerializer(message).data
+                        }
+                        from django.core.serializers.json import DjangoJSONEncoder
+                        redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+            
+            return Response({"status": "received"}, status=200)
 
         # Aceita formatos variados: Message, messages.upsert, GroupInfo, etc.
         msg_events = ['message', 'messages.upsert', 'messages_upsert', 'message_upsert', 'message.upsert', 'groupinfo', 'group.info']
@@ -1295,6 +1553,101 @@ class WebhookView(viewsets.ViewSet):
                 
                 info = msg_item.get('Info', {}) or msg_item.get('key', {}) or {}
                 message_content = msg_item.get('Message', {}) or msg_item.get('message', {}) or {}
+                
+                # --- DETECTAR EDIÇÃO (CLIENT-SIDE) ---
+                protocol_msg = message_content.get('protocolMessage') or {}
+                if protocol_msg.get('type') == 14 or 'editedMessage' in protocol_msg:
+                    target_msg_id = protocol_msg.get('key', {}).get('id')
+                    edited_payload = protocol_msg.get('editedMessage') or {}
+                    new_body = ""
+                    if isinstance(edited_payload, dict):
+                        new_body = edited_payload.get('conversation') or \
+                                   edited_payload.get('extendedTextMessage', {}).get('text') or \
+                                   edited_payload.get('text')
+                    
+                    if target_msg_id and new_body:
+                        from django.db.models import Q
+                        if instance_name:
+                            connection = Connection.objects.filter(
+                                Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))
+                            ).first()
+                        else:
+                            connection = Connection.objects.filter(status='connected').first()
+                            
+                        if connection:
+                            message = Message.objects.filter(message_id=target_msg_id, ticket__company=connection.company).first()
+                            if message:
+                                message.body = new_body
+                                message.is_edited = True
+                                from django.utils import timezone
+                                message.edited_at = timezone.now()
+                                message.save()
+                                
+                                ticket = message.ticket
+                                last_msg = ticket.messages.order_by('-timestamp', '-id').first()
+                                if last_msg and last_msg.id == message.id:
+                                    ticket.last_message = new_body
+                                    ticket.save()
+                                    
+                                    ticket_payload = {
+                                        "company_id": str(ticket.company.id),
+                                        "type": "ticket_updated",
+                                        "payload": TicketSerializer(ticket).data
+                                    }
+                                    from django.core.serializers.json import DjangoJSONEncoder
+                                    redis_client.publish('company_events', json.dumps(ticket_payload, cls=DjangoJSONEncoder))
+                                
+                                event_payload = {
+                                    "company_id": str(ticket.company.id),
+                                    "type": "message_updated",
+                                    "payload": MessageSerializer(message).data
+                                }
+                                from django.core.serializers.json import DjangoJSONEncoder
+                                redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+                    continue
+                
+                # --- DETECTAR REAÇÃO ---
+                reaction_msg = message_content.get('reactionMessage')
+                if reaction_msg:
+                    target_msg_id = reaction_msg.get('key', {}).get('id')
+                    emoji = reaction_msg.get('text')
+                    from_me = info.get('fromMe') or info.get('IsFromMe') or msg_item.get('fromMe') or msg_item.get('key', {}).get('fromMe') or False
+                    
+                    from django.db.models import Q
+                    if instance_name:
+                        connection = Connection.objects.filter(
+                            Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))
+                        ).first()
+                    else:
+                        connection = Connection.objects.filter(status='connected').first()
+                    
+                    if connection:
+                        sender_jid = info.get('participant') or info.get('remoteJid') or msg_item.get('key', {}).get('remoteJid')
+                        if from_me:
+                            sender_jid = connection.instance_name
+                        
+                        target_message = Message.objects.filter(message_id=target_msg_id, ticket__company=connection.company).first()
+                        if target_message:
+                            if not emoji:
+                                MessageReaction.objects.filter(message=target_message, sender_jid=sender_jid).delete()
+                            else:
+                                MessageReaction.objects.update_or_create(
+                                    message=target_message,
+                                    sender_jid=sender_jid,
+                                    defaults={'emoji': emoji, 'from_me': from_me}
+                                )
+                            
+                            event_payload = {
+                                "company_id": str(target_message.ticket.company.id),
+                                "type": "message_reactions_updated",
+                                "payload": {
+                                    "message_id": target_message.id,
+                                    "reactions": MessageReactionSerializer(target_message.reactions.all(), many=True).data
+                                }
+                            }
+                            from django.core.serializers.json import DjangoJSONEncoder
+                            redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+                    continue
                 
                 # Salva em arquivo para diagnóstico - grava payload COMPLETO
                 try:

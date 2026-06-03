@@ -61,41 +61,87 @@
           <div v-if="isSystemMessage(msg)" class="system-message-center">
             <span class="system-message-badge" v-html="cleanSystemText(msg.body)"></span>
           </div>
-
           <!-- Mensagem Normal -->
           <div v-else class="message" :class="{ 'me': msg.from_me }">
-            <div class="message-bubble">
-              <!-- Media Display -->
-              <div v-if="msg.media_type === 'image'" class="media-image clickable" @click="emit('openImage', resolvedUrls[msg.id] || msg.media_url || msg.body)">
-                <img :src="resolvedUrls[msg.id] || msg.media_url || msg.body" />
-              </div>
-              <div v-else-if="msg.media_type === 'audio'" class="media-audio">
-                <AudioPlayer :src="resolvedUrls[msg.id] || msg.media_url" :from-me="msg.from_me" />
-              </div>
-              <div v-else-if="msg.media_type === 'video'" class="media-video clickable" @click="emit('openVideo', resolvedUrls[msg.id] || msg.media_url || msg.body)">
-                <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="auto" muted playsinline></video>
-                <div class="video-play-overlay">
-                  <PlayIcon :size="24" class="play-icon" />
+            <div class="message-bubble-wrapper">
+              <div class="message-bubble">
+                <!-- Media Display -->
+                <div v-if="msg.media_type === 'image'" class="media-image clickable" @click="emit('openImage', resolvedUrls[msg.id] || msg.media_url || msg.body)">
+                  <img :src="resolvedUrls[msg.id] || msg.media_url || msg.body" />
                 </div>
-              </div>
-              <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(resolvedUrls[msg.id] || msg.media_url || msg.body)">
-                <div class="doc-card">
-                  <FileIcon :size="32" />
-                  <div class="doc-info">
-                    <span class="doc-name">Ver Documento</span>
-                    <span class="doc-ext">PDF / Arquivo</span>
+                <div v-else-if="msg.media_type === 'audio'" class="media-audio">
+                  <AudioPlayer :src="resolvedUrls[msg.id] || msg.media_url" :from-me="msg.from_me" />
+                </div>
+                <div v-else-if="msg.media_type === 'video'" class="media-video clickable" @click="emit('openVideo', resolvedUrls[msg.id] || msg.media_url || msg.body)">
+                  <video :src="resolvedUrls[msg.id] || msg.media_url || msg.body" preload="auto" muted playsinline></video>
+                  <div class="video-play-overlay">
+                    <PlayIcon :size="24" class="play-icon" />
                   </div>
                 </div>
+                <div v-else-if="msg.media_type === 'document'" class="media-document clickable" @click="openDocument(resolvedUrls[msg.id] || msg.media_url || msg.body)">
+                  <div class="doc-card">
+                    <FileIcon :size="32" />
+                    <div class="doc-info">
+                      <span class="doc-name">Ver Documento</span>
+                      <span class="doc-ext">PDF / Arquivo</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <p 
+                  v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio'"
+                  v-html="parseWhatsAppMarkdown(msg.body, msg.from_me)"
+                ></p>
+                
+                <!-- Reaction Badges -->
+                <div v-if="msg.reactions && msg.reactions.length > 0" class="message-reactions">
+                  <span 
+                    v-for="react in getGroupedReactions(msg.reactions)" 
+                    :key="react.emoji" 
+                    class="reaction-badge"
+                    :class="{ 'reacted-by-me': react.reactedByMe }"
+                    :title="react.users.join(', ')"
+                    @click.stop="toggleReaction(msg, react.emoji)"
+                  >
+                    {{ react.emoji }} <span v-if="react.count > 1" class="reaction-count">{{ react.count }}</span>
+                  </span>
+                </div>
+
+                <span class="msg-time">
+                  <span v-if="msg.from_me && msg.user_details" class="msg-attendant">{{ msg.user_details.first_name }} {{ msg.user_details.last_name }} • </span>
+                  <span v-if="msg.is_edited" class="msg-edited-badge" title="Mensagem editada">(editada) • </span>
+                  {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                </span>
               </div>
-              
-              <p 
-                v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio'"
-                v-html="parseWhatsAppMarkdown(msg.body, msg.from_me)"
-              ></p>
-              <span class="msg-time">
-                <span v-if="msg.from_me && msg.user_details" class="msg-attendant">{{ msg.user_details.first_name }} {{ msg.user_details.last_name }} • </span>
-                {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
-              </span>
+
+              <!-- Action Menu for Reactions -->
+              <div class="message-actions-trigger" v-if="chatStore.activeTicket.status !== 'closed'">
+                <button class="reaction-trigger-btn" @click.stop="toggleReactionPicker(msg.id)" title="Reagir">
+                  <SmileIcon :size="16" />
+                </button>
+                <button 
+                  v-if="msg.from_me && (!msg.media_type || msg.media_type === 'text' || msg.media_type === '')" 
+                  class="edit-trigger-btn" 
+                  @click.stop="startEditingMessage(msg)" 
+                  title="Editar Mensagem"
+                >
+                  <EditIcon :size="16" />
+                </button>
+                
+                <Transition name="pop">
+                  <div v-if="activeReactionPickerId === msg.id" class="reactions-picker glass-effect">
+                    <span 
+                      v-for="emoji in ['👍', '❤️', '😂', '😮', '😢', '🙏']" 
+                      :key="emoji" 
+                      class="reaction-picker-emoji"
+                      :class="{ 'active': hasAttendantReactedWith(msg.reactions, emoji) }"
+                      @click.stop="toggleReaction(msg, emoji)"
+                    >
+                      {{ emoji }}
+                    </span>
+                  </div>
+                </Transition>
+              </div>
             </div>
           </div>
         </template>
@@ -133,82 +179,98 @@
         </div>
       </Transition>
 
-      <input 
-        type="file" 
-        ref="fileInput" 
-        style="display: none" 
-        @change="handleFileUpload"
-        accept="image/*,audio/*,application/pdf"
-      />
-      
-      <!-- ESTADO NORMAL -->
-      <template v-if="!isRecording && !hasRecording">
-        <button class="attach-btn" @click="fileInput.click()" :disabled="!chatStore.activeTicket.user" title="Enviar Mídia">
-          <PlusIcon :size="22" />
+      <!-- EDIT MESSAGE BANNER -->
+      <div v-if="editingMessage" class="edit-message-banner">
+        <div class="edit-message-info">
+          <EditIcon :size="14" class="edit-icon-label" />
+          <div class="edit-message-text">
+            <span class="edit-label">Editando mensagem</span>
+            <p class="edit-preview">{{ editingMessage.body }}</p>
+          </div>
+        </div>
+        <button class="cancel-edit-btn" @click="cancelEditingMessage" title="Cancelar edição">
+          <XIcon :size="16" />
         </button>
-        <button class="emoji-btn" @click="toggleEmojiPicker" :disabled="!chatStore.activeTicket.user" title="Inserir Emoji">
-          <SmileIcon :size="22" />
-        </button>
-        <textarea 
-          ref="messageInput"
-          v-model="newMessage" 
-          @keydown="handleKeyDown"
-          @paste="handlePaste"
-          :placeholder="chatStore.activeTicket.user ? 'Digite uma mensagem...' : 'Aceite o atendimento para responder...'" 
-          :disabled="!chatStore.activeTicket.user"
-          rows="1"
+      </div>
+
+      <div class="chat-input-row">
+        <input 
+          type="file" 
+          ref="fileInput" 
+          style="display: none" 
+          @change="handleFileUpload"
+          accept="image/*,audio/*,application/pdf"
         />
-        <button 
-          v-if="newMessage.trim()" 
-          class="send-btn" 
-          @click="send" 
-          :disabled="!chatStore.activeTicket.user"
-          title="Enviar Mensagem"
-        >
-          <SendIcon :size="20" />
-        </button>
-        <button 
-          v-else 
-          class="mic-btn" 
-          @click="startRecording" 
-          :disabled="!chatStore.activeTicket.user"
-          title="Gravar Áudio"
-        >
-          <MicIcon :size="20" />
-        </button>
-      </template>
-      
-      <!-- ESTADO GRAVANDO -->
-      <template v-else-if="isRecording">
-        <div class="recording-indicator">
-          <span class="recording-dot"></span>
-          <span class="recording-text">Gravando ({{ formatTime(recordingTime) }})</span>
-          <canvas ref="canvasRef" width="100" height="30" class="recording-canvas"></canvas>
-        </div>
-        <div class="recording-actions">
-          <button class="cancel-rec-btn" @click="cancelRecording" title="Cancelar Gravação">
-            <TrashIcon :size="20" />
+        
+        <!-- ESTADO NORMAL -->
+        <template v-if="!isRecording && !hasRecording">
+          <button class="attach-btn" @click="fileInput.click()" :disabled="!chatStore.activeTicket.user" title="Enviar Mídia">
+            <PlusIcon :size="22" />
           </button>
-          <button class="stop-rec-btn" @click="stopRecording" title="Parar Gravação">
-            <SquareIcon :size="20" />
+          <button class="emoji-btn" @click="toggleEmojiPicker" :disabled="!chatStore.activeTicket.user" title="Inserir Emoji">
+            <SmileIcon :size="22" />
           </button>
-        </div>
-      </template>
-      
-      <!-- ESTADO PRÉVIA DE ÁUDIO -->
-      <template v-else-if="hasRecording">
-        <div class="audio-preview-container">
-          <audio :src="recordedAudioUrl" controls class="audio-preview-player"></audio>
-        </div>
-        <div class="recording-actions">
-          <button class="cancel-rec-btn" @click="cancelRecording" :disabled="isSending" title="Descartar Áudio">
-            <TrashIcon :size="20" />
-          </button>
-          <button class="send-rec-btn" @click="sendRecording" :disabled="isSending" title="Enviar Áudio">
+          <textarea 
+            ref="messageInput"
+            v-model="newMessage" 
+            @keydown="handleKeyDown"
+            @paste="handlePaste"
+            :placeholder="chatStore.activeTicket.user ? 'Digite uma mensagem...' : 'Aceite o atendimento para responder...'" 
+            :disabled="!chatStore.activeTicket.user"
+            rows="1"
+          />
+          <button 
+            v-if="newMessage.trim()" 
+            class="send-btn" 
+            @click="send" 
+            :disabled="!chatStore.activeTicket.user"
+            title="Enviar Mensagem"
+          >
             <SendIcon :size="20" />
           </button>
-        </div>
-      </template>
+          <button 
+            v-else 
+            class="mic-btn" 
+            @click="startRecording" 
+            :disabled="!chatStore.activeTicket.user"
+            title="Gravar Áudio"
+          >
+            <MicIcon :size="20" />
+          </button>
+        </template>
+        
+        <!-- ESTADO GRAVANDO -->
+        <template v-else-if="isRecording">
+          <div class="recording-indicator">
+            <span class="recording-dot"></span>
+            <span class="recording-text">Gravando ({{ formatTime(recordingTime) }})</span>
+            <canvas ref="canvasRef" width="100" height="30" class="recording-canvas"></canvas>
+          </div>
+          <div class="recording-actions">
+            <button class="cancel-rec-btn" @click="cancelRecording" title="Cancelar Gravação">
+              <TrashIcon :size="20" />
+            </button>
+            <button class="stop-rec-btn" @click="stopRecording" title="Parar Gravação">
+              <SquareIcon :size="20" />
+            </button>
+          </div>
+        </template>
+        
+        <!-- ESTADO PRÉVIA DE ÁUDIO -->
+        <template v-else-if="hasRecording">
+          <div class="audio-preview-container">
+            <audio :src="recordedAudioUrl" controls class="audio-preview-player"></audio>
+          </div>
+          <div class="recording-actions">
+            <button class="cancel-rec-btn" @click="cancelRecording" :disabled="isSending" title="Descartar Áudio">
+              <TrashIcon :size="20" />
+            </button>
+            <button class="send-rec-btn" @click="sendRecording" :disabled="isSending" title="Enviar Áudio">
+              <SendIcon :size="20" />
+            </button>
+          </div>
+        </template>
+      </div>
     </footer>
     <div v-else class="closed-banner">
       Este atendimento foi finalizado em {{ new Date(chatStore.activeTicket.updated_at).toLocaleString() }}.
@@ -232,7 +294,9 @@ import {
   Trash2 as TrashIcon,
   Square as SquareIcon,
   Play as PlayIcon,
-  Smile as SmileIcon
+  Smile as SmileIcon,
+  Pencil as EditIcon,
+  X as XIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -257,6 +321,64 @@ const messageInput = ref(null)
 
 const resolvedUrls = ref({})
 const resolvedSources = ref({})
+
+const activeReactionPickerId = ref(null)
+const editingMessage = ref(null)
+
+const startEditingMessage = (msg) => {
+  editingMessage.value = msg
+  newMessage.value = msg.body
+  setTimeout(() => {
+    if (messageInput.value) {
+      messageInput.value.focus()
+    }
+  }, 50)
+}
+
+const cancelEditingMessage = () => {
+  editingMessage.value = null
+  newMessage.value = ''
+}
+
+const toggleReactionPicker = (msgId) => {
+  if (activeReactionPickerId.value === msgId) {
+    activeReactionPickerId.value = null
+  } else {
+    activeReactionPickerId.value = msgId
+  }
+}
+
+const closeReactionPicker = () => {
+  activeReactionPickerId.value = null
+}
+
+const getGroupedReactions = (reactions) => {
+  if (!reactions || !reactions.length) return []
+  const groups = {}
+  reactions.forEach(r => {
+    if (!groups[r.emoji]) {
+      groups[r.emoji] = { emoji: r.emoji, count: 0, users: [], reactedByMe: false }
+    }
+    groups[r.emoji].count++
+    groups[r.emoji].users.push(r.from_me ? 'Você' : 'Cliente')
+    if (r.from_me) {
+      groups[r.emoji].reactedByMe = true
+    }
+  })
+  return Object.values(groups)
+}
+
+const hasAttendantReactedWith = (reactions, emoji) => {
+  if (!reactions) return false
+  return reactions.some(r => r.emoji === emoji && r.from_me)
+}
+
+const toggleReaction = async (msg, emoji) => {
+  activeReactionPickerId.value = null
+  const alreadyReacted = hasAttendantReactedWith(msg.reactions, emoji)
+  const newEmoji = alreadyReacted ? '' : emoji
+  await chatStore.reactToMessage(chatStore.activeTicket.id, msg.id, newEmoji)
+}
 
 // --- EMOJI PICKER & WHATSAPP MARKDOWN ---
 const showEmojiPicker = ref(false)
@@ -321,6 +443,14 @@ const handleWindowClick = (e) => {
     const btn = document.querySelector('.emoji-btn')
     if (picker && !picker.contains(e.target) && btn && !btn.contains(e.target)) {
       showEmojiPicker.value = false
+    }
+  }
+  
+  if (activeReactionPickerId.value !== null) {
+    const picker = document.querySelector('.reactions-picker')
+    const trigger = e.target.closest('.reaction-trigger-btn')
+    if (picker && !picker.contains(e.target) && !trigger) {
+      activeReactionPickerId.value = null
     }
   }
 }
@@ -580,7 +710,13 @@ const send = async () => {
   if (messageInput.value) {
     messageInput.value.style.height = 'auto'
   }
-  await chatStore.sendMessage(text)
+  if (editingMessage.value) {
+    const msgToEdit = editingMessage.value
+    editingMessage.value = null
+    await chatStore.editMessage(chatStore.activeTicket.id, msgToEdit.id, text)
+  } else {
+    await chatStore.sendMessage(text)
+  }
   scrollToBottom()
 }
 
@@ -1239,12 +1375,19 @@ watch(() => chatStore.messages.length, scrollToBottom)
 .chat-input {
   position: relative;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
+}
+
+.chat-input-row {
   padding: 15px 25px;
   display: flex;
   gap: 15px;
   align-items: flex-end;
-  background: var(--bg-sidebar);
-  border-top: 1px solid var(--border);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .chat-input textarea {
@@ -1520,6 +1663,11 @@ watch(() => chatStore.messages.length, scrollToBottom)
   }
 
   .chat-input {
+    padding: 0;
+    gap: 0;
+  }
+
+  .chat-input-row {
     padding: 10px 15px;
     gap: 8px;
   }
@@ -1697,5 +1845,234 @@ watch(() => chatStore.messages.length, scrollToBottom)
 
 .message-bubble li {
   margin: 3px 0;
+}
+
+/* Msg Edited Badge */
+.msg-edited-badge {
+  font-style: italic;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.message.me .msg-edited-badge {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Reaction Badges Container */
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  position: relative;
+  z-index: 2;
+}
+
+.reaction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.reaction-badge:hover {
+  background: var(--border);
+  transform: scale(1.05);
+}
+
+.reaction-badge.reacted-by-me {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.reaction-count {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.reaction-badge.reacted-by-me .reaction-count {
+  color: var(--accent);
+}
+
+/* Hover trigger for reactions */
+.message-bubble-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 65%;
+  position: relative;
+}
+
+.message.me .message-bubble-wrapper {
+  flex-direction: row-reverse;
+}
+
+.message-bubble-wrapper .message-bubble {
+  max-width: 100%;
+}
+
+.message-actions-trigger {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.message-bubble-wrapper:hover .message-actions-trigger {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reaction-trigger-btn, .edit-trigger-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reaction-trigger-btn:hover, .edit-trigger-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Reactions Emoji Picker Dropdown */
+.reactions-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 30px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  backdrop-filter: blur(10px);
+}
+
+.message.me .reactions-picker {
+  left: auto;
+  right: 0;
+}
+
+.reaction-picker-emoji {
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 4px;
+  border-radius: 50%;
+  transition: transform 0.2s ease, background 0.2s ease;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.reaction-picker-emoji:hover {
+  transform: scale(1.25);
+  background: var(--bg-hover);
+}
+
+.reaction-picker-emoji.active {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+/* Transition pop */
+.pop-enter-active,
+.pop-leave-active {
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  transform: scale(0.8) translateY(10px);
+  opacity: 0;
+}
+
+.edit-message-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.edit-message-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.edit-icon-label {
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.edit-message-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
+}
+
+.edit-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.edit-preview {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  margin: 0;
+}
+
+.cancel-edit-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.cancel-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 </style>

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact
+from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -74,9 +74,15 @@ class ContactSerializer(serializers.ModelSerializer):
         model = Contact
         fields = '__all__'
 
+class MessageReactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MessageReaction
+        fields = '__all__'
+
 class MessageSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     contact_name = serializers.CharField(source='ticket.contact.name', read_only=True)
+    reactions = MessageReactionSerializer(many=True, read_only=True)
     
     class Meta:
         model = Message

@@ -206,6 +206,26 @@ export const useChatStore = defineStore('chat', {
         this.fetchMyTickets()
       })
 
+      this.socket.on('message_updated', (message) => {
+        if (this.activeTicket && message.ticket === this.activeTicket.id) {
+          const index = this.messages.findIndex(m => m.id === message.id || m.message_id === message.message_id)
+          if (index !== -1) {
+            this.messages[index] = { ...this.messages[index], ...message }
+          }
+        }
+        this.fetchTickets()
+        this.fetchMyTickets()
+      })
+
+      this.socket.on('message_reactions_updated', (payload) => {
+        if (this.activeTicket) {
+          const message = this.messages.find(m => m.id === payload.message_id)
+          if (message) {
+            message.reactions = payload.reactions
+          }
+        }
+      })
+
       this.socket.on('ticket_updated', (ticket) => {
         if (this.activeTicket && ticket.id === this.activeTicket.id) {
           this.activeTicket = ticket
@@ -330,6 +350,42 @@ export const useChatStore = defineStore('chat', {
       const exists = this.messages.some(m => m.id === response.data.id || m.message_id === response.data.message_id)
       if (!exists) {
         this.messages.push(response.data)
+      }
+    },
+
+    async reactToMessage(ticketId, messageId, emoji) {
+      try {
+        const response = await axios.post(`/api/v1/tickets/${ticketId}/react_message/`, {
+          message_id: messageId,
+          emoji
+        })
+        if (this.activeTicket && this.activeTicket.id === ticketId) {
+          const message = this.messages.find(m => m.id === messageId)
+          if (message) {
+            message.reactions = response.data.reactions
+          }
+        }
+      } catch (e) {
+        console.error("Erro ao enviar reação", e)
+      }
+    },
+
+    async editMessage(ticketId, messageId, newBody) {
+      try {
+        const response = await axios.post(`/api/v1/tickets/${ticketId}/edit_message/`, {
+          message_id: messageId,
+          body: newBody
+        })
+        if (this.activeTicket && this.activeTicket.id === ticketId) {
+          const message = this.messages.find(m => m.id === messageId)
+          if (message) {
+            message.body = response.data.message.body
+            message.is_edited = response.data.message.is_edited
+            message.edited_at = response.data.message.edited_at
+          }
+        }
+      } catch (e) {
+        console.error("Erro ao editar mensagem", e)
       }
     },
 
