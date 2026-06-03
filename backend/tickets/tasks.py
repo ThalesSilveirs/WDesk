@@ -112,20 +112,8 @@ def send_broadcast_task(company_id, connection_id, user_id, phones, message):
         company = connection.company
         
         # Obter Token
-        evo_token = company.evolution_api_key or settings.EVOLUTION_API_KEY
-        try:
-            import psycopg2
-            import os
-            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
-            db_host = os.environ.get('DB_HOST', 'db')
-            conn = psycopg2.connect(dbname="evogo_users", user="postgres", password=db_pass, host=db_host)
-            cur = conn.cursor()
-            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
-            row = cur.fetchone()
-            if row: evo_token = row[0]
-            cur.close()
-            conn.close()
-        except: pass
+        from tickets.utils import get_evolution_token
+        evo_token = get_evolution_token(connection.instance_name)
         
         evo_url = "http://evolution-go:8080"
         evo_key = evo_token

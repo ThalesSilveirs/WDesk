@@ -133,27 +133,8 @@ class TicketViewSet(TenantModelViewSet):
         )
 
         # 2. Enviar via Evolution API
-        evo_token = "your-token-here"
-        try:
-            import psycopg2
-            import os
-            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
-            db_host = os.environ.get('DB_HOST', 'db')
-            conn = psycopg2.connect(
-                dbname="evogo_users",
-                user="postgres",
-                password=db_pass,
-                host=db_host
-            )
-            cur = conn.cursor()
-            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
-            row = cur.fetchone()
-            if row:
-                evo_token = row[0]
-            cur.close()
-            conn.close()
-        except:
-            pass
+        from tickets.utils import get_evolution_token
+        evo_token = get_evolution_token(connection.instance_name)
 
         evo_url = "http://evolution-go:8080"
         evo_key = evo_token
@@ -323,20 +304,8 @@ class TicketViewSet(TenantModelViewSet):
         elif 'video' in mime_type: evo_type = 'video'
 
         # Tenta buscar o token real diretamente no banco da Evolution
-        evo_token = ticket.company.evolution_api_key or settings.EVOLUTION_API_KEY
-        try:
-            import psycopg2
-            import os
-            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
-            db_host = os.environ.get('DB_HOST', 'db')
-            conn = psycopg2.connect(dbname="evogo_users", user="postgres", password=db_pass, host=db_host)
-            cur = conn.cursor()
-            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
-            row = cur.fetchone()
-            if row: evo_token = row[0]
-            cur.close()
-            conn.close()
-        except: pass
+        from tickets.utils import get_evolution_token
+        evo_token = get_evolution_token(connection.instance_name)
 
         evo_url = "http://evolution-go:8080"
         evo_key = evo_token
@@ -427,28 +396,9 @@ class TicketViewSet(TenantModelViewSet):
         )
 
         # Tenta buscar o token real diretamente no banco da Evolution (fallback definitivo)
-        evo_token = "your-token-here"
-        try:
-            import psycopg2
-            import os
-            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
-            db_host = os.environ.get('DB_HOST', 'db')
-            conn = psycopg2.connect(
-                dbname="evogo_users",
-                user="postgres",
-                password=db_pass,
-                host=db_host
-            )
-            cur = conn.cursor()
-            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
-            row = cur.fetchone()
-            if row:
-                evo_token = row[0]
-                print(f"[SEND] Token real recuperado do banco: {evo_token[:5]}...")
-            cur.close()
-            conn.close()
-        except Exception as e:
-            print(f"[SEND] Erro ao buscar token no banco: {str(e)}")
+        from tickets.utils import get_evolution_token
+        evo_token = get_evolution_token(connection.instance_name)
+        print(f"[SEND] Token real recuperado: {evo_token[:5]}...")
 
         evo_url = "http://evolution-go:8080"
         evo_key = evo_token # Usa o token real recuperado
@@ -520,27 +470,8 @@ class TicketViewSet(TenantModelViewSet):
         if not connection:
             return Response({"error": "Nenhuma conexão WhatsApp ativa encontrada"}, status=400)
 
-        evo_token = "your-token-here"
-        try:
-            import psycopg2
-            import os
-            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
-            db_host = os.environ.get('DB_HOST', 'db')
-            conn = psycopg2.connect(
-                dbname="evogo_users",
-                user="postgres",
-                password=db_pass,
-                host=db_host
-            )
-            cur = conn.cursor()
-            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
-            row = cur.fetchone()
-            if row:
-                evo_token = row[0]
-            cur.close()
-            conn.close()
-        except Exception as e:
-            print(f"[REACT] Erro ao buscar token no banco: {str(e)}")
+        from tickets.utils import get_evolution_token
+        evo_token = get_evolution_token(connection.instance_name)
 
         evo_url = getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
         url = f"{evo_url}/message/react?apikey={evo_token}&instance={connection.instance_name}"
@@ -613,27 +544,8 @@ class TicketViewSet(TenantModelViewSet):
         if not connection:
             return Response({"error": "Nenhuma conexão WhatsApp ativa encontrada"}, status=400)
 
-        evo_token = "your-token-here"
-        try:
-            import psycopg2
-            import os
-            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
-            db_host = os.environ.get('DB_HOST', 'db')
-            conn = psycopg2.connect(
-                dbname="evogo_users",
-                user="postgres",
-                password=db_pass,
-                host=db_host
-            )
-            cur = conn.cursor()
-            cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
-            row = cur.fetchone()
-            if row:
-                evo_token = row[0]
-            cur.close()
-            conn.close()
-        except Exception as e:
-            print(f"[EDIT] Erro ao buscar token no banco: {str(e)}")
+        from tickets.utils import get_evolution_token
+        evo_token = get_evolution_token(connection.instance_name)
 
         evo_url = getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
         url = f"{evo_url}/message/edit?apikey={evo_token}&instance={connection.instance_name}"
@@ -678,28 +590,45 @@ class TicketViewSet(TenantModelViewSet):
     @action(detail=False, methods=['get'])
     def stats(self, request):
         company = request.user.company
+        cache_key = f"company_stats_{company.id}"
+        
+        # Tenta buscar do Redis
+        try:
+            cached_data = redis_client.get(cache_key)
+            if cached_data:
+                return Response(json.loads(cached_data.decode('utf-8')))
+        except Exception as e:
+            print(f"[STATS CACHE] Erro ao ler Redis: {e}")
         
         # 1. Active Chats
         active_chats = Ticket.objects.filter(company=company, status__in=['open', 'pending']).count()
         
-        # 2. Avg Response Time
+        # 2. Avg Response Time (Otimizado com Subqueries)
+        from django.db.models import OuterRef, Subquery
+        
+        first_client_msg_ts = Message.objects.filter(
+            ticket=OuterRef('pk'),
+            from_me=False
+        ).order_by('timestamp').values('timestamp')[:1]
+
+        first_agent_msg_ts = Message.objects.filter(
+            ticket=OuterRef('pk'),
+            from_me=True,
+            timestamp__gt=Subquery(first_client_msg_ts)
+        ).order_by('timestamp').values('timestamp')[:1]
+
+        tickets_with_times = Ticket.objects.filter(company=company).annotate(
+            first_client_time=Subquery(first_client_msg_ts),
+            first_agent_time=Subquery(first_agent_msg_ts)
+        ).exclude(first_client_time__isnull=True).exclude(first_agent_time__isnull=True).values('first_client_time', 'first_agent_time')
+
         total_seconds = 0
         counted_tickets = 0
-        tickets = Ticket.objects.filter(company=company).prefetch_related('messages')
-        for ticket in tickets:
-            first_client_msg = None
-            first_agent_msg = None
-            for msg in ticket.messages.all().order_by('timestamp'):
-                if not msg.from_me and not first_client_msg:
-                    first_client_msg = msg
-                elif msg.from_me and first_client_msg and not first_agent_msg:
-                    first_agent_msg = msg
-                    break
-            if first_client_msg and first_agent_msg:
-                diff = (first_agent_msg.timestamp - first_client_msg.timestamp).total_seconds()
-                if diff > 0:
-                    total_seconds += diff
-                    counted_tickets += 1
+        for t in tickets_with_times:
+            diff = (t['first_agent_time'] - t['first_client_time']).total_seconds()
+            if diff > 0:
+                total_seconds += diff
+                counted_tickets += 1
                     
         avg_response_seconds = int(total_seconds / counted_tickets) if counted_tickets > 0 else 252
         minutes = avg_response_seconds // 60
@@ -729,7 +658,10 @@ class TicketViewSet(TenantModelViewSet):
             from django.conf import settings
             
             evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
-            evo_key = company.evolution_api_key or getattr(settings, 'EVOLUTION_API_TOKEN', '')
+            
+            # Tenta buscar o token real do cache do Redis ou do DB (utilizando nossa função otimizada)
+            from tickets.utils import get_evolution_token
+            evo_key = get_evolution_token(connection.instance_name)
             
             latency_str = "Instável"
             start_time = time.time()
@@ -778,18 +710,13 @@ class TicketViewSet(TenantModelViewSet):
             })
             
         # 7. Team Activity
-        import redis
-        from django.conf import settings
-        redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
-        r = redis.Redis.from_url(redis_url)
-
         team_activity = []
         users = User.objects.filter(company=company)
         for user in users:
             active_handling = Ticket.objects.filter(company=company, user=user, status__in=['open', 'pending']).count()
             
             status_key = f"user_status_{user.id}"
-            status_bytes = r.get(status_key)
+            status_bytes = redis_client.get(status_key)
             status_str = "Offline"
             if status_bytes:
                 status = status_bytes.decode('utf-8')
@@ -800,7 +727,7 @@ class TicketViewSet(TenantModelViewSet):
                 elif status == 'online':
                     status_str = "Online"
             else:
-                is_active = r.exists(f"user_active_{user.id}")
+                is_active = redis_client.exists(f"user_active_{user.id}")
                 if is_active:
                     status_str = "Online"
 
@@ -815,7 +742,7 @@ class TicketViewSet(TenantModelViewSet):
             })
         team_activity.sort(key=lambda x: x['active_chats'], reverse=True)
         
-        return Response({
+        response_data = {
             "active_chats": active_chats,
             "avg_response_time": avg_response_str,
             "avg_response_seconds": avg_response_seconds,
@@ -824,15 +751,33 @@ class TicketViewSet(TenantModelViewSet):
             "connection": connection_data,
             "trends": weekday_counts,
             "team_activity": team_activity
-        })
+        }
+        
+        # Salva no Redis por 60 segundos
+        try:
+            redis_client.setex(cache_key, 60, json.dumps(response_data))
+        except Exception as e:
+            print(f"[STATS CACHE] Erro ao salvar Redis: {e}")
+            
+        return Response(response_data)
 
     @action(detail=False, methods=['get'])
     def analytics(self, request):
         company = request.user.company
         time_range = request.query_params.get('time_range', '7d')
+        cache_key = f"company_analytics_{company.id}_{time_range}"
         
+        # Tenta buscar do Redis
+        try:
+            cached_data = redis_client.get(cache_key)
+            if cached_data:
+                return Response(json.loads(cached_data.decode('utf-8')))
+        except Exception as e:
+            print(f"[ANALYTICS CACHE] Erro ao ler Redis: {e}")
+            
         from django.utils import timezone
         from datetime import timedelta
+        from django.db.models import OuterRef, Subquery, Count, Q
         
         now = timezone.localtime(timezone.now())
         
@@ -865,27 +810,36 @@ class TicketViewSet(TenantModelViewSet):
             total_wait_seconds = 0
             counted_wait_tickets = 0
             
-            for ticket in period_tickets.prefetch_related('messages'):
-                first_client_msg = None
-                first_agent_msg = None
+            # Otimizado com Subqueries e values para evitar instanciar modelos Message completos
+            first_client_msg_ts = Message.objects.filter(
+                ticket=OuterRef('pk'),
+                from_me=False
+            ).order_by('timestamp').values('timestamp')[:1]
+
+            first_agent_msg_ts = Message.objects.filter(
+                ticket=OuterRef('pk'),
+                from_me=True,
+                timestamp__gt=Subquery(first_client_msg_ts)
+            ).order_by('timestamp').values('timestamp')[:1]
+
+            tickets_with_times = period_tickets.annotate(
+                first_client_time=Subquery(first_client_msg_ts),
+                first_agent_time=Subquery(first_agent_msg_ts)
+            ).values('created_at', 'first_client_time', 'first_agent_time')
+            
+            for t in tickets_with_times:
+                first_agent_time = t['first_agent_time']
+                first_client_time = t['first_client_time']
+                created_at = t['created_at']
                 
-                msgs = sorted(ticket.messages.all(), key=lambda m: m.timestamp)
-                
-                for msg in msgs:
-                    if not msg.from_me and not first_client_msg:
-                        first_client_msg = msg
-                    elif msg.from_me and first_client_msg and not first_agent_msg:
-                        first_agent_msg = msg
-                        break
-                
-                if first_agent_msg:
-                    wait_diff = (first_agent_msg.timestamp - ticket.created_at).total_seconds()
+                if first_agent_time:
+                    wait_diff = (first_agent_time - created_at).total_seconds()
                     if wait_diff > 0:
                         total_wait_seconds += wait_diff
                         counted_wait_tickets += 1
                 
-                if first_client_msg and first_agent_msg:
-                    resp_diff = (first_agent_msg.timestamp - first_client_msg.timestamp).total_seconds()
+                if first_client_time and first_agent_time:
+                    resp_diff = (first_agent_time - first_client_time).total_seconds()
                     if resp_diff > 0:
                         total_response_seconds += resp_diff
                         counted_response_tickets += 1
@@ -913,19 +867,19 @@ class TicketViewSet(TenantModelViewSet):
                 from_me=True,
                 timestamp__range=(start, end)
             )
-            total_msgs = agent_msgs.count()
             
-            whatsapp_count = 0
-            broadcast_count = 0
-            api_count = 0
+            # Contagem de canais otimizada no banco via aggregation
+            counts = agent_msgs.aggregate(
+                total=Count('id'),
+                broadcast=Count('id', filter=Q(message_id__icontains='broadcast')),
+                api=Count('id', filter=Q(user__isnull=True) & ~Q(message_id__icontains='broadcast')),
+                whatsapp=Count('id', filter=Q(user__isnull=False) & ~Q(message_id__icontains='broadcast'))
+            )
             
-            for m in agent_msgs:
-                if 'broadcast' in str(m.message_id).lower():
-                    broadcast_count += 1
-                elif m.user is None:
-                    api_count += 1
-                else:
-                    whatsapp_count += 1
+            total_msgs = counts['total'] or 0
+            broadcast_count = counts['broadcast'] or 0
+            api_count = counts['api'] or 0
+            whatsapp_count = counts['whatsapp'] or 0
             
             if total_msgs > 0:
                 whatsapp_pct = round((whatsapp_count / total_msgs * 100), 0)
@@ -1012,7 +966,7 @@ class TicketViewSet(TenantModelViewSet):
         csat_trend_text = f"{csat_sign}{csat_diff:.1f}% vs período anterior"
         csat_trend_class = "positive" if csat_diff >= 0 else "negative"
 
-        return Response({
+        response_data = {
             "total_tickets": current_stats["total_tickets"],
             "avg_wait_time": format_duration(current_stats["avg_wait_seconds"]),
             "first_response": format_duration(current_stats["avg_response_seconds"]),
@@ -1037,7 +991,15 @@ class TicketViewSet(TenantModelViewSet):
             },
             "status_distribution": current_stats["status_distribution"],
             "channels": current_stats["channels"]
-        })
+        }
+        
+        # Salva no Redis por 120 segundos
+        try:
+            redis_client.setex(cache_key, 120, json.dumps(response_data))
+        except Exception as e:
+            print(f"[ANALYTICS CACHE] Erro ao salvar Redis: {e}")
+            
+        return Response(response_data)
 
     @action(detail=False, methods=['post'])
     def broadcast(self, request):
@@ -1819,20 +1781,8 @@ class WebhookView(viewsets.ViewSet):
                         evo_key = connection.company.evolution_api_key or settings.EVOLUTION_API_KEY
                         
                         # Tenta buscar o token real diretamente no banco da Evolution
-                        try:
-                            import psycopg2
-                            import os
-                            db_pass = os.environ.get('DB_PASSWORD', 'postgres')
-                            db_host = os.environ.get('DB_HOST', 'db')
-                            db_conn = psycopg2.connect(dbname="evogo_users", user="postgres", password=db_pass, host=db_host)
-                            db_cur = db_conn.cursor()
-                            db_cur.execute("SELECT token FROM instances WHERE name = %s;", (connection.instance_name,))
-                            db_row = db_cur.fetchone()
-                            if db_row: evo_key = db_row[0]
-                            db_cur.close()
-                            db_conn.close()
-                        except:
-                            pass
+                        from tickets.utils import get_evolution_token
+                        evo_key = get_evolution_token(connection.instance_name)
 
                         headers = {
                             "Content-Type": "application/json",
@@ -2063,13 +2013,9 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def get_status(self, obj):
-        import redis
-        from django.conf import settings
         try:
-            redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
-            r = redis.Redis.from_url(redis_url)
             status_key = f"user_status_{obj.id}"
-            status_bytes = r.get(status_key)
+            status_bytes = redis_client.get(status_key)
             if status_bytes:
                 status = status_bytes.decode('utf-8')
                 if status == 'away':
@@ -2078,7 +2024,7 @@ class UserSerializer(serializers.ModelSerializer):
                     return "Offline"
                 elif status == 'online':
                     return "Online"
-            is_active = r.exists(f"user_active_{obj.id}")
+            is_active = redis_client.exists(f"user_active_{obj.id}")
             return "Online" if is_active else "Offline"
         except Exception:
             return "Offline"

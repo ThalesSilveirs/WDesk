@@ -26,6 +26,129 @@ export const useChatStore = defineStore('chat', {
       localStorage.setItem('theme', this.theme)
       document.documentElement.setAttribute('data-theme', this.theme)
     },
+
+    _shouldIncludeTicket(ticket, filter) {
+      if (!ticket) return false
+      const userId = this.user ? this.user.id : null
+      const status = ticket.status
+      const ticketUserId = ticket.user ? (typeof ticket.user === 'object' ? ticket.user.id : ticket.user) : null
+      
+      if (filter === 'mine') {
+        return ticketUserId === userId && (status === 'open' || status === 'pending')
+      } else if (filter === 'unassigned') {
+        return !ticketUserId && (status === 'open' || status === 'pending')
+      } else if (filter === 'closed') {
+        return status === 'closed'
+      } else if (filter === 'all') {
+        return this.userRole === 'admin' && (status === 'open' || status === 'pending')
+      }
+      return false
+    },
+
+    _processOrUpdateTicket(ticket) {
+      if (!ticket) return
+      
+      // Update myTickets list
+      const myTicketsIndex = this.myTickets.findIndex(t => t.id === ticket.id)
+      const belongsToMine = this._shouldIncludeTicket(ticket, 'mine')
+      if (belongsToMine) {
+        if (myTicketsIndex !== -1) {
+          this.myTickets[myTicketsIndex] = { ...this.myTickets[myTicketsIndex], ...ticket }
+        } else {
+          this.myTickets.unshift(ticket)
+        }
+        this.myTickets.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      } else {
+        if (myTicketsIndex !== -1) {
+          this.myTickets.splice(myTicketsIndex, 1)
+        }
+      }
+
+      // Update tickets list based on currentFilter
+      const ticketsIndex = this.tickets.findIndex(t => t.id === ticket.id)
+      const belongsToFiltered = this._shouldIncludeTicket(ticket, this.currentFilter)
+      if (belongsToFiltered) {
+        if (ticketsIndex !== -1) {
+          this.tickets[ticketsIndex] = { ...this.tickets[ticketsIndex], ...ticket }
+        } else {
+          this.tickets.unshift(ticket)
+        }
+        this.tickets.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      } else {
+        if (ticketsIndex !== -1) {
+          this.tickets.splice(ticketsIndex, 1)
+        }
+      }
+    },
+
+    _handleIncomingMessage(message) {
+      const ticketId = message.ticket
+      const isCurrentActive = this.activeTicket && this.activeTicket.id === ticketId
+      
+      const updateTicketFields = (ticket) => {
+        let preview = message.body
+        if (!preview && message.media_type) {
+          const types = { 'image': '📷 Foto', 'audio': '🎵 Áudio', 'video': '🎥 Vídeo', 'document': '📄 Documento' }
+          preview = types[message.media_type] || 'Nova mídia recebida'
+        }
+        ticket.last_message = preview
+        ticket.updated_at = new Date().toISOString()
+        if (!message.from_me && !isCurrentActive) {
+          ticket.unread_count = (ticket.unread_count || 0) + 1
+        }
+      }
+
+      // Update active ticket
+      if (isCurrentActive) {
+        updateTicketFields(this.activeTicket)
+      }
+
+      // Find indices
+      const myIdx = this.myTickets.findIndex(t => t.id === ticketId)
+      const tIdx = this.tickets.findIndex(t => t.id === ticketId)
+
+      // If not in either list, it's a new ticket (e.g. brand new contact) or we need to sync
+      if (myIdx === -1 && tIdx === -1) {
+        this.fetchTickets()
+        this.fetchMyTickets()
+        return
+      }
+
+      if (myIdx !== -1) {
+        updateTicketFields(this.myTickets[myIdx])
+        this.myTickets.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      }
+
+      if (tIdx !== -1) {
+        updateTicketFields(this.tickets[tIdx])
+        this.tickets.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      }
+    },
+
+    _handleMessageUpdated(message) {
+      const ticketId = message.ticket
+      
+      const updatePreview = (ticket) => {
+        ticket.last_message = message.body
+      }
+
+      if (this.activeTicket && this.activeTicket.id === ticketId) {
+        const index = this.messages.findIndex(m => m.id === message.id || m.message_id === message.message_id)
+        if (index !== -1) {
+          this.messages[index] = { ...this.messages[index], ...message }
+        }
+      }
+
+      const myIdx = this.myTickets.findIndex(t => t.id === ticketId)
+      if (myIdx !== -1) {
+        updatePreview(this.myTickets[myIdx])
+      }
+
+      const tIdx = this.tickets.findIndex(t => t.id === ticketId)
+      if (tIdx !== -1) {
+        updatePreview(this.tickets[tIdx])
+      }
+    },
     async fetchCurrentUser() {
       try {
         if (!localStorage.getItem('token')) return
@@ -57,23 +180,21 @@ export const useChatStore = defineStore('chat', {
     },
 
     async transferTicket(ticketId, userId) {
-      await axios.post(`/api/v1/tickets/${ticketId}/transfer/`,
+      const response = await axios.post(`/api/v1/tickets/${ticketId}/transfer/`,
         { user_id: userId }
       )
       this.activeTicket = null
       this.messages = []
-      await this.fetchTickets()
-      await this.fetchMyTickets()
+      this._processOrUpdateTicket(response.data)
     },
 
     async closeTicket(ticketId, resolution) {
-      await axios.post(`/api/v1/tickets/${ticketId}/close/`,
+      const response = await axios.post(`/api/v1/tickets/${ticketId}/close/`,
         { resolution }
       )
       this.activeTicket = null
       this.messages = []
-      await this.fetchTickets()
-      await this.fetchMyTickets()
+      this._processOrUpdateTicket(response.data)
     },
 
     async deleteTicket(ticketId) {
@@ -82,8 +203,8 @@ export const useChatStore = defineStore('chat', {
         this.activeTicket = null
         this.messages = []
       }
-      await this.fetchTickets()
-      await this.fetchMyTickets()
+      this.tickets = this.tickets.filter(t => t.id !== ticketId)
+      this.myTickets = this.myTickets.filter(t => t.id !== ticketId)
     },
 
     async updateTicket(ticketId, payload) {
@@ -93,16 +214,7 @@ export const useChatStore = defineStore('chat', {
       if (this.activeTicket && this.activeTicket.id === ticketId) {
         this.activeTicket = { ...this.activeTicket, ...response.data }
       }
-      
-      const updateInList = (list) => {
-        const index = list.findIndex(t => t.id === ticketId)
-        if (index !== -1) {
-          list[index] = { ...list[index], ...response.data }
-        }
-      }
-      updateInList(this.tickets)
-      updateInList(this.myTickets)
-
+      this._processOrUpdateTicket(response.data)
       return response.data
     },
 
@@ -201,20 +313,12 @@ export const useChatStore = defineStore('chat', {
             this.messages.push(message)
           }
         }
-        // Recarregar ambas as listas
-        this.fetchTickets()
-        this.fetchMyTickets()
+        // Otimizado: atualizar localmente em vez de fazer fetch
+        this._handleIncomingMessage(message)
       })
 
       this.socket.on('message_updated', (message) => {
-        if (this.activeTicket && message.ticket === this.activeTicket.id) {
-          const index = this.messages.findIndex(m => m.id === message.id || m.message_id === message.message_id)
-          if (index !== -1) {
-            this.messages[index] = { ...this.messages[index], ...message }
-          }
-        }
-        this.fetchTickets()
-        this.fetchMyTickets()
+        this._handleMessageUpdated(message)
       })
 
       this.socket.on('message_reactions_updated', (payload) => {
@@ -228,10 +332,13 @@ export const useChatStore = defineStore('chat', {
 
       this.socket.on('ticket_updated', (ticket) => {
         if (this.activeTicket && ticket.id === this.activeTicket.id) {
-          this.activeTicket = ticket
+          const messages = this.activeTicket.last_messages
+          this.activeTicket = { ...this.activeTicket, ...ticket }
+          if (!this.activeTicket.last_messages && messages) {
+            this.activeTicket.last_messages = messages
+          }
         }
-        this.fetchTickets()
-        this.fetchMyTickets()
+        this._processOrUpdateTicket(ticket)
       })
 
       this.socket.on('ticket_deleted', (payload) => {
@@ -294,11 +401,9 @@ export const useChatStore = defineStore('chat', {
     },
 
     async acceptTicket(ticketId) {
-      await axios.post(`/api/v1/tickets/${ticketId}/accept/`, {})
-      await this.fetchTickets()
-      await this.fetchMyTickets()
-      const newTicket = this.myTickets.find(t => t.id === ticketId)
-      if (newTicket) this.selectTicket(newTicket)
+      const response = await axios.post(`/api/v1/tickets/${ticketId}/accept/`, {})
+      this._processOrUpdateTicket(response.data)
+      this.selectTicket(response.data)
     },
 
     async selectTicket(ticket) {
