@@ -123,15 +123,19 @@ class ContactViewSet(TenantModelViewSet):
         headers = {
             "Content-Type": "application/json",
             "apikey": evo_key,
-            "Authorization": f"Bearer {evo_key}"
+            "ApiKey": evo_key,
+            "api-key": evo_key,
+            "Authorization": f"Bearer {evo_key}",
+            "instance": connection.instance_name,
+            "instanceName": connection.instance_name
         }
         
         profile_url = None
         
-        # Tentativa 1: POST /user/avatar (Evolution GO)
+        # Tentativa 1: POST /user/avatar com remote_jid (JID completo)
         try:
             url_post = f"{evo_url}/user/avatar?instance={connection.instance_name}"
-            payload = {"number": clean_number, "preview": False}
+            payload = {"number": contact.remote_jid, "preview": False}
             res = requests.post(url_post, json=payload, headers=headers, timeout=5)
             if res.status_code == 200:
                 data = res.json()
@@ -140,12 +144,41 @@ class ContactViewSet(TenantModelViewSet):
                     data_block = data.get('data') or {}
                     if isinstance(data_block, dict):
                         profile_url = data_block.get('profilePictureUrl') or data_block.get('url')
-                    else:
-                        profile_url = data.get('profilePictureUrl') or data.get('url')
         except Exception as e:
-            print(f"[AVATAR PROXY] Erro na tentativa 1 (POST): {e}")
+            print(f"[AVATAR PROXY] Erro na tentativa 1 (POST JID): {e}")
             
-        # Tentativa 2: GET /chat/findProfilePhoto (Legacy / Node)
+        # Tentativa 2: POST /user/avatar com clean_number (número puro)
+        if not profile_url:
+            try:
+                url_post = f"{evo_url}/user/avatar?instance={connection.instance_name}"
+                payload = {"number": clean_number, "preview": False}
+                res = requests.post(url_post, json=payload, headers=headers, timeout=5)
+                if res.status_code == 200:
+                    data = res.json()
+                    profile_url = data.get('profilePictureUrl') or data.get('url')
+                    if isinstance(data, dict) and not profile_url:
+                        data_block = data.get('data') or {}
+                        if isinstance(data_block, dict):
+                            profile_url = data_block.get('profilePictureUrl') or data_block.get('url')
+            except Exception as e:
+                print(f"[AVATAR PROXY] Erro na tentativa 2 (POST Number): {e}")
+                
+        # Tentativa 3: GET /chat/findProfilePhoto com remote_jid (JID completo)
+        if not profile_url:
+            try:
+                url_get = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{contact.remote_jid}"
+                res = requests.get(url_get, headers=headers, timeout=5)
+                if res.status_code == 200:
+                    data = res.json()
+                    profile_url = data.get('profilePictureUrl') or data.get('url')
+                    if isinstance(data, dict) and not profile_url:
+                        data_block = data.get('data') or {}
+                        if isinstance(data_block, dict):
+                            profile_url = data_block.get('profilePictureUrl') or data_block.get('url')
+            except Exception as e:
+                print(f"[AVATAR PROXY] Erro na tentativa 3 (GET JID): {e}")
+                
+        # Tentativa 4: GET /chat/findProfilePhoto com clean_number (número puro)
         if not profile_url:
             try:
                 url_get = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{clean_number}"
@@ -157,10 +190,8 @@ class ContactViewSet(TenantModelViewSet):
                         data_block = data.get('data') or {}
                         if isinstance(data_block, dict):
                             profile_url = data_block.get('profilePictureUrl') or data_block.get('url')
-                        else:
-                            profile_url = data.get('profilePictureUrl') or data.get('url')
             except Exception as e:
-                print(f"[AVATAR PROXY] Erro na tentativa 2 (GET): {e}")
+                print(f"[AVATAR PROXY] Erro na tentativa 4 (GET Number): {e}")
                 
         # Salva no banco de dados e no cache
         if profile_url:
