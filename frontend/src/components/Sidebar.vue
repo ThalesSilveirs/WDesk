@@ -182,13 +182,12 @@ const toggleCollapse = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 48px;
+  min-height: 48px;
   margin-bottom: 30px;
+  width: 100%;
 }
 
 .brand-logo-img {
-  position: absolute;
-  max-height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.25));
   transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -196,8 +195,10 @@ const toggleCollapse = () => {
 
 .full-logo {
   width: 100%;
-  opacity: 1;
+  max-height: fit-content;
+  display: block;
   transform: scale(1.2);
+  opacity: 1;
 }
 
 .sidebar-container.collapsed .full-logo {
@@ -207,16 +208,19 @@ const toggleCollapse = () => {
 }
 
 .mini-logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
   width: 32px;
   height: 32px;
   opacity: 0;
-  transform: scale(0.8);
   pointer-events: none;
 }
 
 .sidebar-container.collapsed .mini-logo {
   opacity: 1;
-  transform: scale(1.15);
+  transform: translate(-50%, -50%) scale(1.15);
   pointer-events: auto;
 }
 
