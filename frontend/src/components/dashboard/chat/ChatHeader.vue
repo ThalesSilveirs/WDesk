@@ -52,6 +52,11 @@
           </button>
         </div>
       </template>
+
+      <button @click="closeActiveChat" class="btn-outline-sm close-chat-btn" title="Fechar Conversa">
+        <XIcon :size="18" />
+        <span>Fechar</span>
+      </button>
     </div>
   </header>
 </template>
@@ -64,7 +69,8 @@ import {
   CheckCircle as CheckIcon,
   ArrowRightLeft as TransferIcon,
   ChevronLeft as ChevronLeftIcon,
-  Trash2 as TrashIcon
+  Trash2 as TrashIcon,
+  X as XIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -83,6 +89,10 @@ const chatStore = useChatStore()
 const activeTicket = computed(() => chatStore.activeTicket || {})
 
 const goBack = () => {
+  chatStore.activeTicket = null
+}
+
+const closeActiveChat = () => {
   chatStore.activeTicket = null
 }
 
@@ -348,5 +358,17 @@ const handleAccept = async () => {
 
 .accept-btn:active {
   transform: translateY(0) scale(0.98);
+}
+
+.close-chat-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+@media (max-width: 768px) {
+  .close-chat-btn {
+    display: none !important;
+  }
 }
 </style>
