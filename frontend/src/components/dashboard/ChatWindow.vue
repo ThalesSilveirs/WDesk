@@ -8,6 +8,7 @@
       @openTransferModal="emit('openTransferModal')"
       @openCloseModal="emit('openCloseModal')"
       @openDeleteModal="emit('openDeleteModal')"
+      @openImage="emit('openImage', $event)"
     />
 
     <!-- Message List -->

@@ -4,7 +4,11 @@
       <button class="mobile-back-btn" @click="goBack" title="Voltar">
         <ChevronLeftIcon :size="24" />
       </button>
-      <div class="avatar small">
+      <div 
+        class="avatar small" 
+        :class="{ 'clickable': activeTicket.contact_details?.profile_pic && !imageError }"
+        @click="openAvatarImage"
+      >
         <img v-if="activeTicket.contact_details?.profile_pic && !imageError" :src="activeTicket.contact_details.profile_pic" class="avatar-img" @error="handleImageError" />
         <span v-else>{{ activeTicket.contact_details?.name?.charAt(0) || 'C' }}</span>
       </div>
@@ -82,8 +86,15 @@ const emit = defineEmits([
   'openPriorityModal',
   'openTransferModal',
   'openCloseModal',
-  'openDeleteModal'
+  'openDeleteModal',
+  'openImage'
 ])
+
+const openAvatarImage = () => {
+  if (activeTicket.value?.contact_details?.profile_pic && !imageError.value) {
+    emit('openImage', activeTicket.value.contact_details.profile_pic)
+  }
+}
 
 const chatStore = useChatStore()
 const activeTicket = computed(() => chatStore.activeTicket || {})
@@ -181,6 +192,16 @@ const handleAccept = async () => {
   width: 40px;
   height: 40px;
   font-size: 1rem;
+}
+
+.avatar.clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.avatar.clickable:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .header-text {

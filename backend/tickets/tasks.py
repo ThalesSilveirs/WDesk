@@ -515,66 +515,21 @@ def process_webhook_event(connection_id, payload):
                         
                         url = None
                         
-                        # Tentativa 1: POST /user/avatar com remote_jid (JID completo)
+                        # Chamada única de busca: POST /user/avatar com JID completo
                         try:
                             url_post = f"{evo_url}/user/avatar?instance={connection.instance_name}"
                             payload = {"number": remote_jid, "preview": False}
-                            res = requests.post(url_post, json=payload, headers=headers, timeout=5)
+                            res = requests.post(url_post, json=payload, headers=headers, timeout=8)
                             if res.status_code == 200:
                                 data_pic = res.json()
-                                url = data_pic.get('profilePictureUrl') or data_pic.get('url')
-                                if isinstance(data_pic, dict) and not url:
-                                    data_block = data_pic.get('data') or {}
-                                    if isinstance(data_block, dict):
-                                        url = data_block.get('profilePictureUrl') or data_block.get('url')
+                                if isinstance(data_pic, dict):
+                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
+                                    if not url:
+                                        data_block = data_pic.get('data') or {}
+                                        if isinstance(data_block, dict):
+                                            url = data_block.get('url') or data_block.get('profilePictureUrl')
                         except Exception as e:
-                            print(f"[WEBHOOK PIC] Falha na tentativa 1 (POST JID): {e}")
-                            
-                        # Tentativa 2: POST /user/avatar com clean_number (número puro)
-                        if not url:
-                            try:
-                                url_post = f"{evo_url}/user/avatar?instance={connection.instance_name}"
-                                payload = {"number": clean_number, "preview": False}
-                                res = requests.post(url_post, json=payload, headers=headers, timeout=5)
-                                if res.status_code == 200:
-                                    data_pic = res.json()
-                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
-                                    if isinstance(data_pic, dict) and not url:
-                                        data_block = data_pic.get('data') or {}
-                                        if isinstance(data_block, dict):
-                                            url = data_block.get('profilePictureUrl') or data_block.get('url')
-                            except Exception as e:
-                                print(f"[WEBHOOK PIC] Falha na tentativa 2 (POST Number): {e}")
-                                
-                        # Tentativa 3: GET /chat/findProfilePhoto com remote_jid (JID completo)
-                        if not url:
-                            try:
-                                pic_url = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{remote_jid}"
-                                pic_res = requests.get(pic_url, headers=headers, timeout=5)
-                                if pic_res.status_code == 200:
-                                    data_pic = pic_res.json()
-                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
-                                    if isinstance(data_pic, dict) and not url:
-                                        data_block = data_pic.get('data') or {}
-                                        if isinstance(data_block, dict):
-                                            url = data_block.get('profilePictureUrl') or data_block.get('url')
-                            except Exception as e:
-                                print(f"[WEBHOOK PIC] Falha na tentativa 3 (GET JID): {e}")
-                                
-                        # Tentativa 4: GET /chat/findProfilePhoto com clean_number (número puro)
-                        if not url:
-                            try:
-                                pic_url = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{clean_number}"
-                                pic_res = requests.get(pic_url, headers=headers, timeout=5)
-                                if pic_res.status_code == 200:
-                                    data_pic = pic_res.json()
-                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
-                                    if isinstance(data_pic, dict) and not url:
-                                        data_block = data_pic.get('data') or {}
-                                        if isinstance(data_block, dict):
-                                            url = data_block.get('profilePictureUrl') or data_block.get('url')
-                            except Exception as e:
-                                print(f"[WEBHOOK PIC] Falha na tentativa 4 (GET Number): {e}")
+                            print(f"[WEBHOOK PIC] Falha ao buscar avatar da Evolution API: {e}")
                         
                         if url:
                             contact.profile_pic = url
