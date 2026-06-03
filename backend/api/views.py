@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction
 from .serializers import (
     TicketSerializer, 
+    TicketListSerializer,
     ConnectionSerializer, 
     MessageSerializer,
     MyTokenObtainPairSerializer,
@@ -88,6 +89,11 @@ class ContactViewSet(TenantModelViewSet):
 class TicketViewSet(TenantModelViewSet):
     queryset = Ticket.objects.all().order_by('-updated_at')
     serializer_class = TicketSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return TicketListSerializer
+        return TicketSerializer
 
     def broadcast_ticket_update(self, ticket):
         event_payload = {
@@ -199,7 +205,7 @@ class TicketViewSet(TenantModelViewSet):
         return Response({'status': 'unread count reset'})
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().select_related('contact', 'contact__customer', 'user')
         status_filter = self.request.query_params.get('status_filter')
         
         if status_filter == 'mine':
@@ -653,33 +659,15 @@ class TicketViewSet(TenantModelViewSet):
         connection = Connection.objects.filter(company=company).first()
         connection_data = None
         if connection:
-            import time
-            import requests
-            from django.conf import settings
-            
-            evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
-            
-            # Tenta buscar o token real do cache do Redis ou do DB (utilizando nossa função otimizada)
-            from tickets.utils import get_evolution_token
-            evo_key = get_evolution_token(connection.instance_name)
-            
-            latency_str = "Instável"
-            start_time = time.time()
-            try:
-                url = f"{evo_url}/instance/all"
-                headers = {
-                    "apikey": evo_key,
-                    "ApiKey": evo_key,
-                    "api-key": evo_key,
-                    "Authorization": f"Bearer {evo_key}"
-                }
-                res = requests.get(url, headers=headers, timeout=1.5)
-                end_time = time.time()
-                if res.status_code == 200:
-                    latency_ms = int((end_time - start_time) * 1000)
-                    latency_str = f"{latency_ms}ms"
-            except Exception as e:
-                print(f"[LATENCY TEST] Erro ao medir latência: {str(e)}")
+            latency_cache_key = f"evo_latency_{connection.id}"
+            latency_bytes = redis_client.get(latency_cache_key)
+            if latency_bytes:
+                latency_str = latency_bytes.decode('utf-8')
+            else:
+                latency_str = "Instável"
+                # Dispara a verificação assíncrona da latência
+                from tickets.tasks import measure_evo_latency_task
+                measure_evo_latency_task.delay(connection.id)
 
             connection_data = {
                 "id": connection.id,
@@ -690,56 +678,101 @@ class TicketViewSet(TenantModelViewSet):
                 "protocol": "Websocket-Secure"
             }
             
-        # 6. Conversation Trends
+        # 6. Conversation Trends (Otimizado em 1 query com TruncDay e Count)
         from datetime import timedelta
-        weekday_counts = []
+        from django.db.models.functions import TruncDay
+        from django.db.models import Count
+        
+        day_map = {
+            "Mon": "Seg", "Tue": "Ter", "Wed": "Qua", "Thu": "Qui", "Fri": "Sex", "Sat": "Sáb", "Sun": "Dom"
+        }
+        
         current_day = timezone.localtime(timezone.now())
+        seven_days_ago = (current_day - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        weekday_counts = []
+        counts_dict = {}
         for i in range(6, -1, -1):
-            day = current_day - timedelta(days=i)
-            day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
-            day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
-            
-            count = Ticket.objects.filter(company=company, created_at__range=(day_start, day_end)).count()
-            day_map = {
-                "Mon": "Seg", "Tue": "Ter", "Wed": "Qua", "Thu": "Qui", "Fri": "Sex", "Sat": "Sáb", "Sun": "Dom"
+            d = current_day - timedelta(days=i)
+            weekday_name = d.strftime('%a')
+            translated_name = day_map.get(weekday_name, weekday_name)
+            counts_dict[d.date()] = {
+                "day": translated_name,
+                "count": 0
             }
-            weekday_name = day.strftime('%a')
-            weekday_counts.append({
-                "day": day_map.get(weekday_name, weekday_name),
-                "count": count
-            })
+            weekday_counts.append(d.date())
             
-        # 7. Team Activity
+        db_counts = (
+            Ticket.objects.filter(
+                company=company,
+                created_at__gte=seven_days_ago
+            )
+            .annotate(day_date=TruncDay('created_at'))
+            .values('day_date')
+            .annotate(count=Count('id'))
+        )
+        
+        for item in db_counts:
+            dt = item['day_date']
+            d_date = dt.date() if hasattr(dt, 'date') else dt
+            if d_date in counts_dict:
+                counts_dict[d_date]['count'] = item['count']
+                
+        weekday_counts = [counts_dict[d] for d in weekday_counts]
+            
+        # 7. Team Activity (Otimizado com annotate e mget para Redis)
+        from django.db.models import Count, Q
+        
         team_activity = []
-        users = User.objects.filter(company=company)
-        for user in users:
-            active_handling = Ticket.objects.filter(company=company, user=user, status__in=['open', 'pending']).count()
+        users = list(
+            User.objects.filter(company=company).annotate(
+                active_chats=Count(
+                    'tickets',
+                    filter=Q(tickets__company=company, tickets__status__in=['open', 'pending'])
+                )
+            )
+        )
+        
+        if users:
+            status_keys = [f"user_status_{user.id}" for user in users]
+            active_keys = [f"user_active_{user.id}" for user in users]
+            all_keys = status_keys + active_keys
             
-            status_key = f"user_status_{user.id}"
-            status_bytes = redis_client.get(status_key)
-            status_str = "Offline"
-            if status_bytes:
-                status = status_bytes.decode('utf-8')
-                if status == 'away':
-                    status_str = "Ausente"
-                elif status == 'offline':
-                    status_str = "Offline"
-                elif status == 'online':
-                    status_str = "Online"
-            else:
-                is_active = redis_client.exists(f"user_active_{user.id}")
-                if is_active:
-                    status_str = "Online"
-
-            team_activity.append({
-                "id": user.id,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "department": user.department or "Atendimento",
-                "active_chats": active_handling,
-                "status": status_str
-            })
+            try:
+                redis_results = redis_client.mget(all_keys)
+            except Exception as e:
+                print(f"[STATS REDIS] Erro no mget: {e}")
+                redis_results = [None] * len(all_keys)
+                
+            status_values = redis_results[:len(status_keys)]
+            active_values = redis_results[len(status_keys):]
+            
+            for idx, user in enumerate(users):
+                status_bytes = status_values[idx]
+                status_str = "Offline"
+                if status_bytes:
+                    status = status_bytes.decode('utf-8')
+                    if status == 'away':
+                        status_str = "Ausente"
+                    elif status == 'offline':
+                        status_str = "Offline"
+                    elif status == 'online':
+                        status_str = "Online"
+                else:
+                    is_active = active_values[idx]
+                    if is_active:
+                        status_str = "Online"
+                
+                team_activity.append({
+                    "id": user.id,
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "department": user.department or "Atendimento",
+                    "active_chats": user.active_chats,
+                    "status": status_str
+                })
+        
         team_activity.sort(key=lambda x: x['active_chats'], reverse=True)
         
         response_data = {
@@ -760,6 +793,7 @@ class TicketViewSet(TenantModelViewSet):
             print(f"[STATS CACHE] Erro ao salvar Redis: {e}")
             
         return Response(response_data)
+
 
     @action(detail=False, methods=['get'])
     def analytics(self, request):
@@ -1373,636 +1407,36 @@ class WebhookView(viewsets.ViewSet):
 
     @action(detail=False, methods=['post', 'get'], url_path='evolution')
     def evolution(self, request):
-        # print(f"\n[WEBHOOK] Incoming {request.method} request")
-        # # Log em arquivo para inspeção (dentro do container)
-        # try:
-        #     with open('/app/webhook_debug.json', 'a') as f:
-        #         f.write(f"[{request.method}] " + json.dumps(request.data) + "\n")
-        # except:
-        #     pass
-
         if request.method == 'GET':
             return Response({"status": "active"}, status=200)
         
         data = request.data
-        event_type = str(data.get('event') or data.get('eventType') or '').lower().replace('_', '.')
         
-        # Evolution GO envia payloads sem o campo 'event'.
-        # Detecta o formato pelo conteúdo de 'data': se tiver 'Info' ou 'Message', é uma mensagem.
-        payload_data_peek = data.get('data', {})
-        if not event_type and isinstance(payload_data_peek, dict):
-            if 'Info' in payload_data_peek or 'Message' in payload_data_peek:
-                event_type = 'message'
-                print(f"[WEBHOOK] Detectado formato Evolution GO (sem campo 'event'). Tratando como mensagem.")
-        
-        # Busca exaustiva pelo nome da instância em todos os campos possíveis
         instance_name = (
             data.get('instance') or
             data.get('instanceName') or
             data.get('instance_name') or
             data.get('data', {}).get('instance') or
             data.get('data', {}).get('instanceName') or
-            data.get('sender')  # Algumas versões usam 'sender'
+            data.get('sender')
         )
         
-        # Log agressivo no stdout (aparece no docker logs)
-        print(f"\n[WEBHOOK RECEIVED] Event: {event_type} | Instance: {instance_name}")
-        print(f"[WEBHOOK DEBUG] Payload keys: {list(data.keys())}")
-        print(f"[WEBHOOK DEBUG] data.data keys: {list(data.get('data', {}).keys()) if isinstance(data.get('data'), dict) else data.get('data')}")
+        if not instance_name:
+            return Response({"status": "error", "message": "Instance name not found in payload"}, status=400)
         
-        # Tratamento de Status da Conexão
-        if event_type in ['connection.update', 'connection_update']:
-            payload_data = data.get('data', {})
-            state = payload_data.get('state') or payload_data.get('status')
-            
-            from django.db.models import Q
-            connection = Connection.objects.filter(Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))).first()
-            
-            if connection:
-                # Normaliza o estado para minúsculo
-                state = str(state).lower()
-                
-                if state in ['open', 'connected', 'online']:
-                    connection.status = 'connected'
-                    connection.qrcode = None
-                elif state in ['close', 'disconnected', 'refused', 'logout']:
-                    connection.status = 'disconnected'
-                elif state in ['connecting', 'qrcode', 'pairing']:
-                    connection.status = 'connecting'
-                
-                connection.save()
-                
-                # Notificar Realtime
-                event_payload = {
-                    "company_id": str(connection.company.id),
-                    "type": "connection_update",
-                    "payload": ConnectionSerializer(connection).data
-                }
-                from django.core.serializers.json import DjangoJSONEncoder
-                redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
-                print(f"DEBUG STATUS: Instância {instance_name} atualizada para {connection.status}")
-                return Response({"status": "updated"}, status=200)
-
-        # Tratamento de Mensagens Editadas
-        if event_type in ['messages.edited', 'messages_edited', 'message_edited', 'message.edited', 'messages.update', 'messages_update']:
-            payload_data = data.get('data', {})
-            info = payload_data.get('key', {}) or {}
-            
-            update_data = payload_data.get('update', {}) or {}
-            edited_msg = payload_data.get('editedMessage') or \
-                         payload_data.get('message') or \
-                         update_data.get('message') or \
-                         update_data.get('editedMessage')
-            
-            new_body = ""
-            msg_id = None
-            
-            if isinstance(edited_msg, dict):
-                protocol_msg = edited_msg.get('protocolMessage') or {}
-                if protocol_msg:
-                    msg_id = protocol_msg.get('key', {}).get('id')
-                    edited_payload = protocol_msg.get('editedMessage') or {}
-                    if isinstance(edited_payload, dict):
-                        new_body = edited_payload.get('conversation') or \
-                                   edited_payload.get('extendedTextMessage', {}).get('text') or \
-                                   edited_payload.get('text')
-                
-                if not new_body:
-                    new_body = edited_msg.get('conversation') or \
-                               edited_msg.get('extendedTextMessage', {}).get('text') or \
-                               payload_data.get('text')
-            elif isinstance(edited_msg, str):
-                new_body = edited_msg
-                
-            if not msg_id:
-                msg_id = info.get('id') or info.get('ID') or payload_data.get('messageId')
-            
-            if msg_id and new_body:
-                from django.db.models import Q
-                if instance_name:
-                    connection = Connection.objects.filter(
-                        Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))
-                    ).first()
-                else:
-                    connection = Connection.objects.filter(status='connected').first()
-                
-                if connection:
-                    message = Message.objects.filter(message_id=msg_id, ticket__company=connection.company).first()
-                    if message:
-                        message.body = new_body
-                        message.is_edited = True
-                        from django.utils import timezone
-                        message.edited_at = timezone.now()
-                        message.save()
-                        
-                        ticket = message.ticket
-                        last_msg = ticket.messages.order_by('-timestamp', '-id').first()
-                        if last_msg and last_msg.id == message.id:
-                            ticket.last_message = new_body
-                            ticket.save()
-                            
-                            ticket_payload = {
-                                "company_id": str(ticket.company.id),
-                                "type": "ticket_updated",
-                                "payload": TicketSerializer(ticket).data
-                            }
-                            from django.core.serializers.json import DjangoJSONEncoder
-                            redis_client.publish('company_events', json.dumps(ticket_payload, cls=DjangoJSONEncoder))
-                        
-                        event_payload = {
-                            "company_id": str(ticket.company.id),
-                            "type": "message_updated",
-                            "payload": MessageSerializer(message).data
-                        }
-                        from django.core.serializers.json import DjangoJSONEncoder
-                        redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
-            
-            return Response({"status": "received"}, status=200)
-
-        # Aceita formatos variados: Message, messages.upsert, GroupInfo, etc.
-        msg_events = ['message', 'messages.upsert', 'messages_upsert', 'message_upsert', 'message.upsert', 'groupinfo', 'group.info']
-        if event_type in msg_events:
-            payload_data = data.get('data', {})
-            # Evolution v2 e algumas versões Go enviam as mensagens dentro de um array 'messages'
-            # Outras enviam o objeto direto no 'data'
-            messages_list = payload_data.get('messages')
-            if not messages_list:
-                messages_list = [payload_data] if isinstance(payload_data, dict) else []
-            
-            for msg_item in messages_list:
-                if not msg_item: continue
-                
-                info = msg_item.get('Info', {}) or msg_item.get('key', {}) or {}
-                message_content = msg_item.get('Message', {}) or msg_item.get('message', {}) or {}
-                
-                # --- DETECTAR EDIÇÃO (CLIENT-SIDE) ---
-                protocol_msg = message_content.get('protocolMessage') or {}
-                if protocol_msg.get('type') == 14 or 'editedMessage' in protocol_msg:
-                    target_msg_id = protocol_msg.get('key', {}).get('id')
-                    edited_payload = protocol_msg.get('editedMessage') or {}
-                    new_body = ""
-                    if isinstance(edited_payload, dict):
-                        new_body = edited_payload.get('conversation') or \
-                                   edited_payload.get('extendedTextMessage', {}).get('text') or \
-                                   edited_payload.get('text')
-                    
-                    if target_msg_id and new_body:
-                        from django.db.models import Q
-                        if instance_name:
-                            connection = Connection.objects.filter(
-                                Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))
-                            ).first()
-                        else:
-                            connection = Connection.objects.filter(status='connected').first()
-                            
-                        if connection:
-                            message = Message.objects.filter(message_id=target_msg_id, ticket__company=connection.company).first()
-                            if message:
-                                message.body = new_body
-                                message.is_edited = True
-                                from django.utils import timezone
-                                message.edited_at = timezone.now()
-                                message.save()
-                                
-                                ticket = message.ticket
-                                last_msg = ticket.messages.order_by('-timestamp', '-id').first()
-                                if last_msg and last_msg.id == message.id:
-                                    ticket.last_message = new_body
-                                    ticket.save()
-                                    
-                                    ticket_payload = {
-                                        "company_id": str(ticket.company.id),
-                                        "type": "ticket_updated",
-                                        "payload": TicketSerializer(ticket).data
-                                    }
-                                    from django.core.serializers.json import DjangoJSONEncoder
-                                    redis_client.publish('company_events', json.dumps(ticket_payload, cls=DjangoJSONEncoder))
-                                
-                                event_payload = {
-                                    "company_id": str(ticket.company.id),
-                                    "type": "message_updated",
-                                    "payload": MessageSerializer(message).data
-                                }
-                                from django.core.serializers.json import DjangoJSONEncoder
-                                redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
-                    continue
-                
-                # --- DETECTAR REAÇÃO ---
-                reaction_msg = message_content.get('reactionMessage')
-                if reaction_msg:
-                    target_msg_id = reaction_msg.get('key', {}).get('id')
-                    emoji = reaction_msg.get('text')
-                    from_me = info.get('fromMe') or info.get('IsFromMe') or msg_item.get('fromMe') or msg_item.get('key', {}).get('fromMe') or False
-                    
-                    from django.db.models import Q
-                    if instance_name:
-                        connection = Connection.objects.filter(
-                            Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))
-                        ).first()
-                    else:
-                        connection = Connection.objects.filter(status='connected').first()
-                    
-                    if connection:
-                        sender_jid = info.get('participant') or info.get('remoteJid') or msg_item.get('key', {}).get('remoteJid')
-                        if from_me:
-                            sender_jid = connection.instance_name
-                        
-                        target_message = Message.objects.filter(message_id=target_msg_id, ticket__company=connection.company).first()
-                        if target_message:
-                            if not emoji:
-                                MessageReaction.objects.filter(message=target_message, sender_jid=sender_jid).delete()
-                            else:
-                                MessageReaction.objects.update_or_create(
-                                    message=target_message,
-                                    sender_jid=sender_jid,
-                                    defaults={'emoji': emoji, 'from_me': from_me}
-                                )
-                            
-                            event_payload = {
-                                "company_id": str(target_message.ticket.company.id),
-                                "type": "message_reactions_updated",
-                                "payload": {
-                                    "message_id": target_message.id,
-                                    "reactions": MessageReactionSerializer(target_message.reactions.all(), many=True).data
-                                }
-                            }
-                            from django.core.serializers.json import DjangoJSONEncoder
-                            redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
-                    continue
-                
-                # Salva em arquivo para diagnóstico - grava payload COMPLETO
-                try:
-                    with open('/app/webhook_structure.json', 'w') as f:
-                        json.dump({'full_data': dict(data), 'msg_item': msg_item}, f, indent=2, default=str)
-                except Exception as e:
-                    print(f"Erro ao salvar debug json: {e}")
-                print(f"[WEBHOOK MSG_ITEM] {json.dumps(msg_item, default=str)[:500]}")
-                
-                # Busca exaustiva pelo corpo da mensagem
-                body = message_content.get('conversation') or \
-                       message_content.get('extendedTextMessage', {}).get('text') or \
-                       message_content.get('imageMessage', {}).get('caption') or \
-                       message_content.get('videoMessage', {}).get('caption') or \
-                       msg_item.get('text') or \
-                       msg_item.get('content')
-                
-                # 1. Identifica o JID remoto (conversa)
-                # Prioriza Chat e remoteJid sobre Sender, pois Sender em mensagens fromMe é a própria instância
-                remote_jid = (
-                    info.get('Chat') or
-                    info.get('remoteJid') or
-                    msg_item.get('remoteJid') or
-                    msg_item.get('key', {}).get('remoteJid') or
-                    info.get('Sender') or
-                    data.get('data', {}).get('key', {}).get('remoteJid')
-                )
-                
-                if not remote_jid or 'status@broadcast' in str(remote_jid) or '@g.us' in str(remote_jid):
-                    if not remote_jid:
-                        print(f"[WEBHOOK] remote_jid não encontrado. msg_item keys: {list(msg_item.keys())}")
-                    continue
-                
-                # 2. Detecta se a mensagem foi enviada pela própria instância (FromMe)
-                # Checa múltiplas variações de nomes de campos e locais no payload
-                from_me = info.get('IsFromMe')
-                if from_me is None: from_me = info.get('fromMe')
-                if from_me is None: from_me = msg_item.get('fromMe')
-                if from_me is None: from_me = msg_item.get('key', {}).get('fromMe')
-                if from_me is None: from_me = False
-                
-                # Garante que seja booleano
-                if isinstance(from_me, str):
-                    from_me = from_me.lower() == 'true'
-                else:
-                    from_me = bool(from_me)
-
-                # 3. Identifica o ID da mensagem e evita duplicidade (Deduplicação)
-                msg_id = info.get('ID') or msg_item.get('messageId') or info.get('id') or msg_item.get('key', {}).get('id')
-                if not msg_id:
-                    continue
-
-                                # Deduplicação via Redis para evitar processar o mesmo evento 2x (ex: Message + Messages.upsert)
-                cache_key = f"webhook_msg_{msg_id}"
-                if redis_client.get(cache_key):
-                    print(f"[WEBHOOK] Mensagem {msg_id} já processada. Ignorando.")
-                    continue
-                redis_client.setex(cache_key, 30, "1") # 30 segundos de "visto recentemente"
-
-                # --- EXTRAÇÃO DE MÍDIA (Suporte a Evolution v1, v2 e Go) ---
-                media_type = None
-                media_url = None
-                mimetype = None
-                
-                actual_msg = message_content
-                if 'viewOnceMessage' in actual_msg:
-                    actual_msg = actual_msg['viewOnceMessage'].get('message', {})
-                elif 'viewOnceMessageV2' in actual_msg:
-                    actual_msg = actual_msg['viewOnceMessageV2'].get('message', {})
-                
-                img_obj = actual_msg.get('imageMessage') or actual_msg.get('ImageMessage')
-                vid_obj = actual_msg.get('videoMessage') or actual_msg.get('VideoMessage')
-                aud_obj = actual_msg.get('audioMessage') or actual_msg.get('AudioMessage')
-                doc_obj = actual_msg.get('documentMessage') or actual_msg.get('DocumentMessage')
-                stk_obj = actual_msg.get('stickerMessage') or actual_msg.get('StickerMessage')
-
-                # Obtém o tipo de mídia e mimetype
-                if img_obj:
-                    media_type = 'image'
-                    mimetype = img_obj.get('mimetype') or 'image/jpeg'
-                elif vid_obj:
-                    media_type = 'video'
-                    mimetype = vid_obj.get('mimetype') or 'video/mp4'
-                elif aud_obj:
-                    media_type = 'audio'
-                    mimetype = aud_obj.get('mimetype') or 'audio/mp4'
-                elif doc_obj:
-                    media_type = 'document'
-                    mimetype = doc_obj.get('mimetype') or 'application/pdf'
-                elif stk_obj:
-                    media_type = 'image'
-                    mimetype = stk_obj.get('mimetype') or 'image/webp'
-                else:
-                    media_type = None
-
-                if not mimetype:
-                    mimetype = actual_msg.get('mimetype') or 'image/jpeg'
-
-                # Captura o base64 enviado na payload se disponível (Evolution Go envia direto no message.base64 ou msg_item.base64)
-                payload_base64 = actual_msg.get('base64') or msg_item.get('base64')
-                if payload_base64:
-                    # Se for a string base64 pura (não começar com data:), formata como data URI
-                    if not str(payload_base64).startswith('data:'):
-                        payload_base64 = f"data:{mimetype};base64,{payload_base64}"
-                    media_url = payload_base64
-                else:
-                    media_url = None
-
-                # Fallback de urls/base64 caso não estivesse no pai
-                if not media_url:
-                    if img_obj:
-                        media_url = img_obj.get('base64') or img_obj.get('url')
-                    elif vid_obj:
-                        media_url = vid_obj.get('base64') or vid_obj.get('url')
-                    elif aud_obj:
-                        media_url = aud_obj.get('base64') or aud_obj.get('url')
-                    elif doc_obj:
-                        media_url = doc_obj.get('base64') or doc_obj.get('url')
-                    elif stk_obj:
-                        media_url = stk_obj.get('base64') or stk_obj.get('url')
-
-                if not media_type:
-                    raw_type = str(msg_item.get('type') or info.get('MediaType') or info.get('Type') or '').lower()
-                    if 'image' in raw_type: media_type = 'image'
-                    elif 'video' in raw_type: media_type = 'video'
-                    elif 'audio' in raw_type: media_type = 'audio'
-                    elif 'document' in raw_type: media_type = 'document'
-
-                if not media_url:
-                    media_url = msg_item.get('base64') or msg_item.get('url') or msg_item.get('content')
-
-                # --- BUSCA CONEXÃO ---
-                from django.db.models import Q
-                if instance_name:
-                    connection = Connection.objects.filter(
-                        Q(instance_name=instance_name) | Q(instance_name=data.get('instance'))
-                    ).first()
-                else:
-                    connection = Connection.objects.filter(status='connected').first()
-                
-                if not connection:
-                    print(f"DEBUG: Connection not found for instance='{instance_name}'")
-                    continue
-
-                # --- DOWNLOAD DE MÍDIA DA EVOLUTION API ---
-                is_whatsapp_cdn = media_url and 'whatsapp.net' in str(media_url)
-                if media_type and (not media_url or is_whatsapp_cdn or not str(media_url).startswith('data:')):
-                    try:
-                        evo_url = connection.company.evolution_api_url or settings.EVOLUTION_API_URL
-                        evo_key = connection.company.evolution_api_key or settings.EVOLUTION_API_KEY
-                        
-                        # Tenta buscar o token real diretamente no banco da Evolution
-                        from tickets.utils import get_evolution_token
-                        evo_key = get_evolution_token(connection.instance_name)
-
-                        headers = {
-                            "Content-Type": "application/json",
-                            "apikey": evo_key,
-                            "ApiKey": evo_key,
-                            "api-key": evo_key,
-                            "Authorization": f"Bearer {evo_key}"
-                        }
-                        payload = {
-                            "message": {
-                                "key": {
-                                    "id": msg_id,
-                                    "remoteJid": remote_jid,
-                                    "fromMe": from_me
-                                }
-                            },
-                            "convertToMp4": False
-                        }
-                        download_url = f"{evo_url}/chat/getBase64FromMediaMessage/{connection.instance_name}"
-                        print(f"[WEBHOOK MEDIA] Tentando baixar mídia da URL: {download_url} para msg {msg_id}")
-                        res = requests.post(download_url, json=payload, headers=headers, timeout=10)
-                        if res.status_code != 200:
-                            # Fallback para o payload simplificado com apenas o id
-                            fallback_payload = {
-                                "message": {
-                                    "key": {
-                                        "id": msg_id
-                                    }
-                                },
-                                "convertToMp4": False
-                            }
-                            print(f"[WEBHOOK MEDIA] Chamada inicial falhou (Status {res.status_code}). Tentando payload simplificado...")
-                            res = requests.post(download_url, json=fallback_payload, headers=headers, timeout=10)
-                        
-                        if res.status_code == 200:
-                            res_data = res.json()
-                            base64_result = res_data.get('base64')
-                            if base64_result:
-                                media_url = base64_result
-                                print(f"[WEBHOOK MEDIA] Mídia baixada com sucesso. Tamanho: {len(media_url)} caracteres.")
-                            else:
-                                print(f"[WEBHOOK MEDIA] Resposta 200 mas sem campo 'base64' no JSON: {res.text[:200]}")
-                        else:
-                            print(f"[WEBHOOK MEDIA] Erro ao baixar mídia (Status {res.status_code}): {res.text[:200]}")
-                    except Exception as media_err:
-                        print(f"[WEBHOOK MEDIA] Falha na chamada da Evolution API: {str(media_err)}")
-                
-                if media_url and not str(media_url).startswith('http') and not str(media_url).startswith('data:'):
-                    clean_base64 = str(media_url).replace('\n', '').replace('\r', '').strip()
-                    media_url = f"data:{mimetype};base64,{clean_base64}"
-                
-                if not body and not media_url:
-                    continue
-
-                # --- EXTRAÇÃO DE CITADOS / RESPOSTAS ---
-                quoted_msg_id = None
-                quoted_msg_body = None
-                quoted_msg_sender = None
-
-                context_info = None
-                for key_type in ['extendedTextMessage', 'imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage']:
-                    msg_type_data = message_content.get(key_type)
-                    if isinstance(msg_type_data, dict):
-                        context_info = msg_type_data.get('contextInfo')
-                        if context_info:
-                            break
-                if not context_info:
-                    context_info = message_content.get('contextInfo')
-
-                if context_info:
-                    quoted_msg_id = context_info.get('stanzaId') or context_info.get('stanzaID')
-                    if quoted_msg_id:
-                        # Tenta buscar do banco primeiro para máxima fidelidade
-                        db_quoted = Message.objects.filter(message_id=quoted_msg_id).first()
-                        if db_quoted:
-                            quoted_msg_body = db_quoted.body
-                            quoted_msg_sender = "Você" if db_quoted.from_me else (contact_name or "Cliente")
-                        else:
-                            participant = context_info.get('participant')
-                            if participant:
-                                p_num = str(participant).split('@')[0].split(':')[0]
-                                c_num = str(remote_jid).split('@')[0].split(':')[0]
-                                if p_num == c_num:
-                                    quoted_msg_sender = contact_name or "Cliente"
-                                else:
-                                    quoted_msg_sender = "Você"
-                            else:
-                                quoted_msg_sender = "Você"
-
-                            # Extrai o corpo/texto da citação do payload
-                            quoted_msg_content = context_info.get('quotedMessage') or {}
-                            if quoted_msg_content:
-                                quoted_body = quoted_msg_content.get('conversation') or \
-                                              quoted_msg_content.get('extendedTextMessage', {}).get('text')
-                                
-                                if not quoted_body:
-                                    if 'imageMessage' in quoted_msg_content:
-                                        quoted_body = quoted_msg_content['imageMessage'].get('caption') or "📷 Foto"
-                                    elif 'videoMessage' in quoted_msg_content:
-                                        quoted_body = quoted_msg_content['videoMessage'].get('caption') or "🎥 Vídeo"
-                                    elif 'audioMessage' in quoted_msg_content:
-                                        quoted_body = "🎵 Áudio"
-                                    elif 'documentMessage' in quoted_msg_content:
-                                        quoted_body = quoted_msg_content['documentMessage'].get('title') or "📄 Documento"
-                                    elif 'stickerMessage' in quoted_msg_content:
-                                        quoted_body = "🎨 Figurinha"
-                                
-                                quoted_msg_body = quoted_body
-
-                # 1. Cria/Recupera Contato
-                contact_name = msg_item.get('pushName') or info.get('PushName') or data.get('data', {}).get('pushName') or remote_jid.split('@')[0]
-                
-                # Tenta encontrar cliente pelo telefone
-                phone_number = remote_jid.split('@')[0]
-                phone_digits = re.sub(r'\D', '', phone_number)
-                
-                customer = Customer.objects.filter(
-                    company=connection.company,
-                    phone__icontains=phone_digits[-8:]
-                ).first()
-
-                if not customer:
-                    additional_contact = CustomerContact.objects.filter(
-                        customer__company=connection.company,
-                        phone__icontains=phone_digits[-8:]
-                    ).first()
-                    if additional_contact:
-                        customer = additional_contact.customer
-                        contact_name = additional_contact.name
-
-                if from_me and not customer:
-                    # Ignora mensagens enviadas pelo próprio celular para contatos não cadastrados no sistema
-                    print(f"[WEBHOOK] Ignorando mensagem fromMe para número não cadastrado como cliente: {phone_number}")
-                    continue
-
-                contact, contact_created = Contact.objects.update_or_create(
-                    remote_jid=remote_jid,
-                    company=connection.company,
-                    defaults={'name': contact_name, 'customer': customer}
-                )
-
-                if contact_created or not contact.profile_pic:
-                    try:
-                        evo_url = connection.company.evolution_api_url or settings.EVOLUTION_API_URL
-                        evo_key = connection.company.evolution_api_key or settings.EVOLUTION_API_KEY
-                        
-                        clean_number = remote_jid.split('@')[0]
-                        pic_url = f"{evo_url}/chat/findProfilePhoto/{connection.instance_name}/{clean_number}"
-                        pic_res = requests.get(pic_url, headers={
-                            "apikey": evo_key,
-                            "ApiKey": evo_key,
-                            "api-key": evo_key,
-                            "Authorization": f"Bearer {evo_key}"
-                        }, timeout=8)
-                        
-                        if pic_res.status_code == 200:
-                            data_pic = pic_res.json()
-                            url = None
-                            if isinstance(data_pic, dict):
-                                data_block = data_pic.get('data') or {}
-                                if isinstance(data_block, dict):
-                                    url = data_block.get('profilePictureUrl') or data_block.get('url')
-                                else:
-                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
-                            
-                            if url:
-                                contact.profile_pic = url
-                                contact.save()
-                                
-                                if contact.customer:
-                                    contact.customer.profile_pic = url
-                                    contact.customer.save()
-                    except Exception as e:
-                        print(f"DEBUG FOTO ERROR: {str(e)}")
-
-                # 2. Abre ou Recupera Ticket (Atomicamente para evitar duplicidade)
-                with transaction.atomic():
-                    ticket = Ticket.objects.filter(
-                        contact=contact,
-                        company=connection.company,
-                        status__in=['open', 'pending']
-                    ).order_by('-id').select_for_update().first()
-                    
-                    if not ticket:
-                        ticket = Ticket.objects.create(
-                            contact=contact,
-                            company=connection.company,
-                            status='open'
-                        )
-
-                    # 3. Salva a Mensagem
-                    msg_obj, msg_created = Message.objects.update_or_create(
-                        message_id=msg_id,
-                        defaults={
-                            'ticket': ticket,
-                            'from_me': from_me,
-                            'body': body or "",
-                            'media_url': media_url,
-                            'media_type': media_type,
-                            'quoted_message_id': quoted_msg_id,
-                            'quoted_message_body': quoted_msg_body,
-                            'quoted_message_sender': quoted_msg_sender
-                        }
-                    )
-
-                    ticket.last_message = body or (f"📷 Foto" if media_type == 'image' else (f"🎵 Áudio" if media_type == 'audio' else f"📄 Documento"))
-                    if not from_me:
-                        ticket.unread_count += 1
-                    ticket.save()
-                
-                if msg_created:
-                    event_payload = {
-                        "company_id": str(ticket.company.id),
-                        "type": "new_message",
-                        "payload": MessageSerializer(msg_obj).data
-                    }
-                    from django.core.serializers.json import DjangoJSONEncoder
-                    redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
-
-        return Response({"status": "received"}, status=status.HTTP_200_OK)
+        connection = Connection.objects.filter(instance_name=instance_name).only('id').first()
+        if not connection:
+            alt_instance = data.get('instance')
+            if alt_instance and alt_instance != instance_name:
+                connection = Connection.objects.filter(instance_name=alt_instance).only('id').first()
+        
+        if not connection:
+            print(f"[WEBHOOK] Instância '{instance_name}' não cadastrada no sistema. Ignorando.")
+            return Response({"status": "ignored", "reason": "connection_not_found"}, status=200)
+        
+        from tickets.tasks import process_webhook_event
+        process_webhook_event.delay(connection.id, data)
+        return Response({"status": "queued"}, status=200)
 
 class UserSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
@@ -2014,18 +1448,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         try:
-            status_key = f"user_status_{obj.id}"
-            status_bytes = redis_client.get(status_key)
-            if status_bytes:
-                status = status_bytes.decode('utf-8')
-                if status == 'away':
-                    return "Ausente"
-                elif status == 'offline':
-                    return "Offline"
-                elif status == 'online':
-                    return "Online"
-            is_active = redis_client.exists(f"user_active_{obj.id}")
-            return "Online" if is_active else "Offline"
+            from api.serializers import get_cached_user_status
+            return get_cached_user_status(obj.id)
         except Exception:
             return "Offline"
 

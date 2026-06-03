@@ -22,10 +22,42 @@ class CompanySerializer(serializers.ModelSerializer):
         model = Company
         fields = ['id', 'name', 'is_active', 'evolution_api_url', 'evolution_api_key']
 
+import threading
 import redis
 from django.conf import settings
 redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
 redis_conn = redis.Redis.from_url(redis_url)
+
+_local_cache = threading.local()
+
+def get_cached_user_status(user_id):
+    if not hasattr(_local_cache, 'user_statuses'):
+        _local_cache.user_statuses = {}
+    if user_id not in _local_cache.user_statuses:
+        try:
+            status_key = f"user_status_{user_id}"
+            status_bytes = redis_conn.get(status_key)
+            if status_bytes:
+                status = status_bytes.decode('utf-8')
+                if status == 'away':
+                    res = "Ausente"
+                elif status == 'offline':
+                    res = "Offline"
+                elif status == 'online':
+                    res = "Online"
+                else:
+                    res = "Offline"
+            else:
+                is_active = redis_conn.exists(f"user_active_{user_id}")
+                res = "Online" if is_active else "Offline"
+        except Exception:
+            res = "Offline"
+        _local_cache.user_statuses[user_id] = res
+    return _local_cache.user_statuses[user_id]
+
+def clear_local_cache():
+    if hasattr(_local_cache, 'user_statuses'):
+        _local_cache.user_statuses.clear()
 
 class UserSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
@@ -35,22 +67,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status')
 
     def get_status(self, obj):
-        try:
-            status_key = f"user_status_{obj.id}"
-            status_bytes = redis_conn.get(status_key)
-            if status_bytes:
-                status = status_bytes.decode('utf-8')
-                if status == 'away':
-                    return "Ausente"
-                elif status == 'offline':
-                    return "Offline"
-                elif status == 'online':
-                    return "Online"
-                    
-            is_active = redis_conn.exists(f"user_active_{obj.id}")
-            return "Online" if is_active else "Offline"
-        except Exception:
-            return "Offline"
+        return get_cached_user_status(obj.id)
 
 class ConnectionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -94,9 +111,24 @@ class MessageSerializer(serializers.ModelSerializer):
 class TicketSerializer(serializers.ModelSerializer):
     contact_details = ContactSerializer(source='contact', read_only=True)
     attendant_details = UserSerializer(source='user', read_only=True)
-    last_messages = MessageSerializer(source='messages', many=True, read_only=True)
+    last_messages = serializers.SerializerMethodField()
     customer_details = CustomerSerializer(source='contact.customer', read_only=True)
 
     class Meta:
         model = Ticket
         fields = '__all__'
+
+    def get_last_messages(self, obj):
+        # Limita para as últimas 100 mensagens para evitar sobrecarga
+        messages = obj.messages.order_by('-timestamp')[:100]
+        return MessageSerializer(reversed(messages), many=True, context=self.context).data
+
+class TicketListSerializer(serializers.ModelSerializer):
+    contact_details = ContactSerializer(source='contact', read_only=True)
+    attendant_details = UserSerializer(source='user', read_only=True)
+    customer_details = CustomerSerializer(source='contact.customer', read_only=True)
+
+    class Meta:
+        model = Ticket
+        fields = '__all__'
+

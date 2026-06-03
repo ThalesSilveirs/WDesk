@@ -45,3 +45,17 @@ class UpdateLastActivityMiddleware:
                 print(f"Error recording user activity in Redis: {e}")
 
         return self.get_response(request)
+
+class ClearSerializerCacheMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from api.serializers import clear_local_cache
+        clear_local_cache()
+        try:
+            response = self.get_response(request)
+        finally:
+            clear_local_cache()
+        return response
+
