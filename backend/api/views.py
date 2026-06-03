@@ -2110,6 +2110,15 @@ class CompanyViewSet(viewsets.ModelViewSet):
                 from django.db import connection as db_connection
                 with db_connection.cursor() as cursor:
                     cursor.execute("""
+                        DELETE FROM tickets_messagereaction 
+                        WHERE message_id IN (
+                            SELECT id FROM tickets_message 
+                            WHERE ticket_id IN (
+                                SELECT id FROM tickets_ticket WHERE company_id = %s
+                            )
+                        )
+                    """, [str(company.id)])
+                    cursor.execute("""
                         DELETE FROM tickets_message 
                         WHERE ticket_id IN (
                             SELECT id FROM tickets_ticket WHERE company_id = %s

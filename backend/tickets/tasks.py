@@ -195,7 +195,18 @@ def reset_company_conversations_task(company_id):
         print(f"[RESET TASK] Starting reset for company: {company.name} ({company_id})")
         
         with db_connection.cursor() as cursor:
-            # 1. Delete all messages from tickets belonging to the company
+            # 1. Delete all message reactions
+            cursor.execute("""
+                DELETE FROM tickets_messagereaction 
+                WHERE message_id IN (
+                    SELECT id FROM tickets_message 
+                    WHERE ticket_id IN (
+                        SELECT id FROM tickets_ticket WHERE company_id = %s
+                    )
+                )
+            """, [str(company_id)])
+
+            # 2. Delete all messages from tickets belonging to the company
             cursor.execute("""
                 DELETE FROM tickets_message 
                 WHERE ticket_id IN (
@@ -203,7 +214,7 @@ def reset_company_conversations_task(company_id):
                 )
             """, [str(company_id)])
             
-            # 2. Delete all tickets belonging to the company
+            # 3. Delete all tickets belonging to the company
             cursor.execute("""
                 DELETE FROM tickets_ticket 
                 WHERE company_id = %s
