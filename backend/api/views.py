@@ -178,7 +178,12 @@ class TicketViewSet(TenantModelViewSet):
             response = requests.post(url, json=payload, headers=headers, timeout=5)
             if response.status_code in [200, 201]:
                 evolution_data = response.json()
-                message.message_id = evolution_data.get('key', {}).get('id', message.message_id)
+                real_id = (
+                    evolution_data.get('data', {}).get('Info', {}).get('ID') or 
+                    evolution_data.get('key', {}).get('id') or 
+                    message.message_id
+                )
+                message.message_id = real_id
                 message.save()
         except Exception as e:
             print(f"[SYSTEM SEND] Erro ao enviar mensagem automatizada: {str(e)}")
@@ -358,6 +363,12 @@ class TicketViewSet(TenantModelViewSet):
         try:
             response = requests.post(url, json=payload, headers=headers)
             if response.status_code in [200, 201]:
+                evolution_data = response.json()
+                real_id = (
+                    evolution_data.get('data', {}).get('Info', {}).get('ID') or 
+                    evolution_data.get('key', {}).get('id') or 
+                    f"pending_media_{int(time.time())}"
+                )
                 message = Message.objects.create(
                     ticket=ticket,
                     user=request.user,
@@ -365,7 +376,7 @@ class TicketViewSet(TenantModelViewSet):
                     body=caption or f"Enviou um {evo_type}",
                     media_url=f"data:{mime_type};base64,{base64_data}", 
                     media_type=evo_type,
-                    message_id=f"pending_media_{int(time.time())}"
+                    message_id=real_id
                 )
                 # Atualizar prévia do ticket
                 ticket.last_message = caption or f"📷 Foto" if evo_type == 'image' else (f"🎵 Áudio" if evo_type == 'audio' else f"📄 Documento")
@@ -454,7 +465,12 @@ class TicketViewSet(TenantModelViewSet):
             response = requests.post(url, json=payload, headers=headers, timeout=5)
             if response.status_code in [200, 201]:
                 evolution_data = response.json()
-                message.message_id = evolution_data.get('key', {}).get('id', message.message_id)
+                real_id = (
+                    evolution_data.get('data', {}).get('Info', {}).get('ID') or 
+                    evolution_data.get('key', {}).get('id') or 
+                    message.message_id
+                )
+                message.message_id = real_id
                 message.save()
         except Exception as e:
             pass
@@ -522,12 +538,12 @@ class TicketViewSet(TenantModelViewSet):
         
         my_jid = connection.instance_name
         
+        # Ajuste o payload para a estrutura flat exigida pelo Evolution Go (whatsmeow)
         payload = {
-            "instance": connection.instance_name,
             "number": ticket.contact.remote_jid,
             "id": message.message_id,
             "fromMe": message.from_me,
-            "reaction": emoji or ""
+            "reaction": emoji if emoji else ""  # String vazia remove a reação no WhatsApp
         }
         
         try:
@@ -613,8 +629,8 @@ class TicketViewSet(TenantModelViewSet):
             "instance": connection.instance_name
         }
         
+        # Ajuste o payload para a estrutura flat exigida pelo Evolution Go (whatsmeow)
         payload = {
-            "instance": connection.instance_name,
             "chat": ticket.contact.remote_jid,
             "message": new_body,
             "messageId": message.message_id
@@ -625,22 +641,7 @@ class TicketViewSet(TenantModelViewSet):
             if response.status_code in [200, 201]:
                 message.body = new_body
                 message.is_edited = True
-                from django.utils import timezone
-                message.edited_at = timezone.now()
                 message.save()
-                
-                last_msg = ticket.messages.order_by('-timestamp', '-id').first()
-                if last_msg and last_msg.id == message.id:
-                    ticket.last_message = new_body
-                    ticket.save()
-                    
-                    ticket_payload = {
-                        "company_id": str(ticket.company.id),
-                        "type": "ticket_updated",
-                        "payload": TicketSerializer(ticket).data
-                    }
-                    from django.core.serializers.json import DjangoJSONEncoder
-                    redis_client.publish('company_events', json.dumps(ticket_payload, cls=DjangoJSONEncoder))
                 
                 event_payload = {
                     "company_id": str(ticket.company.id),
