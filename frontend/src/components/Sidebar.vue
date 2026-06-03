@@ -153,11 +153,11 @@ const toggleCollapse = () => {
 .collapse-toggle-btn {
   position: absolute;
   top: 32px;
-  right: -12px;
-  width: 24px;
-  height: 24px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--bg-sidebar);
+  background: var(--bg-nav-sidebar);
   border: 1px solid var(--border);
   color: var(--text-secondary);
   display: flex;
@@ -165,15 +165,16 @@ const toggleCollapse = () => {
   justify-content: center;
   cursor: pointer;
   z-index: 110;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .collapse-toggle-btn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--border);
-  transform: scale(1.1);
+  color: #10b981;
+  border-color: #10b981;
+  background: var(--bg-nav-sidebar);
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
 /* Brand Section */
