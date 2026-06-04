@@ -585,6 +585,13 @@ def process_webhook_event(connection_id, payload):
                 from django.core.serializers.json import DjangoJSONEncoder
                 redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
 
+                # --- VERIFICAR E ENVIAR MENSAGEM DE AUSÊNCIA ---
+                if not from_me:
+                    try:
+                        _maybe_send_absence_message(connection, remote_jid, ticket)
+                    except Exception as abs_err:
+                        print(f"[WEBHOOK TASK ABSENCE] Erro ao tentar enviar mensagem de ausência: {abs_err}")
+
 @shared_task
 def send_wa_message_task(ticket_id, body):
     # Aqui chamaria a Evolution API via requests.post
@@ -773,6 +780,113 @@ def measure_evo_latency_task(connection_id):
         redis_client.setex(latency_cache_key, 120, latency_str)
     except Exception as redis_err:
         print(f"[LATENCY TASK] Erro ao salvar latência no Redis: {redis_err}")
+
+
+def _maybe_send_absence_message(connection, remote_jid, ticket):
+    import pytz
+    from datetime import datetime
+    from django.utils import timezone
+    from tickets.models import AbsenceSchedule, Message
+    import requests
+    import json
+    from django.conf import settings
+    from api.serializers import MessageSerializer
+
+    try:
+        company = connection.company
+        # 1. Busca AbsenceSchedule da empresa
+        schedule_obj = AbsenceSchedule.objects.filter(company=company).first()
+        if not schedule_obj or not schedule_obj.enabled:
+            return
+
+        # 2. Verifica se a empresa está fora do horário comercial
+        tz = pytz.timezone(schedule_obj.timezone or 'America/Sao_Paulo')
+        now_local = datetime.now(tz)
+        
+        # O dia da semana: 0 (Segunda) a 6 (Domingo) em Python/datetime
+        current_day = now_local.weekday()
+        current_time_str = now_local.strftime('%H:%M')
+
+        # Procura o dia correspondente na agenda
+        day_schedule = None
+        for item in schedule_obj.schedule:
+            if int(item.get('day')) == current_day:
+                day_schedule = item
+                break
+
+        is_outside = True
+        if day_schedule and day_schedule.get('active'):
+            start_str = day_schedule.get('start', '08:00')
+            end_str = day_schedule.get('end', '18:00')
+            
+            # Compara strings de horários no formato HH:MM
+            if start_str <= current_time_str <= end_str:
+                is_outside = False
+
+        if not is_outside:
+            return
+
+        # 3. Verifica cooldown no Redis (4 horas = 14400 segundos)
+        cooldown_key = f"absence_sent_{company.id}_{remote_jid}"
+        if redis_client.get(cooldown_key):
+            print(f"[ABSENCE] Cooldown ativo para {remote_jid}. Mensagem de ausência não enviada.")
+            return
+
+        redis_client.setex(cooldown_key, 14400, "1")
+
+        # 4. Envia mensagem de ausência via Evolution API
+        evo_url = company.evolution_api_url or settings.EVOLUTION_API_URL
+        from tickets.utils import get_evolution_token
+        evo_key = get_evolution_token(connection.instance_name)
+        
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_key,
+            "Authorization": f"Bearer {evo_key}"
+        }
+        
+        clean_number = remote_jid.split('@')[0]
+        url = f"{evo_url}/send/text?apikey={evo_key}&instance={connection.instance_name}"
+        payload = {
+            "instance": connection.instance_name,
+            "number": clean_number,
+            "text": schedule_obj.message
+        }
+        
+        print(f"[ABSENCE] Enviando mensagem de ausência para {remote_jid}...")
+        res = requests.post(url, json=payload, headers=headers, timeout=10)
+        
+        # 5. Salva a mensagem de ausência no banco
+        msg_id = f"absence_{ticket.id}_{int(timezone.now().timestamp() * 1000)}"
+        if res.status_code in [200, 201]:
+            try:
+                res_data = res.json()
+                msg_id = res_data.get('key', {}).get('id', msg_id)
+            except:
+                pass
+
+        absence_msg = Message.objects.create(
+            ticket=ticket,
+            user=None,
+            from_me=True,
+            body=schedule_obj.message,
+            message_id=msg_id
+        )
+
+        ticket.last_message = schedule_obj.message
+        ticket.save()
+
+        # Notifica o frontend
+        event_payload = {
+            "company_id": str(company.id),
+            "type": "new_message",
+            "payload": MessageSerializer(absence_msg).data
+        }
+        from django.core.serializers.json import DjangoJSONEncoder
+        redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+
+    except Exception as e:
+        print(f"[ABSENCE ERROR] Falha no processamento da mensagem de ausência: {str(e)}")
 
 
 

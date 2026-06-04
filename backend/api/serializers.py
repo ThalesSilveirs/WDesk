@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction
+from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -131,4 +131,24 @@ class TicketListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = '__all__'
+
+
+class QuickReplySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuickReply
+        fields = '__all__'
+        extra_kwargs = {
+            'company': {'read_only': True},
+            'created_by': {'read_only': True}
+        }
+
+
+class AbsenceScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AbsenceSchedule
+        fields = '__all__'
+        extra_kwargs = {
+            'company': {'read_only': True}
+        }
+
 

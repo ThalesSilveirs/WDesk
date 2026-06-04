@@ -17,7 +17,8 @@ export const useChatStore = defineStore('chat', {
     theme: localStorage.getItem('theme') || 'dark',
     showBroadcastModal: false,
     notifications: [],
-    searchQuery: ''
+    searchQuery: '',
+    quickReplies: []
   }),
 
   actions: {
@@ -590,6 +591,54 @@ export const useChatStore = defineStore('chat', {
       if (this.socket && this.socket.connected) {
         this.socket.emit('change_status', { status })
       }
+    },
+
+    // Respostas Rápidas (Quick Replies)
+    async fetchQuickReplies() {
+      try {
+        const response = await axios.get('/api/v1/quick-replies/')
+        this.quickReplies = response.data
+        return response.data
+      } catch (e) {
+        console.error("Erro ao buscar respostas rápidas", e)
+        return []
+      }
+    },
+
+    async createQuickReply(payload) {
+      const response = await axios.post('/api/v1/quick-replies/', payload)
+      this.quickReplies.push(response.data)
+      return response.data
+    },
+
+    async updateQuickReply(id, payload) {
+      const response = await axios.patch(`/api/v1/quick-replies/${id}/`, payload)
+      const index = this.quickReplies.findIndex(qr => qr.id === id)
+      if (index !== -1) {
+        this.quickReplies[index] = response.data
+      }
+      return response.data
+    },
+
+    async deleteQuickReply(id) {
+      await axios.delete(`/api/v1/quick-replies/${id}/`)
+      this.quickReplies = this.quickReplies.filter(qr => qr.id !== id)
+    },
+
+    // Agenda de Ausência (Absence Schedule)
+    async fetchAbsenceSchedule() {
+      try {
+        const response = await axios.get('/api/v1/absence-schedules/mine/')
+        return response.data
+      } catch (e) {
+        console.error("Erro ao buscar agenda de ausência", e)
+        return null
+      }
+    },
+
+    async updateAbsenceSchedule(payload) {
+      const response = await axios.patch('/api/v1/absence-schedules/mine/', payload)
+      return response.data
     }
   }
 })

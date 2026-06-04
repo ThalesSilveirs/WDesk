@@ -10,6 +10,18 @@
       />
     </Transition>
 
+    <!-- QUICK REPLIES FLOATING POPUP -->
+    <Transition name="fade">
+      <QuickRepliesModal
+        v-if="showQuickReplies"
+        class="quick-replies-position"
+        ref="quickRepliesContainerRef"
+        :filter-query="quickReplyFilter"
+        @select="selectQuickReply"
+        @close="closeQuickReplies"
+      />
+    </Transition>
+
     <!-- EDIT MESSAGE BANNER -->
     <div v-if="editingMessage" class="edit-message-banner">
       <div class="edit-message-info">
@@ -54,6 +66,9 @@
         </button>
         <button class="emoji-btn" @click.stop="toggleEmojiPicker" :disabled="!ticket.user" title="Inserir Emoji">
           <SmileIcon :size="22" />
+        </button>
+        <button class="quick-reply-btn" @click.stop="toggleQuickReplies" :disabled="!ticket.user" title="Respostas Rápidas">
+          <ZapIcon :size="22" />
         </button>
         <textarea
           ref="messageInput"
@@ -132,11 +147,13 @@ import {
   Smile as SmileIcon,
   Pencil as EditIcon,
   Reply as ReplyIcon,
-  X as XIcon
+  X as XIcon,
+  Zap as ZapIcon
 } from 'lucide-vue-next'
 
 // Lazy Load do EmojiPicker
 const EmojiPicker = defineAsyncComponent(() => import('./EmojiPicker.vue'))
+const QuickRepliesModal = defineAsyncComponent(() => import('./QuickRepliesModal.vue'))
 
 const props = defineProps({
   ticket: {
@@ -222,6 +239,38 @@ const insertEmoji = (emoji) => {
   }, 10)
 }
 
+const showQuickReplies = ref(false)
+const quickReplyFilter = ref('')
+const quickRepliesContainerRef = ref(null)
+
+watch(newMessage, (val) => {
+  if (val.startsWith('/')) {
+    showQuickReplies.value = true
+    quickReplyFilter.value = val.substring(1)
+  } else {
+    if (showQuickReplies.value) {
+      showQuickReplies.value = false
+    }
+  }
+})
+
+const selectQuickReply = (body) => {
+  newMessage.value = body
+  showQuickReplies.value = false
+  focusInput()
+}
+
+const toggleQuickReplies = () => {
+  showQuickReplies.value = !showQuickReplies.value
+  if (showQuickReplies.value) {
+    quickReplyFilter.value = ''
+  }
+}
+
+const closeQuickReplies = () => {
+  showQuickReplies.value = false
+}
+
 const toggleEmojiPicker = () => {
   showEmojiPicker.value = !showEmojiPicker.value
 }
@@ -232,6 +281,13 @@ const handleWindowClick = (e) => {
     const btn = document.querySelector('.emoji-btn')
     if (picker && !picker.contains(e.target) && btn && !btn.contains(e.target)) {
       showEmojiPicker.value = false
+    }
+  }
+  if (showQuickReplies.value) {
+    const menu = quickRepliesContainerRef.value?.$el || document.querySelector('.quick-replies-position')
+    const btn = document.querySelector('.quick-reply-btn')
+    if (menu && !menu.contains(e.target) && btn && !btn.contains(e.target)) {
+      showQuickReplies.value = false
     }
   }
 }
@@ -588,7 +644,33 @@ defineExpose({
   transform: scale(1.05);
 }
 
+.quick-reply-btn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.quick-reply-btn:hover {
+  color: #ffb700;
+  background: var(--border);
+  transform: scale(1.05);
+}
+
 .emoji-picker-position {
+  position: absolute;
+  bottom: 75px;
+  left: 20px;
+}
+
+.quick-replies-position {
   position: absolute;
   bottom: 75px;
   left: 20px;
@@ -688,7 +770,8 @@ defineExpose({
   .cancel-rec-btn,
   .stop-rec-btn,
   .send-rec-btn,
-  .emoji-btn {
+  .emoji-btn,
+  .quick-reply-btn {
     width: 36px;
     height: 36px;
     border-radius: 8px;

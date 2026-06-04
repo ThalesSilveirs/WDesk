@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.response import Response
 from django.db import transaction
 from rest_framework.decorators import action
-from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction
+from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule
 from .serializers import (
     TicketSerializer, 
     TicketListSerializer,
@@ -13,7 +13,9 @@ from .serializers import (
     CustomerContactSerializer,
     ContactSerializer,
     CompanySerializer,
-    MessageReactionSerializer
+    MessageReactionSerializer,
+    QuickReplySerializer,
+    AbsenceScheduleSerializer
 )
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.views.decorators.csrf import csrf_exempt
@@ -1639,4 +1641,56 @@ class CompanyViewSet(viewsets.ModelViewSet):
             except Exception as sql_e:
                 print(f"[RESET] FALLBACK SQL ERROR: {str(sql_e)}")
                 return Response({"error": f"Erro ao resetar: {str(sql_e)}"}, status=500)
+
+
+class QuickReplyViewSet(TenantModelViewSet):
+    queryset = QuickReply.objects.all().order_by('title')
+    serializer_class = QuickReplySerializer
+
+    def perform_create(self, serializer):
+        serializer.save(company=self.request.user.company, created_by=self.request.user)
+
+
+class AbsenceScheduleViewSet(viewsets.ModelViewSet):
+    serializer_class = AbsenceScheduleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return AbsenceSchedule.objects.filter(company=self.request.user.company)
+
+    @action(detail=False, methods=['get', 'patch'])
+    def mine(self, request):
+        company = request.user.company
+        if not company:
+            return Response({"error": "Usuário não vinculado a uma empresa"}, status=400)
+            
+        schedule_obj, created = AbsenceSchedule.objects.get_or_create(
+            company=company,
+            defaults={
+                'enabled': False,
+                'timezone': 'America/Sao_Paulo',
+                'schedule': [
+                    {"day": 0, "start": "08:00", "end": "18:00", "active": True},
+                    {"day": 1, "start": "08:00", "end": "18:00", "active": True},
+                    {"day": 2, "start": "08:00", "end": "18:00", "active": True},
+                    {"day": 3, "start": "08:00", "end": "18:00", "active": True},
+                    {"day": 4, "start": "08:00", "end": "18:00", "active": True},
+                    {"day": 5, "start": "08:00", "end": "12:00", "active": False},
+                    {"day": 6, "start": "08:00", "end": "12:00", "active": False},
+                ]
+            }
+        )
+        
+        if request.method == 'GET':
+            serializer = self.get_serializer(schedule_obj)
+            return Response(serializer.data)
+            
+        if request.user.role != 'admin':
+            return Response({"error": "Apenas administradores podem alterar os horários de ausência"}, status=403)
+            
+        serializer = self.get_serializer(schedule_obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
 

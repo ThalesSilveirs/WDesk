@@ -202,3 +202,29 @@ class MessageReaction(models.Model):
     class Meta:
         unique_together = ('message', 'sender_jid')
 
+
+class QuickReply(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='quick_replies')
+    title = models.CharField(max_length=100)
+    body = models.TextField()
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.company.name})"
+
+
+class AbsenceSchedule(models.Model):
+    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name='absence_schedule')
+    enabled = models.BooleanField(default=False)
+    message = models.TextField(default="Olá! No momento estamos fora do nosso horário de atendimento. Retornaremos o contato assim que possível.")
+    timezone = models.CharField(max_length=100, default='America/Sao_Paulo')
+    schedule = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Ausência: {self.company.name}"
+
+
