@@ -783,7 +783,7 @@ def measure_evo_latency_task(connection_id):
 
 
 def _maybe_send_absence_message(connection, remote_jid, ticket):
-    import pytz
+    from zoneinfo import ZoneInfo
     from datetime import datetime
     from django.utils import timezone
     from tickets.models import AbsenceSchedule, Message
@@ -800,7 +800,7 @@ def _maybe_send_absence_message(connection, remote_jid, ticket):
             return
 
         # 2. Verifica se a empresa está fora do horário comercial
-        tz = pytz.timezone(schedule_obj.timezone or 'America/Sao_Paulo')
+        tz = ZoneInfo(schedule_obj.timezone or 'America/Sao_Paulo')
         now_local = datetime.now(tz)
         
         # O dia da semana: 0 (Segunda) a 6 (Domingo) em Python/datetime
