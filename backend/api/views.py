@@ -103,6 +103,24 @@ class ContactViewSet(TenantModelViewSet):
 
     def perform_update(self, serializer):
         contact = serializer.save()
+        
+        # Sync as additional contact in customer registry if linked
+        if contact.customer:
+            raw_phone = contact.remote_jid.split('@')[0]
+            import re
+            phone_digits = re.sub(r'\D', '', raw_phone)
+            
+            if phone_digits:
+                from tickets.models import CustomerContact
+                customer_contact, created = CustomerContact.objects.get_or_create(
+                    customer=contact.customer,
+                    phone=phone_digits,
+                    defaults={'name': contact.name or phone_digits}
+                )
+                if not created and contact.name and customer_contact.name != contact.name:
+                    customer_contact.name = contact.name
+                    customer_contact.save()
+
         tickets = Ticket.objects.filter(contact=contact, status__in=['open', 'pending'])
         for ticket in tickets:
             event_payload = {
