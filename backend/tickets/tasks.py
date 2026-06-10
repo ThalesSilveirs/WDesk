@@ -485,6 +485,14 @@ def process_webhook_event(connection_id, payload):
                 print(f"[WEBHOOK TASK] Ignorando mensagem fromMe para número não cadastrado: {phone_number}")
                 continue
             
+            # Preserve manually linked customer and custom contact name
+            existing_contact = Contact.objects.filter(remote_jid=remote_jid, company=connection.company).first()
+            if existing_contact:
+                if existing_contact.customer:
+                    customer = existing_contact.customer
+                if existing_contact.name:
+                    contact_name = existing_contact.name
+            
             contact, contact_created = Contact.objects.update_or_create(
                 remote_jid=remote_jid,
                 company=connection.company,
