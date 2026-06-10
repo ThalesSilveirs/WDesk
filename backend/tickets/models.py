@@ -38,6 +38,17 @@ class Connection(models.Model):
     qrcode = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+class City(models.Model):
+    name = models.CharField(max_length=150, verbose_name="Nome da Cidade")
+    state = models.CharField(max_length=2, verbose_name="UF")
+    ibge_code = models.CharField(max_length=7, unique=True, verbose_name="Código IBGE")
+
+    class Meta:
+        ordering = ['name', 'state']
+
+    def __str__(self):
+        return f"{self.name} - {self.state} ({self.ibge_code})"
+
 class Customer(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='customers')
     
@@ -71,6 +82,7 @@ class Customer(models.Model):
     neighborhood = models.CharField(max_length=100, null=True, blank=True)
     city = models.CharField(max_length=100, null=True, blank=True)
     state = models.CharField(max_length=2, null=True, blank=True)
+    city_relationship = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True, related_name='customers', verbose_name="Cidade (Vínculo)")
     
     # Endereço de Cobrança
     billing_zip_code = models.CharField(max_length=10, null=True, blank=True)

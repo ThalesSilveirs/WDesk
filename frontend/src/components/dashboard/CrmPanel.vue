@@ -76,15 +76,15 @@
          <div class="crm-info-list">
            <div class="crm-info-item">
              <label>Telefone Principal</label>
-             <p>{{ chatStore.activeTicket.customer_details.phone }}</p>
+             <p>{{ formatPhone(chatStore.activeTicket.customer_details.phone) }}</p>
            </div>
            <div v-if="chatStore.activeTicket.customer_details.email" class="crm-info-item">
              <label>E-mail</label>
              <p>{{ chatStore.activeTicket.customer_details.email }}</p>
            </div>
-           <div v-if="chatStore.activeTicket.customer_details.document" class="crm-info-item">
+           <div v-if="chatStore.activeTicket.customer_details.cnpj || chatStore.activeTicket.customer_details.cpf || chatStore.activeTicket.customer_details.document" class="crm-info-item">
              <label>CPF/CNPJ</label>
-             <p>{{ chatStore.activeTicket.customer_details.document }}</p>
+             <p>{{ formatDocument(chatStore.activeTicket.customer_details) }}</p>
            </div>
          </div>
 
@@ -124,7 +124,7 @@
                class="dropdown-item"
              >
                <span class="cust-name">{{ cust.name }}</span>
-               <span class="cust-detail">{{ cust.phone }} <span v-if="cust.document">| {{ cust.document }}</span></span>
+               <span class="cust-detail">{{ formatPhone(cust.phone) }} <span v-if="cust.cnpj || cust.cpf || cust.document">| {{ formatDocument(cust) }}</span></span>
              </div>
            </div>
            <div v-else-if="customerSearchQuery.trim().length >= 2 && !searching && searchResults.length === 0" class="no-results">
@@ -168,6 +168,64 @@ const editingName = ref(false)
 const editingNote = ref(false)
 const nameInputRef = ref(null)
 const noteInputRef = ref(null)
+
+const formatCPF = (val) => {
+  if (!val) return ''
+  const nums = val.replace(/\D/g, '')
+  let formatted = ''
+  if (nums.length > 0) formatted += nums.substring(0, 3)
+  if (nums.length > 3) formatted += '.' + nums.substring(3, 6)
+  if (nums.length > 6) formatted += '.' + nums.substring(6, 9)
+  if (nums.length > 9) formatted += '-' + nums.substring(9, 11)
+  return formatted
+}
+
+const formatCNPJ = (val) => {
+  if (!val) return ''
+  const nums = val.replace(/\D/g, '')
+  let formatted = ''
+  if (nums.length > 0) formatted += nums.substring(0, 2)
+  if (nums.length > 2) formatted += '.' + nums.substring(2, 5)
+  if (nums.length > 5) formatted += '.' + nums.substring(5, 8)
+  if (nums.length > 8) formatted += '/' + nums.substring(8, 12)
+  if (nums.length > 12) formatted += '-' + nums.substring(12, 14)
+  return formatted
+}
+
+const formatDocument = (customer) => {
+  if (!customer) return ''
+  if (customer.cnpj) return formatCNPJ(customer.cnpj)
+  if (customer.cpf) return formatCPF(customer.cpf)
+  if (customer.document) {
+    const cleanDoc = customer.document.replace(/\D/g, '')
+    if (cleanDoc.length === 11) return formatCPF(cleanDoc)
+    if (cleanDoc.length === 14) return formatCNPJ(cleanDoc)
+    return customer.document
+  }
+  return ''
+}
+
+const formatPhone = (val) => {
+  if (!val) return ''
+  const nums = val.replace(/\D/g, '')
+  let formatted = ''
+  if (nums.length > 0) {
+    formatted += '(' + nums.substring(0, 2)
+  }
+  if (nums.length > 2) {
+    formatted += ') '
+    if (nums.length <= 10) {
+      formatted += nums.substring(2, 6)
+      if (nums.length > 6) {
+        formatted += '-' + nums.substring(6, 10)
+      }
+    } else {
+      formatted += nums.substring(2, 7)
+      formatted += '-' + nums.substring(7, 11)
+    }
+  }
+  return formatted
+}
 
 // Estados de Busca e Vínculo de Clientes
 const customerSearchQuery = ref('')

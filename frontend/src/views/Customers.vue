@@ -97,7 +97,7 @@
               
               <div class="info-item">
                 <PhoneIcon :size="16" />
-                <span>{{ customer.phone }}</span>
+                <span>{{ formatPhone(customer.phone) }}</span>
               </div>
               <div v-if="customer.email" class="info-item">
                 <MailIcon :size="16" />
@@ -105,7 +105,7 @@
               </div>
               <div v-if="customer.cnpj || customer.cpf" class="info-item document-item">
                 <FileTextIcon :size="16" />
-                <span>{{ customer.cnpj ? 'CNPJ: ' + customer.cnpj : 'CPF: ' + customer.cpf }}</span>
+                <span>{{ customer.cnpj ? 'CNPJ: ' + formatCNPJ(customer.cnpj) : 'CPF: ' + formatCPF(customer.cpf) }}</span>
               </div>
               <div v-if="customer.additional_contacts?.length > 0" class="additional-count">
                 {{ customer.additional_contacts.length }} contato(s) adicional(is)
@@ -140,8 +140,8 @@
                   </div>
                 </td>
                 <td>{{ customer.fantasy_name || '-' }}</td>
-                <td>{{ customer.cnpj || customer.cpf || '-' }}</td>
-                <td>{{ customer.phone }}</td>
+                <td>{{ customer.cnpj ? formatCNPJ(customer.cnpj) : (customer.cpf ? formatCPF(customer.cpf) : '-') }}</td>
+                <td>{{ formatPhone(customer.phone) }}</td>
                 <td>
                   <span v-if="customer.city">{{ customer.city }}</span>
                   <span v-if="customer.state" class="state-pill">{{ customer.state }}</span>
@@ -206,32 +206,53 @@
           <form @submit.prevent="saveCustomer" class="modal-form-scrollable">
             <!-- ABA 1: DADOS GERAIS -->
             <div v-if="activeTab === 'geral'" class="tab-pane">
-              <div class="form-group">
-                <label>Razão Social / Nome Completo *</label>
-                <input v-model="form.name" required class="input-glass" placeholder="Ex: Confetti Eventos Ltda" />
-              </div>
-
-              <div class="form-group">
-                <label>Nome Fantasia</label>
-                <input v-model="form.fantasy_name" class="input-glass" placeholder="Ex: Confetti Eventos" />
-              </div>
-
-              <div class="grid-3">
+              <div class="grid-2">
                 <div class="form-group">
-                  <label>CNPJ</label>
-                  <input v-model="form.cnpj" class="input-glass" placeholder="Ex: 00000000000000" maxlength="14" />
+                  <label>Tipo de Cliente *</label>
+                  <select v-model="clientType" class="select-glass">
+                    <option value="PJ">Pessoa Jurídica (CNPJ)</option>
+                    <option value="PF">Pessoa Física (CPF)</option>
+                  </select>
                 </div>
                 <div class="form-group">
-                  <label>CPF</label>
-                  <input v-model="form.cpf" class="input-glass" placeholder="Ex: 00000000000" maxlength="11" />
+                  <label>{{ clientType === 'PJ' ? 'Razão Social *' : 'Nome Completo *' }}</label>
+                  <input v-model="form.name" required class="input-glass" :placeholder="clientType === 'PJ' ? 'Ex: Confetti Eventos Ltda' : 'Ex: João da Silva'" />
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group" v-if="clientType === 'PJ'">
+                  <label>Nome Fantasia</label>
+                  <input v-model="form.fantasy_name" class="input-glass" placeholder="Ex: Confetti Eventos" />
                 </div>
                 <div class="form-group">
+                  <label>{{ clientType === 'PJ' ? 'CNPJ *' : 'CPF *' }}</label>
+                  <input 
+                    v-if="clientType === 'PJ'"
+                    v-model="form.cnpj" 
+                    @input="form.cnpj = formatCNPJ($event.target.value)"
+                    class="input-glass" 
+                    placeholder="Ex: 00.000.000/0000-00" 
+                    maxlength="18"
+                    required
+                  />
+                  <input 
+                    v-else
+                    v-model="form.cpf" 
+                    @input="form.cpf = formatCPF($event.target.value)"
+                    class="input-glass" 
+                    placeholder="Ex: 000.000.000-00" 
+                    maxlength="14"
+                    required
+                  />
+                </div>
+                <div class="form-group" v-if="clientType === 'PF'">
                   <label>RG</label>
                   <input v-model="form.rg" class="input-glass" placeholder="Ex: 000000000" />
                 </div>
               </div>
 
-              <div class="grid-2">
+              <div class="grid-2" v-if="clientType === 'PJ'">
                 <div class="form-group">
                   <label>Inscrição Estadual</label>
                   <input v-model="form.state_inscription" class="input-glass" placeholder="Isento ou Número" />
@@ -243,22 +264,34 @@
               </div>
 
               <div class="grid-2">
-                <div class="form-group">
+                <div class="form-group" v-if="clientType === 'PF'">
                   <label>Data de Nascimento</label>
                   <input v-model="form.birth_date" type="date" class="input-glass" />
                 </div>
-                <div class="form-group">
+                <div class="form-group" v-if="clientType === 'PJ'">
                   <label>Data de Fundação</label>
                   <input v-model="form.foundation_date" type="date" class="input-glass" />
                 </div>
               </div>
 
-              <div class="checkbox-row">
+              <div class="checkbox-row" v-if="clientType === 'PJ'">
                 <label class="checkbox-container">
                   <input type="checkbox" v-model="form.optante_simples" />
                   <span class="checkmark"></span>
                   Optante pelo Simples Nacional
                 </label>
+                <label class="checkbox-container">
+                  <input type="checkbox" v-model="form.consumidor_final" />
+                  <span class="checkmark"></span>
+                  Consumidor Final
+                </label>
+                <label class="checkbox-container">
+                  <input type="checkbox" v-model="form.nao_contribuinte" />
+                  <span class="checkmark"></span>
+                  Não Contribuinte
+                </label>
+              </div>
+              <div class="checkbox-row" v-else>
                 <label class="checkbox-container">
                   <input type="checkbox" v-model="form.consumidor_final" />
                   <span class="checkmark"></span>
@@ -277,22 +310,47 @@
               <div class="grid-2">
                 <div class="form-group">
                   <label>Telefone Principal *</label>
-                  <input v-model="form.phone" required class="input-glass" placeholder="Ex: 5511999999999" />
+                  <input 
+                    v-model="form.phone" 
+                    @input="form.phone = formatPhone($event.target.value)"
+                    maxlength="15"
+                    required 
+                    class="input-glass" 
+                    placeholder="Ex: (11) 99999-9999" 
+                  />
                 </div>
                 <div class="form-group">
                   <label>WhatsApp</label>
-                  <input v-model="form.whatsapp" class="input-glass" placeholder="Ex: 5511999999999" />
+                  <input 
+                    v-model="form.whatsapp" 
+                    @input="form.whatsapp = formatPhone($event.target.value)"
+                    maxlength="15"
+                    class="input-glass" 
+                    placeholder="Ex: (11) 99999-9999" 
+                  />
                 </div>
               </div>
 
               <div class="grid-2">
                 <div class="form-group">
                   <label>Celular</label>
-                  <input v-model="form.mobile" class="input-glass" placeholder="Ex: 5511999999999" />
+                  <input 
+                    v-model="form.mobile" 
+                    @input="form.mobile = formatPhone($event.target.value)"
+                    maxlength="15"
+                    class="input-glass" 
+                    placeholder="Ex: (11) 99999-9999" 
+                  />
                 </div>
                 <div class="form-group">
                   <label>Telefone 2 (Fixo/Outro)</label>
-                  <input v-model="form.phone2" class="input-glass" placeholder="Ex: 551133333333" />
+                  <input 
+                    v-model="form.phone2" 
+                    @input="form.phone2 = formatPhone($event.target.value)"
+                    maxlength="15"
+                    class="input-glass" 
+                    placeholder="Ex: (11) 3333-3333" 
+                  />
                 </div>
               </div>
 
@@ -343,9 +401,32 @@
                     <label>Estado (UF)</label>
                     <input v-model="form.state" class="input-glass" placeholder="SP" maxlength="2" />
                   </div>
-                  <div class="form-group">
+                  <div class="form-group city-autocomplete-container" style="position: relative;">
                     <label>Cidade</label>
-                    <input v-model="form.city" class="input-glass" placeholder="São Paulo" />
+                    <input 
+                      v-model="citySearchQuery" 
+                      @input="handleCitySearch(); form.city = citySearchQuery; showCityDropdown = true;"
+                      @focus="showCityDropdown = true"
+                      class="input-glass" 
+                      placeholder="Busque a cidade cadastrada..." 
+                    />
+                    <!-- Dropdown de Resultados -->
+                    <div 
+                      v-if="showCityDropdown && citySearchResults.length > 0" 
+                      class="autocomplete-dropdown glass-effect"
+                      style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; max-height: 200px; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 5px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);"
+                    >
+                      <div 
+                        v-for="city in citySearchResults" 
+                        :key="city.id" 
+                        @click="selectCity(city)"
+                        class="dropdown-item"
+                        style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;"
+                      >
+                        <span style="font-weight: 600; color: var(--text-primary);">{{ city.name }} - {{ city.state }}</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">IBGE: {{ city.ibge_code }}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -624,7 +705,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { 
@@ -651,6 +732,81 @@ const customers = ref([])
 const search = ref('')
 const showModal = ref(false)
 const showContactsModal = ref(false)
+
+const clientType = ref('PJ')
+
+const formatCPF = (val) => {
+  if (!val) return ''
+  const nums = val.replace(/\D/g, '')
+  let formatted = ''
+  if (nums.length > 0) formatted += nums.substring(0, 3)
+  if (nums.length > 3) formatted += '.' + nums.substring(3, 6)
+  if (nums.length > 6) formatted += '.' + nums.substring(6, 9)
+  if (nums.length > 9) formatted += '-' + nums.substring(9, 11)
+  return formatted
+}
+
+const formatCNPJ = (val) => {
+  if (!val) return ''
+  const nums = val.replace(/\D/g, '')
+  let formatted = ''
+  if (nums.length > 0) formatted += nums.substring(0, 2)
+  if (nums.length > 2) formatted += '.' + nums.substring(2, 5)
+  if (nums.length > 5) formatted += '.' + nums.substring(5, 8)
+  if (nums.length > 8) formatted += '/' + nums.substring(8, 12)
+  if (nums.length > 12) formatted += '-' + nums.substring(12, 14)
+  return formatted
+}
+
+const formatPhone = (val) => {
+  if (!val) return ''
+  const nums = val.replace(/\D/g, '')
+  let formatted = ''
+  if (nums.length > 0) {
+    formatted += '(' + nums.substring(0, 2)
+  }
+  if (nums.length > 2) {
+    formatted += ') '
+    if (nums.length <= 10) {
+      formatted += nums.substring(2, 6)
+      if (nums.length > 6) {
+        formatted += '-' + nums.substring(6, 10)
+      }
+    } else {
+      formatted += nums.substring(2, 7)
+      formatted += '-' + nums.substring(7, 11)
+    }
+  }
+  return formatted
+}
+
+// Busca e Auto-complete de Cidades
+const citySearchQuery = ref('')
+const citySearchResults = ref([])
+const showCityDropdown = ref(false)
+
+const handleCitySearch = async () => {
+  const query = citySearchQuery.value.trim()
+  if (query.length < 2) {
+    citySearchResults.value = []
+    return
+  }
+  try {
+    const results = await chatStore.fetchCities(query)
+    citySearchResults.value = results
+  } catch (err) {
+    console.error("Erro ao buscar cidades para preenchimento", err)
+  }
+}
+
+const selectCity = (city) => {
+  form.value.city = city.name
+  form.value.state = city.state
+  form.value.city_relationship = city.id
+  citySearchQuery.value = city.name
+  showCityDropdown.value = false
+}
+
 
 // Modo de visualização (grade ou lista)
 const viewMode = ref(localStorage.getItem('wdesk_customers_view_mode') || 'grid')
@@ -723,6 +879,7 @@ const defaultForm = () => ({
   neighborhood: '',
   city: '',
   state: '',
+  city_relationship: null,
   billing_zip_code: '',
   billing_address: '',
   billing_number: '',
@@ -812,8 +969,11 @@ const fetchCustomers = async () => {
 const openCreateModal = () => {
   editingId.value = null
   form.value = defaultForm()
+  clientType.value = 'PJ'
   activeTab.value = 'geral'
   activeAddressTab.value = 'principal'
+  citySearchQuery.value = ''
+  citySearchResults.value = []
   showModal.value = true
 }
 
@@ -821,7 +981,30 @@ const editCustomer = (customer) => {
   editingId.value = customer.id
   // Garante que campos não preenchidos fiquem devidamente inicializados
   const merged = { ...defaultForm(), ...customer }
+  
+  // Aplica as máscaras ao carregar
+  merged.cpf = formatCPF(merged.cpf)
+  merged.cnpj = formatCNPJ(merged.cnpj)
+  merged.phone = formatPhone(merged.phone)
+  merged.phone2 = formatPhone(merged.phone2)
+  merged.mobile = formatPhone(merged.mobile)
+  merged.whatsapp = formatPhone(merged.whatsapp)
+  
   form.value = merged
+  
+  if (merged.cpf && !merged.cnpj) {
+    clientType.value = 'PF'
+  } else {
+    clientType.value = 'PJ'
+  }
+  
+  if (merged.city_relationship_details) {
+    citySearchQuery.value = merged.city_relationship_details.name
+  } else {
+    citySearchQuery.value = merged.city || ''
+  }
+  citySearchResults.value = []
+  
   activeTab.value = 'geral'
   activeAddressTab.value = 'principal'
   showModal.value = true
@@ -848,8 +1031,29 @@ const copyPrincipalToDelivery = () => {
 const saveCustomer = async () => {
   loading.value = true
   
-  // Limpeza de campos vazios numéricos ou de data para não violar tipos do backend
   const payload = { ...form.value }
+  
+  // Limpa caracteres de formatação do CPF/CNPJ e Telefones para salvar no banco
+  payload.cnpj = (payload.cnpj || '').replace(/\D/g, '')
+  payload.cpf = (payload.cpf || '').replace(/\D/g, '')
+  payload.phone = (payload.phone || '').replace(/\D/g, '')
+  payload.phone2 = (payload.phone2 || '').replace(/\D/g, '')
+  payload.mobile = (payload.mobile || '').replace(/\D/g, '')
+  payload.whatsapp = (payload.whatsapp || '').replace(/\D/g, '')
+  
+  // Limpa campos que não pertencem ao tipo de cliente selecionado
+  if (clientType.value === 'PF') {
+    payload.cnpj = ''
+    payload.foundation_date = null
+    payload.optante_simples = false
+    payload.fantasy_name = ''
+    payload.state_inscription = ''
+    payload.municipal_inscription = ''
+  } else {
+    payload.cpf = ''
+    payload.rg = ''
+    payload.birth_date = null
+  }
   
   // Garante sincronização de document para compatibilidade histórica do backend
   payload.document = payload.cnpj || payload.cpf || ''
@@ -940,7 +1144,20 @@ const openTicket = async (customer) => {
   }
 }
 
-onMounted(fetchCustomers)
+const handleDocumentClick = (e) => {
+  if (!e.target.closest('.city-autocomplete-container')) {
+    showCityDropdown.value = false
+  }
+}
+
+onMounted(() => {
+  fetchCustomers()
+  window.addEventListener('click', handleDocumentClick)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleDocumentClick)
+})
 </script>
 
 <style scoped>

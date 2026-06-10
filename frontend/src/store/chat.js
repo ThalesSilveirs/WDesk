@@ -537,6 +537,28 @@ export const useChatStore = defineStore('chat', {
       return response.data
     },
 
+    async fetchCities(query = '') {
+      const response = await axios.get(`/api/v1/cities/`, {
+        params: { q: query }
+      })
+      return response.data
+    },
+
+    async createCity(payload) {
+      const response = await axios.post(`/api/v1/cities/`, payload)
+      return response.data
+    },
+
+    async updateCity(cityId, payload) {
+      const response = await axios.put(`/api/v1/cities/${cityId}/`, payload)
+      return response.data
+    },
+
+    async deleteCity(cityId) {
+      const response = await axios.delete(`/api/v1/cities/${cityId}/`)
+      return response.data
+    },
+
     async updateContact(contactId, payload) {
       const response = await axios.patch(`/api/v1/contacts/${contactId}/`, payload)
       return response.data

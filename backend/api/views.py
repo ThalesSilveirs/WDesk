@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.response import Response
 from django.db import transaction
 from rest_framework.decorators import action
-from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule
+from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City
 from .serializers import (
     TicketSerializer, 
     TicketListSerializer,
@@ -15,7 +15,8 @@ from .serializers import (
     CompanySerializer,
     MessageReactionSerializer,
     QuickReplySerializer,
-    AbsenceScheduleSerializer
+    AbsenceScheduleSerializer,
+    CitySerializer
 )
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.views.decorators.csrf import csrf_exempt
@@ -1719,5 +1720,20 @@ class AbsenceScheduleViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class CityViewSet(viewsets.ModelViewSet):
+    queryset = City.objects.all()
+    serializer_class = CitySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from django.db.models import Q
+        queryset = City.objects.all()
+        q = self.request.query_params.get('q', None)
+        if q:
+            queryset = queryset.filter(Q(name__icontains=q) | Q(ibge_code__icontains=q))
+        return queryset
+
 
 
