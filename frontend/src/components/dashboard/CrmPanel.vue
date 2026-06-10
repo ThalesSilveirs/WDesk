@@ -329,7 +329,7 @@ const unlinkCustomer = async () => {
   cursor: pointer;
 }
 
-.close-btn:hover { color: white; }
+.close-btn:hover { color: var(--text-primary); }
 
 .crm-content {
   padding: 20px;
@@ -362,7 +362,7 @@ const unlinkCustomer = async () => {
   border: 1px solid var(--accent);
   border-radius: 8px;
   padding: 6px 10px;
-  color: white;
+  color: var(--text-primary);
   outline: none;
   font-size: 0.9rem;
 }
@@ -386,7 +386,7 @@ const unlinkCustomer = async () => {
 }
 
 .contact-name-highlight {
-  color: #10b981;
+  color: var(--accent);
   font-weight: 700;
   font-size: 1rem;
 }
@@ -403,7 +403,7 @@ const unlinkCustomer = async () => {
 
 .note-badge {
   background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  color: var(--accent);
   border: 1px solid rgba(16, 185, 129, 0.3);
   padding: 4px 8px;
   border-radius: 20px;
@@ -489,7 +489,7 @@ const unlinkCustomer = async () => {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px 10px 35px;
-  color: white;
+  color: var(--text-primary);
   outline: none;
   transition: all 0.3s ease;
   font-size: 0.9rem;
@@ -542,7 +542,7 @@ const unlinkCustomer = async () => {
 }
 
 .cust-name {
-  color: white;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 0.85rem;
 }
@@ -577,8 +577,8 @@ const unlinkCustomer = async () => {
   border: 1px solid var(--border); 
   border-radius: 10px; 
   padding: 10px 12px; 
-  color: white; 
-  outline: none; 
+  color: var(--text-primary);
+  outline: none;
   transition: all 0.3s ease;
 }
 .form-group-sm input:focus {

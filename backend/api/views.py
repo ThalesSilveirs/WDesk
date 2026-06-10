@@ -85,8 +85,7 @@ class CustomerViewSet(TenantModelViewSet):
         from django.db.models import Q
         customers = self.get_queryset().filter(
             Q(name__icontains=query) |
-            Q(fantasy_name__icontains=query) |
-            Q(phone__icontains=query)
+            Q(fantasy_name__icontains=query)
         )[:15]
         return Response(CustomerSerializer(customers, many=True).data)
 
