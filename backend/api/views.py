@@ -54,13 +54,23 @@ class CustomerViewSet(TenantModelViewSet):
     @action(detail=True, methods=['post'])
     def open_ticket(self, request, pk=None):
         customer = self.get_object()
-        # Busca ou cria um contato para este cliente
-        # Usamos o remote_jid padrão do whatsapp se não existir
-        remote_jid = f"{customer.phone}@s.whatsapp.net"
+        
+        contact_phone = request.data.get('phone')
+        contact_name = request.data.get('name')
+        
+        if not contact_phone:
+            contact_phone = customer.phone
+        if not contact_name:
+            contact_name = customer.name
+            
+        import re
+        phone_digits = re.sub(r'\D', '', str(contact_phone))
+        remote_jid = f"{phone_digits}@s.whatsapp.net"
+        
         contact, _ = Contact.objects.get_or_create(
             company=request.user.company,
             remote_jid=remote_jid,
-            defaults={'name': customer.name, 'customer': customer}
+            defaults={'name': contact_name, 'customer': customer}
         )
         
         # Se o contato não tinha cliente vinculado, vincula agora

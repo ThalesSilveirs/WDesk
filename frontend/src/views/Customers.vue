@@ -701,6 +701,53 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Modal de Seleção de Contato para Abrir Ticket -->
+    <Transition name="modal-fade">
+      <div v-if="showTicketModal" class="modal-overlay" @click="showTicketModal = false">
+        <div class="modal-content ticket-contact-modal" @click.stop>
+          <div class="modal-header">
+            <div>
+              <h2>Abrir Ticket para {{ selectedCustomerForTicket?.name }}</h2>
+              <p style="color: var(--text-secondary); font-size: 0.9rem;">Escolha o contato para iniciar o atendimento</p>
+            </div>
+            <button @click="showTicketModal = false" class="close-btn-round"><XIcon :size="20" /></button>
+          </div>
+          
+          <div class="contacts-list select-contacts-list">
+            <!-- Contato Principal -->
+            <div 
+              @click="confirmOpenTicket({ name: selectedCustomerForTicket?.name, phone: selectedCustomerForTicket?.phone })" 
+              class="contact-select-item"
+            >
+              <div class="contact-avatar main-avatar">
+                P
+              </div>
+              <div class="contact-details-mini">
+                <strong>{{ selectedCustomerForTicket?.name }} <span class="tag-main">Principal</span></strong>
+                <span>{{ selectedCustomerForTicket?.phone }}</span>
+              </div>
+            </div>
+
+            <!-- Contatos Adicionais -->
+            <div 
+              v-for="contact in selectedCustomerForTicket?.additional_contacts" 
+              :key="contact.id" 
+              @click="confirmOpenTicket({ name: contact.name, phone: contact.phone })"
+              class="contact-select-item"
+            >
+              <div class="contact-avatar">
+                {{ contact.name.charAt(0).toUpperCase() }}
+              </div>
+              <div class="contact-details-mini">
+                <strong>{{ contact.name }}</strong>
+                <span>{{ contact.phone }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -732,6 +779,8 @@ const customers = ref([])
 const search = ref('')
 const showModal = ref(false)
 const showContactsModal = ref(false)
+const showTicketModal = ref(false)
+const selectedCustomerForTicket = ref(null)
 
 const clientType = ref('PJ')
 
@@ -1135,9 +1184,24 @@ const confirmDelete = async (customer) => {
   }
 }
 
-const openTicket = async (customer) => {
+const openTicket = (customer) => {
+  if (customer.additional_contacts && customer.additional_contacts.length > 0) {
+    selectedCustomerForTicket.value = customer
+    showTicketModal.value = true
+  } else {
+    confirmOpenTicket({ name: customer.name, phone: customer.phone }, customer.id)
+  }
+}
+
+const confirmOpenTicket = async (contact, customerId = null) => {
+  const custId = customerId || selectedCustomerForTicket.value?.id
+  if (!custId) return
+  showTicketModal.value = false
   try {
-    await axios.post(`/api/v1/customers/${customer.id}/open_ticket/`, {})
+    await axios.post(`/api/v1/customers/${custId}/open_ticket/`, {
+      name: contact.name,
+      phone: contact.phone
+    })
     router.push('/')
   } catch (e) {
     alert("Erro ao abrir ticket")
@@ -1704,6 +1768,49 @@ onUnmounted(() => {
 /* Contacts Modal Específicos */
 .contacts-modal {
   max-width: 500px;
+}
+
+/* Ticket Contact Selector Modal */
+.ticket-contact-modal {
+  max-width: 500px;
+}
+
+.select-contacts-list {
+  max-height: 350px;
+  margin-bottom: 0px;
+}
+
+.contact-select-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: var(--glass);
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.contact-select-item:hover {
+  background: var(--glass-hover);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.contact-select-item .main-avatar {
+  background: var(--primary);
+  color: white;
+}
+
+.tag-main {
+  background: rgba(var(--primary-rgb), 0.15);
+  color: var(--primary);
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
 }
 
 .contacts-list {
