@@ -530,6 +530,13 @@ export const useChatStore = defineStore('chat', {
       return response.data
     },
 
+    async searchCustomers(query) {
+      const response = await axios.get(`/api/v1/customers/search/`, {
+        params: { q: query }
+      })
+      return response.data
+    },
+
     async updateContact(contactId, payload) {
       const response = await axios.patch(`/api/v1/contacts/${contactId}/`, payload)
       return response.data

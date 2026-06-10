@@ -141,6 +141,7 @@ class Contact(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='contacts')
     remote_jid = models.CharField(max_length=100) # Ex: 5511999999999@s.whatsapp.net
     name = models.CharField(max_length=255, null=True, blank=True)
+    note = models.CharField(max_length=150, null=True, blank=True)
     profile_pic = models.URLField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

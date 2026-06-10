@@ -77,6 +77,19 @@ class CustomerViewSet(TenantModelViewSet):
         
         return Response(TicketSerializer(ticket).data)
 
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response([])
+        from django.db.models import Q
+        customers = self.get_queryset().filter(
+            Q(name__icontains=query) |
+            Q(fantasy_name__icontains=query) |
+            Q(phone__icontains=query)
+        )[:15]
+        return Response(CustomerSerializer(customers, many=True).data)
+
 class CustomerContactViewSet(viewsets.ModelViewSet):
     queryset = CustomerContact.objects.all()
     serializer_class = CustomerContactSerializer
@@ -87,6 +100,21 @@ class CustomerContactViewSet(viewsets.ModelViewSet):
 class ContactViewSet(TenantModelViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
+
+    def perform_update(self, serializer):
+        contact = serializer.save()
+        tickets = Ticket.objects.filter(contact=contact, status__in=['open', 'pending'])
+        for ticket in tickets:
+            event_payload = {
+                "company_id": str(ticket.company.id),
+                "type": "ticket_updated",
+                "payload": TicketSerializer(ticket).data
+            }
+            from django.core.serializers.json import DjangoJSONEncoder
+            try:
+                redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+            except Exception as e:
+                print(f"[CONTACT UPDATE BROADCAST] Erro ao notificar Redis: {str(e)}")
 
     @action(detail=True, methods=['get'])
     def avatar(self, request, pk=None):
