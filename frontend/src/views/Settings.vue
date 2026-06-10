@@ -228,101 +228,7 @@
             </div>
           </section>
 
-          <!-- Seção Cadastro de Cidades -->
-          <section class="settings-section glass-effect" style="margin-top: 30px;">
-            <div class="section-header" style="justify-content: space-between; display: flex; align-items: center; width: 100%;">
-              <div style="display: flex; align-items: center; gap: 15px;">
-                <MapPinIcon :size="24" style="color: #10b981;" />
-                <h2>Cadastro de Cidades (IBGE)</h2>
-              </div>
-              <button v-if="!showCityForm" @click="openNewCityForm" class="btn-secondary-sm">
-                <PlusIcon :size="16" /> Nova Cidade
-              </button>
-            </div>
-            <p class="section-desc">Gerencie as cidades e seus códigos IBGE associados para vínculo aos clientes.</p>
 
-            <!-- Form para Criar/Editar Cidade -->
-            <div v-if="showCityForm" class="form-container sub-form glass-effect">
-              <h3>{{ editingCityId ? 'Editar Cidade' : 'Nova Cidade' }}</h3>
-              <div class="grid-3" style="margin-top: 15px; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px;">
-                <div class="form-group">
-                  <label>Nome da Cidade *</label>
-                  <input 
-                    v-model="cityForm.name" 
-                    type="text" 
-                    placeholder="Ex: São Paulo"
-                    class="input-glass premium-input"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label>UF (Estado) *</label>
-                  <input 
-                    v-model="cityForm.state" 
-                    type="text" 
-                    placeholder="Ex: SP"
-                    maxlength="2"
-                    class="input-glass premium-input"
-                    style="text-transform: uppercase;"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Código IBGE *</label>
-                  <input 
-                    v-model="cityForm.ibge_code" 
-                    type="text" 
-                    placeholder="Ex: 3550308"
-                    maxlength="7"
-                    class="input-glass premium-input"
-                    required
-                  />
-                </div>
-              </div>
-              <div class="action-bar-sm" style="margin-top: 15px; display: flex; gap: 10px;">
-                <button @click="saveCity" class="btn-primary-sm" :disabled="savingCity">
-                  <CheckIcon :size="16" /> {{ savingCity ? 'Salvando...' : 'Salvar' }}
-                </button>
-                <button @click="closeCityForm" class="btn-ghost-sm" :disabled="savingCity">
-                  Cancelar
-                </button>
-              </div>
-            </div>
-
-            <!-- Tabela de Cidades -->
-            <div v-else class="replies-table-container">
-              <div v-if="cities.length === 0" class="empty-state">
-                Nenhuma cidade cadastrada.
-              </div>
-              <table v-else class="premium-table">
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>Estado (UF)</th>
-                    <th>Código IBGE</th>
-                    <th style="text-align: right;">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="city in cities" :key="city.id">
-                    <td>{{ city.name }}</td>
-                    <td><span class="state-pill">{{ city.state }}</span></td>
-                    <td><code>{{ city.ibge_code }}</code></td>
-                    <td style="text-align: right;">
-                      <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                        <button @click="editCity(city)" class="action-icon-btn edit" title="Editar">
-                          <EditIcon :size="16" />
-                        </button>
-                        <button @click="deleteCity(city.id)" class="action-icon-btn delete" title="Apagar">
-                          <TrashIcon :size="16" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
         </div>
 
         <!-- Coluna Direita (Status / Perigo) -->
@@ -434,8 +340,7 @@ import {
   Clock as ClockIcon,
   Check as CheckIcon,
   Pencil as EditIcon,
-  Plus as PlusIcon,
-  MapPin as MapPinIcon
+  Plus as PlusIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -631,81 +536,10 @@ const handleReset = async () => {
   }
 }
 
-// === ESTADOS E MÉTODOS DE CIDADES ===
-const cities = ref([])
-const showCityForm = ref(false)
-const editingCityId = ref(null)
-const savingCity = ref(false)
-const cityForm = ref({
-  name: '',
-  state: '',
-  ibge_code: ''
-})
-
-const fetchCitiesList = async () => {
-  try {
-    cities.value = await chatStore.fetchCities()
-  } catch (e) {
-    console.error("Erro ao buscar cidades", e)
-  }
-}
-
-const openNewCityForm = () => {
-  editingCityId.value = null
-  cityForm.value = { name: '', state: '', ibge_code: '' }
-  showCityForm.value = true
-}
-
-const editCity = (city) => {
-  editingCityId.value = city.id
-  cityForm.value = { name: city.name, state: city.state, ibge_code: city.ibge_code }
-  showCityForm.value = true
-}
-
-const closeCityForm = () => {
-  showCityForm.value = false
-}
-
-const saveCity = async () => {
-  if (!cityForm.value.name || !cityForm.value.state || !cityForm.value.ibge_code) {
-    alert("Preencha todos os campos obrigatórios")
-    return
-  }
-  
-  savingCity.value = true
-  try {
-    cityForm.value.state = cityForm.value.state.toUpperCase()
-    if (editingCityId.value) {
-      await chatStore.updateCity(editingCityId.value, cityForm.value)
-    } else {
-      await chatStore.createCity(cityForm.value)
-    }
-    await fetchCitiesList()
-    showCityForm.value = false
-  } catch (e) {
-    console.error("Erro ao salvar cidade", e)
-    alert("Erro ao salvar cidade. Verifique se o código IBGE já está cadastrado.")
-  } finally {
-    savingCity.value = false
-  }
-}
-
-const deleteCity = async (id) => {
-  if (confirm("Tem certeza que deseja excluir esta cidade?")) {
-    try {
-      await chatStore.deleteCity(id)
-      await fetchCitiesList()
-    } catch (e) {
-      alert("Erro ao excluir cidade")
-    }
-  }
-}
-
 onMounted(() => {
   fetchSettings()
   fetchQuickReplies()
   fetchAbsenceSettings()
-  fetchCitiesList()
 })
 </script>
 

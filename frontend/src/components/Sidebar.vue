@@ -25,9 +25,40 @@
           <span class="link-label">Conversas</span>
         </router-link>
 
-        <router-link to="/customers" class="nav-link-item" active-class="active" data-tooltip="Clientes">
+        <!-- Menu Cadastros com Submenu (Desktop) -->
+        <div class="submenu-container desktop-only" :class="{ 'submenu-open': isCadastrosOpen }">
+          <button 
+            type="button" 
+            class="nav-link-item submenu-trigger" 
+            :class="{ 'active': isRouteActive }"
+            @click="toggleCadastros"
+            data-tooltip="Cadastros"
+          >
+            <FolderIcon :size="20" />
+            <span class="link-label">Cadastros</span>
+            <ChevronDownIcon :size="16" class="arrow-icon" />
+          </button>
+          
+          <div class="submenu-items">
+            <router-link to="/customers" class="submenu-item" active-class="active-sub">
+              <ContactIcon :size="16" />
+              <span class="link-label">Clientes</span>
+            </router-link>
+            <router-link to="/cities" class="submenu-item" active-class="active-sub">
+              <MapPinIcon :size="16" />
+              <span class="link-label">Cidades</span>
+            </router-link>
+          </div>
+        </div>
+
+        <!-- Clientes e Cidades Diretos no Mobile -->
+        <router-link to="/customers" class="nav-link-item mobile-only" active-class="active" data-tooltip="Clientes">
           <ContactIcon :size="20" />
           <span class="link-label">Clientes</span>
+        </router-link>
+        <router-link to="/cities" class="nav-link-item mobile-only" active-class="active" data-tooltip="Cidades">
+          <MapPinIcon :size="20" />
+          <span class="link-label">Cidades</span>
         </router-link>
 
         <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active" data-tooltip="Equipes">
@@ -93,8 +124,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useChatStore } from '../store/chat'
 import {
   MessageCircle as MessageCircleIcon,
@@ -109,10 +140,14 @@ import {
   Moon as MoonIcon,
   Contact as ContactIcon,
   ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  ChevronDown as ChevronDownIcon,
+  MapPin as MapPinIcon,
+  Folder as FolderIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
+const route = useRoute()
 const chatStore = useChatStore()
 const showHelpModal = ref(false)
 
@@ -120,6 +155,32 @@ const isCollapsed = ref(localStorage.getItem('sidebar-collapsed') === 'true')
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   localStorage.setItem('sidebar-collapsed', isCollapsed.value ? 'true' : 'false')
+  // Se recolher, fecha o submenu também
+  if (isCollapsed.value) {
+    isCadastrosOpen.value = false
+  }
+}
+
+// Submenu Cadastros
+const isCadastrosOpen = ref(false)
+const isRouteActive = computed(() => {
+  return ['/customers', '/cities'].includes(route.path)
+})
+
+onMounted(() => {
+  if (isRouteActive.value && !isCollapsed.value) {
+    isCadastrosOpen.value = true
+  }
+})
+
+const toggleCadastros = () => {
+  if (isCollapsed.value) {
+    isCollapsed.value = false
+    localStorage.setItem('sidebar-collapsed', 'false')
+    isCadastrosOpen.value = true
+  } else {
+    isCadastrosOpen.value = !isCadastrosOpen.value
+  }
 }
 </script>
 
@@ -418,5 +479,86 @@ const toggleCollapse = () => {
 
 .mobile-only {
   display: none !important;
+}
+
+/* Submenu Cadastros styling */
+.submenu-container {
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.submenu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.arrow-icon {
+  margin-left: auto;
+  transition: transform 0.25s ease;
+}
+
+.sidebar-container.collapsed .arrow-icon {
+  display: none !important;
+}
+
+.submenu-open .arrow-icon {
+  transform: rotate(180deg);
+}
+
+.submenu-items {
+  max-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 20px;
+  margin-top: 2px;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding-top 0.3s ease;
+}
+
+.submenu-open .submenu-items {
+  max-height: 120px;
+}
+
+.submenu-item {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  padding: 10px 15px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.submenu-item:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.submenu-item.active-sub {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.sidebar-container.collapsed .submenu-items {
+  display: none !important;
+}
+
+.desktop-only {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
 }
 </style>
