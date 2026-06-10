@@ -18,7 +18,8 @@ export const useChatStore = defineStore('chat', {
     showBroadcastModal: false,
     notifications: [],
     searchQuery: '',
-    quickReplies: []
+    quickReplies: [],
+    notifyAll: localStorage.getItem('notifyAll') === 'true'
   }),
 
   actions: {
@@ -184,6 +185,10 @@ export const useChatStore = defineStore('chat', {
     markAllNotificationsAsRead() {
       this.notifications.forEach(n => n.read = true)
     },
+    toggleNotifyAll() {
+      this.notifyAll = !this.notifyAll
+      localStorage.setItem('notifyAll', this.notifyAll)
+    },
     async fetchAttendants() {
       const response = await axios.get(`/api/v1/users/`)
       this.attendants = response.data
@@ -294,28 +299,37 @@ export const useChatStore = defineStore('chat', {
       })
 
       this.socket.on('new_message', (message) => {
-        // Se a mensagem não for minha, disparar alerta
+        // Determina se esta notificação é relevante para o usuário atual
         if (!message.from_me) {
-          this.playNotificationSound()
+          const isAdmin = this.userRole === 'admin'
+          const notifyAll = isAdmin && this.notifyAll
+          const isMyTicket = this.user && message.ticket_user_id === this.user.id
+          const isInQueue = !message.ticket_user_id // sem atendente → na fila
 
-          // Só mostra notificação se não estiver com o ticket aberto ou se a janela estiver em segundo plano
-          const isCurrentTicket = this.activeTicket && message.ticket === this.activeTicket.id
-          if (!isCurrentTicket || document.hidden) {
-            const senderName = message.contact_name || 'Novo Cliente'
+          const shouldNotify = notifyAll || isMyTicket || isInQueue
 
-            let bodyText = message.body
-            if (!bodyText && message.media_type) {
-              const types = { 'image': '📷 Foto', 'audio': '🎵 Áudio', 'video': '🎥 Vídeo', 'document': '📄 Documento' }
-              bodyText = types[message.media_type] || 'Nova mídia recebida'
+          if (shouldNotify) {
+            this.playNotificationSound()
+
+            // Só mostra notificação se não estiver com o ticket aberto ou se a janela estiver em segundo plano
+            const isCurrentTicket = this.activeTicket && message.ticket === this.activeTicket.id
+            if (!isCurrentTicket || document.hidden) {
+              const senderName = message.contact_name || 'Novo Cliente'
+
+              let bodyText = message.body
+              if (!bodyText && message.media_type) {
+                const types = { 'image': '📷 Foto', 'audio': '🎵 Áudio', 'video': '🎥 Vídeo', 'document': '📄 Documento' }
+                bodyText = types[message.media_type] || 'Nova mídia recebida'
+              }
+
+              const icon = '/favicon.png'
+              this.showNotification(`💬 ${senderName}`, bodyText || 'Nova mensagem recebida', icon)
+              this.addNotification({
+                title: `De: ${senderName}`,
+                body: bodyText || 'Nova mensagem recebida',
+                ticket_id: message.ticket
+              })
             }
-
-            const icon = '/favicon.png'
-            this.showNotification(`💬 ${senderName}`, bodyText || 'Nova mensagem recebida', icon)
-            this.addNotification({
-              title: `De: ${senderName}`,
-              body: bodyText || 'Nova mensagem recebida',
-              ticket_id: message.ticket
-            })
           }
         }
 

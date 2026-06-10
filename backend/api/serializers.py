@@ -103,7 +103,8 @@ class MessageSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     contact_name = serializers.CharField(source='ticket.contact.name', read_only=True)
     reactions = MessageReactionSerializer(many=True, read_only=True)
-    
+    ticket_user_id = serializers.IntegerField(source='ticket.user_id', read_only=True, allow_null=True)
+
     class Meta:
         model = Message
         fields = '__all__'

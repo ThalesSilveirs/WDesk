@@ -108,6 +108,21 @@
                   <span>Ajuda</span>
                 </button>
               </div>
+
+              <!-- Toggle: Notificações de Todas as Conversas (só admin) -->
+              <div
+                v-if="chatStore.userRole === 'admin'"
+                class="menu-item toggle-item"
+                @click.stop="toggleNotifyAll"
+                title="Receber notificações de todas as conversas"
+              >
+                <BellIcon :size="16" />
+                <span>Todas as notificações</span>
+                <div class="toggle-switch" :class="{ active: chatStore.notifyAll }">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+
               <button @click="triggerLogout" class="menu-item logout">
                 <LogOutIcon :size="16" />
                 <span>Sair</span>
@@ -197,6 +212,10 @@ const logout = () => {
 const triggerHelp = () => {
   showProfileMenu.value = false
   showHelpModal.value = true
+}
+
+const toggleNotifyAll = () => {
+  chatStore.toggleNotifyAll()
 }
 
 const currentStatus = ref('online')
@@ -737,6 +756,45 @@ onUnmounted(() => {
   display: none;
   flex-direction: column;
   gap: 4px;
+}
+
+/* Toggle switch estilo iOS */
+.toggle-item {
+  justify-content: space-between !important;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-switch {
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.25s;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.toggle-switch.active {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.toggle-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.25s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-switch.active .toggle-thumb {
+  left: 18px;
 }
 
 /* Modal styling copy for global header integration */
