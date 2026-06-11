@@ -236,6 +236,23 @@ class TicketViewSet(TenantModelViewSet):
             return TicketListSerializer
         return TicketSerializer
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        status_filter = request.query_params.get('status_filter')
+        limit = request.query_params.get('limit')
+        
+        if limit:
+            try:
+                queryset = queryset[:int(limit)]
+            except ValueError:
+                pass
+        elif status_filter == 'closed':
+            queryset = queryset[:200]  # Limite padrão de segurança
+            
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     def broadcast_ticket_update(self, ticket):
         event_payload = {
             "company_id": str(ticket.company.id),
@@ -344,6 +361,28 @@ class TicketViewSet(TenantModelViewSet):
         ticket.unread_count = 0
         ticket.save()
         return Response({'status': 'unread count reset'})
+
+    @action(detail=True, methods=['get'])
+    def messages(self, request, pk=None):
+        ticket = self.get_object()
+        before_id = request.query_params.get('before')
+        limit = int(request.query_params.get('limit', 50))
+        
+        queryset = Message.objects.filter(ticket=ticket).order_by('-timestamp')
+        
+        if before_id:
+            try:
+                # Tenta buscar pelo ID numérico primeiro
+                if str(before_id).isdigit():
+                    before_msg = Message.objects.get(id=before_id, ticket=ticket)
+                else:
+                    before_msg = Message.objects.get(message_id=before_id, ticket=ticket)
+                queryset = queryset.filter(timestamp__lt=before_msg.timestamp)
+            except Message.DoesNotExist:
+                pass
+                
+        messages = queryset[:limit]
+        return Response(MessageSerializer(reversed(messages), many=True, context={'request': request}).data)
 
     def get_queryset(self):
         qs = super().get_queryset().select_related('contact', 'contact__customer', 'user')

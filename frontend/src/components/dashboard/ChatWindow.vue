@@ -26,6 +26,7 @@
       @edit="startEditingMessage($event, newMessageRef, messageInputRef)"
       @react="handleReaction"
       @toggleReactionPicker="toggleReactionPicker"
+      @visible="resolveMessageMedia"
     />
 
     <!-- Footer / Input -->
@@ -93,8 +94,7 @@ const newMessageRef = computed({
 
 // 1. Resolução e limpeza de Blob URLs
 const activeTicketId = computed(() => chatStore.activeTicket?.id)
-const messagesList = computed(() => chatStore.messages)
-const { resolvedUrls } = useMediaResolver(messagesList, activeTicketId)
+const { resolvedUrls, resolveMessageMedia } = useMediaResolver(activeTicketId)
 
 // 2. Ações de mensagem (editar, responder, scroll)
 const {

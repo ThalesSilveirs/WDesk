@@ -1,6 +1,12 @@
 <template>
   <div class="messages-wrapper">
-    <div class="messages-container" ref="messageRef">
+    <div class="messages-container" ref="messageRef" @scroll="handleScroll">
+      <!-- Loader de mensagens anteriores -->
+      <div v-if="chatStore.loadingMore" class="loading-more-spinner">
+        <span class="spinner-dot"></span>
+        <span>Carregando mensagens anteriores...</span>
+      </div>
+
       <template v-for="msg in messages" :key="msg.id">
         <!-- Mensagem de Evento do Sistema (Centralizada) -->
         <div v-if="isSystemMessage(msg)" class="system-message-center">
@@ -30,6 +36,7 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
+import { useChatStore } from '../../../store/chat'
 import MessageBubble from './MessageBubble.vue'
 import { isSystemMessage, cleanSystemText } from '../../../utils/whatsappMarkdown'
 
@@ -66,6 +73,7 @@ const emit = defineEmits([
   'toggleReactionPicker'
 ])
 
+const chatStore = useChatStore()
 const messageRef = ref(null)
 
 const scrollToBottom = () => {
@@ -74,6 +82,19 @@ const scrollToBottom = () => {
       messageRef.value.scrollTop = messageRef.value.scrollHeight
     }
   })
+}
+
+const handleScroll = async (e) => {
+  const container = e.target
+  if (container.scrollTop === 0 && chatStore.hasMoreMessages && !chatStore.loadingMore) {
+    const prevScrollHeight = container.scrollHeight
+    
+    await chatStore.loadMoreMessages()
+    
+    nextTick(() => {
+      container.scrollTop = container.scrollHeight - prevScrollHeight
+    })
+  }
 }
 
 defineExpose({
@@ -141,6 +162,29 @@ defineExpose({
 .system-message-badge :deep(strong) {
   color: var(--text-primary);
   font-weight: 600;
+}
+
+.loading-more-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.spinner-dot {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {

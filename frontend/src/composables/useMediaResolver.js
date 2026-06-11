@@ -1,7 +1,7 @@
 import { shallowRef, watch, onUnmounted } from 'vue'
 import { base64ToBlobUrl } from '../utils/whatsappMarkdown'
 
-export function useMediaResolver(messagesRef, activeTicketIdRef) {
+export function useMediaResolver(activeTicketIdRef) {
   const resolvedUrls = shallowRef({})
   const resolvedSources = {}
 
@@ -16,7 +16,6 @@ export function useMediaResolver(messagesRef, activeTicketIdRef) {
       }
     })
     resolvedUrls.value = {}
-    // Limpar o objeto normal de fontes
     for (const key in resolvedSources) {
       delete resolvedSources[key]
     }
@@ -52,26 +51,12 @@ export function useMediaResolver(messagesRef, activeTicketIdRef) {
     cleanupResolvedUrls()
   })
 
-  // Monitorar novas mensagens
-  watch(messagesRef, (newMessages) => {
-    if (!newMessages) return
-    newMessages.forEach(resolveMessageMedia)
-  }, { immediate: true })
-
-  watch(() => messagesRef.value?.length, (newLength, oldLength) => {
-    const msgs = messagesRef.value
-    if (!msgs || newLength === 0) return
-    const startIndex = oldLength && oldLength < newLength ? oldLength : 0
-    for (let i = startIndex; i < newLength; i++) {
-      resolveMessageMedia(msgs[i])
-    }
-  })
-
   onUnmounted(() => {
     cleanupResolvedUrls()
   })
 
   return {
-    resolvedUrls
+    resolvedUrls,
+    resolveMessageMedia
   }
 }

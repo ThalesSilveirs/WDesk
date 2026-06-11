@@ -318,22 +318,24 @@ const formatTime = (date) => {
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
+const handleWindowClick = () => {
+  showNotificationDropdown.value = false
+  showStatusMenu.value = false
+  showProfileMenu.value = false
+}
+
 const handleStatusSynced = (e) => {
   currentStatus.value = e.detail.status
 }
 
 // Close dropdown on window click
 onMounted(() => {
-  window.addEventListener('click', () => {
-    showNotificationDropdown.value = false
-    showStatusMenu.value = false
-    showProfileMenu.value = false
-  })
-
+  window.addEventListener('click', handleWindowClick)
   window.addEventListener('user-status-synced', handleStatusSynced)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('click', handleWindowClick)
   window.removeEventListener('user-status-synced', handleStatusSynced)
 })
 </script>

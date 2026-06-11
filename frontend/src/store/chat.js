@@ -19,7 +19,9 @@ export const useChatStore = defineStore('chat', {
     notifications: [],
     searchQuery: '',
     quickReplies: [],
-    notifyAll: localStorage.getItem('notifyAll') === 'true'
+    notifyAll: localStorage.getItem('notifyAll') === 'true',
+    hasMoreMessages: false,
+    loadingMore: false
   }),
 
   actions: {
@@ -178,6 +180,9 @@ export const useChatStore = defineStore('chat', {
         read: false,
         ticket_id: notification.ticket_id
       })
+      if (this.notifications.length > 100) {
+        this.notifications = this.notifications.slice(0, 100)
+      }
     },
     clearNotifications() {
       this.notifications = []
@@ -243,22 +248,33 @@ export const useChatStore = defineStore('chat', {
     },
 
     playNotificationSound() {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-      const oscillator = audioCtx.createOscillator()
-      const gainNode = audioCtx.createGain()
+      try {
+        if (!window._globalAudioCtx) {
+          window._globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
+        }
+        const audioCtx = window._globalAudioCtx
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume()
+        }
 
-      oscillator.type = 'sine'
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime) // A5
-      oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5) // A4
+        const oscillator = audioCtx.createOscillator()
+        const gainNode = audioCtx.createGain()
 
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime)
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5)
+        oscillator.type = 'sine'
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime) // A5
+        oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5) // A4
 
-      oscillator.connect(gainNode)
-      gainNode.connect(audioCtx.destination)
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5)
 
-      oscillator.start()
-      oscillator.stop(audioCtx.currentTime + 0.5)
+        oscillator.connect(gainNode)
+        gainNode.connect(audioCtx.destination)
+
+        oscillator.start()
+        oscillator.stop(audioCtx.currentTime + 0.5)
+      } catch (e) {
+        console.warn("Erro ao reproduzir som de notificação:", e)
+      }
     },
 
     async requestNotificationPermission() {
@@ -443,12 +459,46 @@ export const useChatStore = defineStore('chat', {
       const response = await axios.get(`/api/v1/tickets/${ticket.id}/`)
       this.activeTicket = response.data
       
-      const sortedMessages = (response.data.last_messages || []).sort((a, b) => {
-        const timeDiff = new Date(a.timestamp) - new Date(b.timestamp)
-        if (timeDiff !== 0) return timeDiff
-        return a.id - b.id
-      })
-      this.messages = sortedMessages
+      this.loadingMore = false
+      try {
+        const msgResponse = await axios.get(`/api/v1/tickets/${ticket.id}/messages/`, {
+          params: { limit: 50 }
+        })
+        this.messages = msgResponse.data
+        this.hasMoreMessages = msgResponse.data.length === 50
+      } catch (e) {
+        console.error("Erro ao buscar mensagens do ticket:", e)
+        this.messages = []
+        this.hasMoreMessages = false
+      }
+    },
+
+    async loadMoreMessages() {
+      if (!this.activeTicket || !this.hasMoreMessages || this.loadingMore) return
+      
+      this.loadingMore = true
+      try {
+        const firstMsg = this.messages[0]
+        const beforeId = firstMsg ? (firstMsg.id || firstMsg.message_id) : null
+        
+        const response = await axios.get(`/api/v1/tickets/${this.activeTicket.id}/messages/`, {
+          params: {
+            limit: 50,
+            before: beforeId
+          }
+        })
+        
+        if (response.data.length > 0) {
+          this.messages = [...response.data, ...this.messages]
+          this.hasMoreMessages = response.data.length === 50
+        } else {
+          this.hasMoreMessages = false
+        }
+      } catch (e) {
+        console.error("Erro ao carregar mais mensagens:", e)
+      } finally {
+        this.loadingMore = false
+      }
     },
 
     async sendMedia(file) {

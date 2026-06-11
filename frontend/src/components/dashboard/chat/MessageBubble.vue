@@ -1,6 +1,7 @@
 <template>
   <div
     :id="'msg-' + msg.message_id"
+    ref="bubbleRef"
     class="message"
     :class="{ 'me': msg.from_me, 'highlight-msg': highlighted }"
     v-memo="[msg.body, msg.reactions?.length, msg.is_edited, highlighted, activeReactionPickerId === msg.id, resolvedUrl]"
@@ -82,6 +83,7 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
 import AudioPlayer from '../AudioPlayer.vue'
 import MessageActionBar from './MessageActionBar.vue'
 import {
@@ -125,8 +127,35 @@ const emit = defineEmits([
   'reply',
   'edit',
   'react',
-  'toggleReactionPicker'
+  'toggleReactionPicker',
+  'visible'
 ])
+
+const bubbleRef = ref(null)
+let observer = null
+
+onMounted(() => {
+  if (props.msg.media_type) {
+    observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        emit('visible', props.msg)
+        if (observer) {
+          observer.disconnect()
+          observer = null
+        }
+      }
+    }, { rootMargin: '100px' })
+    if (bubbleRef.value) {
+      observer.observe(bubbleRef.value)
+    }
+  }
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+  }
+})
 
 const getGroupedReactions = (reactions) => {
   if (!reactions || !reactions.length) return []
