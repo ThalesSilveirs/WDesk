@@ -581,59 +581,11 @@ class TicketViewSet(TenantModelViewSet):
             quoted_message_sender="Você" if quoted_msg and quoted_msg.from_me else (ticket.contact.name or "Cliente")
         )
 
-        # Tenta buscar o token real diretamente no banco da Evolution (fallback definitivo)
-        from tickets.utils import get_evolution_token
-        evo_token = get_evolution_token(connection.instance_name)
-        print(f"[SEND] Token real recuperado: {evo_token[:5]}...")
-
-        evo_url = "http://evolution-go:8080"
-        evo_key = evo_token # Usa o token real recuperado
-
-        # Estratégia de Blindagem Total: envia chave e instância em todos os lugares possíveis
-        url = f"{evo_url}/send/text?apikey={evo_key}&instance={connection.instance_name}"
-        headers = {
-            "Content-Type": "application/json",
-            "apikey": evo_key,
-            "ApiKey": evo_key,
-            "api-key": evo_key,
-            "Authorization": f"Bearer {evo_key}",
-            "instance": connection.instance_name
-        }
-        
-        # Limpa o remoteJid para enviar apenas números
-        clean_number = ticket.contact.remote_jid.split('@')[0]
-        
-        payload = {
-            "instance": connection.instance_name,
-            "number": clean_number,
-            "text": body
-        }
-        
-        if quoted_msg:
-            payload["quoted"] = {
-                "messageId": quoted_msg.message_id,
-                "participant": ticket.contact.remote_jid
-            }
-        
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=5)
-            if response.status_code in [200, 201]:
-                evolution_data = response.json()
-                real_id = (
-                    evolution_data.get('data', {}).get('Info', {}).get('ID') or 
-                    evolution_data.get('key', {}).get('id') or 
-                    message.message_id
-                )
-                message.message_id = real_id
-                message.save()
-        except Exception as e:
-            pass
-
         # Atualizar prévia do ticket
         ticket.last_message = body
         ticket.save()
 
-        # 4. Notificar Realtime via Redis Pub/Sub
+        # 3. Notificar Realtime via Redis Pub/Sub (com ID pendente temporário)
         event_payload = {
             "company_id": str(ticket.company.id),
             "type": "new_message",
@@ -641,6 +593,10 @@ class TicketViewSet(TenantModelViewSet):
         }
         from django.core.serializers.json import DjangoJSONEncoder
         redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+
+        # 4. Dispara a tarefa assíncrona no Celery para chamar a Evolution API em background
+        from tickets.tasks import send_wa_message_task
+        send_wa_message_task.delay(message.id, quoted_msg.id if quoted_msg else None)
 
         return Response(MessageSerializer(message).data)
 

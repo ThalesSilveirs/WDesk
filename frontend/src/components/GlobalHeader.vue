@@ -29,7 +29,7 @@
       <!-- Global Search -->
       <div class="header-search">
         <SearchIcon :size="18" class="search-icon" />
-        <input v-model="chatStore.searchQuery" type="text" placeholder="Buscar conversas ou logs..." />
+        <input v-model="localSearchQuery" type="text" placeholder="Buscar conversas ou logs..." />
       </div>
 
       <!-- Notification Bell with Dropdown -->
@@ -222,8 +222,21 @@ const currentStatus = ref('online')
 const showStatusMenu = ref(false)
 const showNotificationDropdown = ref(false)
 
+const localSearchQuery = ref(chatStore.searchQuery)
+
+let debounceTimeout = null
+watch(localSearchQuery, (newVal) => {
+  if (debounceTimeout) clearTimeout(debounceTimeout)
+  debounceTimeout = setTimeout(() => {
+    chatStore.searchQuery = newVal
+  }, 250)
+})
+
 // Redirect to Conversations view when search query is typed from elsewhere
 watch(() => chatStore.searchQuery, (newQuery) => {
+  if (newQuery !== localSearchQuery.value) {
+    localSearchQuery.value = newQuery
+  }
   if (newQuery && route.path !== '/conversations') {
     router.push('/conversations')
   }

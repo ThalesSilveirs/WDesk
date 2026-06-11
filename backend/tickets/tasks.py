@@ -601,11 +601,79 @@ def process_webhook_event(connection_id, payload):
                         print(f"[WEBHOOK TASK ABSENCE] Erro ao tentar enviar mensagem de ausência: {abs_err}")
 
 @shared_task
-def send_wa_message_task(ticket_id, body):
-    # Aqui chamaria a Evolution API via requests.post
-    # connection = connection_da_empresa
-    # requests.post(f"{EVOLUTION_URL}/message/sendText/{instance}", ...)
-    pass
+def send_wa_message_task(message_id, quoted_msg_id=None):
+    from tickets.models import Message, Connection
+    from api.serializers import MessageSerializer
+    from tickets.utils import get_evolution_token
+    import requests
+    import json
+    from django.core.serializers.json import DjangoJSONEncoder
+    
+    try:
+        message = Message.objects.select_related('ticket__contact', 'ticket__company').get(id=message_id)
+        ticket = message.ticket
+        
+        connection = Connection.objects.filter(company=ticket.company).first()
+        if not connection:
+            print(f"[CELERY SEND] Nenhuma conexão WhatsApp encontrada para a empresa do ticket {ticket.id}")
+            return
+            
+        evo_token = get_evolution_token(connection.instance_name)
+        evo_url = "http://evolution-go:8080"
+        evo_key = evo_token
+        
+        url = f"{evo_url}/send/text?apikey={evo_key}&instance={connection.instance_name}"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_key,
+            "ApiKey": evo_key,
+            "api-key": evo_key,
+            "Authorization": f"Bearer {evo_key}",
+            "instance": connection.instance_name
+        }
+        
+        clean_number = ticket.contact.remote_jid.split('@')[0]
+        
+        payload = {
+            "instance": connection.instance_name,
+            "number": clean_number,
+            "text": message.body
+        }
+        
+        if quoted_msg_id:
+            quoted_msg = Message.objects.filter(id=quoted_msg_id).first()
+            if quoted_msg:
+                payload["quoted"] = {
+                    "messageId": quoted_msg.message_id,
+                    "participant": ticket.contact.remote_jid
+                }
+                
+        print(f"[CELERY SEND] Enviando mensagem {message.id} para {clean_number} via Evolution API...")
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        
+        if response.status_code in [200, 201]:
+            evolution_data = response.json()
+            real_id = (
+                evolution_data.get('data', {}).get('Info', {}).get('ID') or 
+                evolution_data.get('key', {}).get('id') or 
+                message.message_id
+            )
+            message.message_id = real_id
+            message.save()
+            print(f"[CELERY SEND] Mensagem {message.id} enviada com sucesso. Novo ID: {real_id}")
+            
+            # Notificar Realtime via Redis Pub/Sub que o message_id foi atualizado
+            event_payload = {
+                "company_id": str(ticket.company.id),
+                "type": "message_updated",
+                "payload": MessageSerializer(message).data
+            }
+            redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+        else:
+            print(f"[CELERY SEND] Erro de status no envio da Evolution API para mensagem {message.id}: {response.status_code} | {response.text}")
+            
+    except Exception as e:
+        print(f"[CELERY SEND] Exceção geral ao enviar mensagem {message_id}: {str(e)}")
 
 @shared_task
 def send_broadcast_task(company_id, connection_id, user_id, phones, message):
