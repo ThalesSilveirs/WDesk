@@ -55,8 +55,8 @@ services:
       - DATABASE_CONNECTION_URI=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/evogo_users?sslmode=disable
       - WADEBUG=DEBUG
       - LOGTYPE=console
-    ports:
-      - "8080:8080"
+    # ports:
+    #   - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -140,6 +140,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8080:8080"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certbot/conf:/etc/letsencrypt
