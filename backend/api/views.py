@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.response import Response
 from django.db import transaction
 from rest_framework.decorators import action
-from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City
+from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage
 from .serializers import (
     TicketSerializer, 
     TicketListSerializer,
@@ -16,7 +16,8 @@ from .serializers import (
     MessageReactionSerializer,
     QuickReplySerializer,
     AbsenceScheduleSerializer,
-    CitySerializer
+    CitySerializer,
+    PendencySerializer
 )
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.views.decorators.csrf import csrf_exempt
@@ -1764,6 +1765,67 @@ class CityViewSet(viewsets.ModelViewSet):
         if q:
             queryset = queryset.filter(Q(name__icontains=q) | Q(ibge_code__icontains=q))
         return queryset
+
+
+class PendencyViewSet(TenantModelViewSet):
+    queryset = Pendency.objects.all()
+    serializer_class = PendencySerializer
+
+    def get_queryset(self):
+        from django.db.models import Case, When, Value, IntegerField
+        qs = super().get_queryset().select_related('customer', 'contact', 'user')
+
+        # Filtros
+        customer_id = self.request.query_params.get('customer')
+        if customer_id:
+            qs = qs.filter(customer_id=customer_id)
+            
+        user_id = self.request.query_params.get('user')
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+            
+        operation_type = self.request.query_params.get('operation_type')
+        if operation_type:
+            qs = qs.filter(operation_type=operation_type)
+            
+        status = self.request.query_params.get('status')
+        if status:
+            qs = qs.filter(status=status)
+            
+        start_date = self.request.query_params.get('start_date')
+        if start_date:
+            qs = qs.filter(opening_date__date__gte=start_date)
+            
+        end_date = self.request.query_params.get('end_date')
+        if end_date:
+            qs = qs.filter(opening_date__date__lte=end_date)
+
+        # Ordenação customizada: Prioridade (Alta > Média > Baixa) e Data de Previsão
+        qs = qs.annotate(
+            priority_order=Case(
+                When(priority='high', then=Value(1)),
+                When(priority='medium', then=Value(2)),
+                When(priority='low', then=Value(3)),
+                default=Value(4),
+                output_field=IntegerField(),
+            )
+        ).order_by('priority_order', 'forecast_date')
+
+        return qs
+
+    @action(detail=True, methods=['post'], url_path='delete-image')
+    def delete_image(self, request, pk=None):
+        pendency = self.get_object()
+        image_id = request.data.get('image_id')
+        if not image_id:
+            return Response({"error": "image_id não informado"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            img = pendency.images.get(id=image_id)
+            img.delete()
+            return Response({"status": "image deleted"})
+        except PendencyImage.DoesNotExist:
+            return Response({"error": "Imagem não encontrada neste ticket"}, status=status.HTTP_404_NOT_FOUND)
+
 
 
 

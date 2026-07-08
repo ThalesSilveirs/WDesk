@@ -24,6 +24,10 @@
           <ContactIcon :size="20" />
         </router-link>
 
+        <router-link to="/pendencies" class="nav-link-item" active-class="active" data-tooltip="Pendências">
+          <ClipboardListIcon :size="20" />
+        </router-link>
+
         <router-link to="/cities" class="nav-link-item" active-class="active" data-tooltip="Cidades">
           <MapPinIcon :size="20" />
         </router-link>
@@ -146,6 +150,7 @@ import {
   Moon as MoonIcon,
   Contact as ContactIcon,
   MapPin as MapPinIcon,
+  ClipboardList as ClipboardListIcon,
   LogOut as LogOutIcon
 } from 'lucide-vue-next'
 

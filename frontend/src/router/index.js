@@ -27,6 +27,11 @@ const router = createRouter({
           component: () => import('../views/Conversations.vue')
         },
         {
+          path: 'pendencies',
+          name: 'Pendencies',
+          component: () => import('../views/Pendencies.vue')
+        },
+        {
           path: 'users',
           name: 'Users',
           component: () => import('../views/Users.vue')

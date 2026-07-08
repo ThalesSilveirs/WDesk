@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Company, User, Connection, Contact, Ticket, Message
+from .models import Company, User, Connection, Contact, Ticket, Message, Pendency, PendencyImage
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
@@ -37,3 +37,14 @@ class MessageAdmin(admin.ModelAdmin):
     list_display = ('id', 'ticket', 'from_me', 'timestamp')
     list_filter = ('from_me', 'timestamp')
     readonly_fields = ('timestamp',)
+
+@admin.register(Pendency)
+class PendencyAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'company', 'customer', 'user', 'status', 'priority', 'operation_type', 'opening_date', 'forecast_date')
+    list_filter = ('status', 'priority', 'operation_type', 'company', 'user')
+    search_fields = ('title', 'description', 'customer__name')
+
+@admin.register(PendencyImage)
+class PendencyImageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'pendency', 'created_at')
+

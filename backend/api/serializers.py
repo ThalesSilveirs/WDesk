@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City
+from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -157,5 +157,45 @@ class AbsenceScheduleSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'company': {'read_only': True}
         }
+
+
+class PendencyImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PendencyImage
+        fields = ['id', 'image', 'created_at']
+
+
+class PendencySerializer(serializers.ModelSerializer):
+    images = PendencyImageSerializer(many=True, read_only=True)
+    uploaded_images = serializers.ListField(
+        child=serializers.CharField(),
+        write_only=True,
+        required=False
+    )
+    customer_details = CustomerSerializer(source='customer', read_only=True)
+    user_details = UserSerializer(source='user', read_only=True)
+    contact_details = ContactSerializer(source='contact', read_only=True)
+
+    class Meta:
+        model = Pendency
+        fields = '__all__'
+        extra_kwargs = {
+            'company': {'read_only': True}
+        }
+
+    def create(self, validated_data):
+        uploaded_images = validated_data.pop('uploaded_images', [])
+        pendency = super().create(validated_data)
+        for img_base64 in uploaded_images:
+            PendencyImage.objects.create(pendency=pendency, image=img_base64)
+        return pendency
+
+    def update(self, instance, validated_data):
+        uploaded_images = validated_data.pop('uploaded_images', [])
+        pendency = super().update(instance, validated_data)
+        for img_base64 in uploaded_images:
+            PendencyImage.objects.create(pendency=pendency, image=img_base64)
+        return pendency
+
 
 
