@@ -38,9 +38,26 @@
         <span>Assumir conversa</span>
       </button>
 
-      <!-- Call Button -->
-      <button class="call-btn" title="Ligar">
-        <PhoneIcon :size="16" />
+      <!-- Transfer Button -->
+      <button 
+        v-if="activeTicket.status !== 'closed' && activeTicket.user" 
+        @click="triggerAction('openTransferModal')" 
+        class="transfer-btn" 
+        title="Transferir Atendimento"
+      >
+        <TransferIcon :size="15" />
+        <span>Transferir</span>
+      </button>
+
+      <!-- Finalizar Button -->
+      <button 
+        v-if="activeTicket.status !== 'closed' && activeTicket.user" 
+        @click="triggerAction('openCloseModal')" 
+        class="close-ticket-btn" 
+        title="Finalizar Atendimento"
+      >
+        <CheckIcon :size="15" />
+        <span>Finalizar</span>
       </button>
 
       <!-- Copilot Sparkle Button -->
@@ -71,14 +88,6 @@
               <span class="priority-dot-indicator" :class="activeTicket.priority"></span>
               <span>Prioridade {{ activeTicket.priority === 'high' ? 'Alta' : (activeTicket.priority === 'medium' ? 'Média' : 'Baixa') }}</span>
             </button>
-            <button v-if="activeTicket.status !== 'closed' && activeTicket.user" @click="triggerAction('openTransferModal')" class="menu-item">
-              <TransferIcon :size="15" />
-              <span>Transferir Atendimento</span>
-            </button>
-            <button v-if="activeTicket.status !== 'closed' && activeTicket.user" @click="triggerAction('openCloseModal')" class="menu-item success-item">
-              <CheckIcon :size="15" />
-              <span>Finalizar Atendimento</span>
-            </button>
             <div class="divider"></div>
             <button @click="triggerAction('openDeleteModal')" class="menu-item danger-item">
               <TrashIcon :size="15" />
@@ -100,7 +109,6 @@ import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../../../store/chat'
 import {
   ChevronLeft as ChevronLeftIcon,
-  Phone as PhoneIcon,
   Sparkles as SparklesIcon,
   MoreVertical as MoreVerticalIcon,
   Contact as ContactIcon,
@@ -378,7 +386,6 @@ onUnmounted(() => {
   transform: translateY(-1px);
 }
 
-.call-btn,
 .copilot-btn,
 .more-btn {
   background: rgba(255, 255, 255, 0.03);
@@ -394,10 +401,47 @@ onUnmounted(() => {
   transition: all 0.2s ease;
 }
 
-.call-btn:hover,
 .more-btn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.transfer-btn,
+.close-ticket-btn {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transfer-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.transfer-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.close-ticket-btn {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--accent);
+}
+
+.close-ticket-btn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: var(--accent);
   transform: translateY(-1px);
 }
 
