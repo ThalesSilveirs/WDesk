@@ -17,10 +17,12 @@
           @openDeleteModal="showDeleteModal = true"
           @openImage="openImage"
           @openVideo="openVideo"
+          @setCRMTab="crmTab = $event; showCRM = true"
         />
 
         <CrmPanel 
           :showCRM="showCRM"
+          :activeTabProp="crmTab"
           @update:showCRM="showCRM = $event"
         />
       </template>
@@ -173,6 +175,7 @@ import CrmPanel from '../components/dashboard/CrmPanel.vue'
 
 const chatStore = useChatStore()
 
+const crmTab = ref('details')
 const showTransferModal = ref(false)
 const showPriorityModal = ref(false)
 const showCloseModal = ref(false)

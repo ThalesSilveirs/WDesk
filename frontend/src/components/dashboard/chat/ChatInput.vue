@@ -1,5 +1,5 @@
 <template>
-  <footer class="chat-input glass-effect">
+  <footer class="chat-input-container">
     <!-- EMOJI PICKER POPUP (Carregamento assíncrono) -->
     <Transition name="fade">
       <EmojiPicker
@@ -50,7 +50,8 @@
       </button>
     </div>
 
-    <div class="chat-input-row">
+    <!-- Main input editor card wrapper -->
+    <div class="chat-input-card">
       <input
         type="file"
         ref="fileInput"
@@ -59,77 +60,93 @@
         accept="image/*,audio/*,application/pdf"
       />
 
-      <!-- ESTADO NORMAL -->
-      <template v-if="!isRecording && !hasRecording">
-        <button class="attach-btn" @click="fileInput.click()" :disabled="!ticket.user" title="Enviar Mídia">
-          <PlusIcon :size="22" />
-        </button>
-        <button class="emoji-btn" @click.stop="toggleEmojiPicker" :disabled="!ticket.user" title="Inserir Emoji">
-          <SmileIcon :size="22" />
-        </button>
-        <button class="quick-reply-btn" @click.stop="toggleQuickReplies" :disabled="!ticket.user" title="Respostas Rápidas">
-          <ZapIcon :size="22" />
-        </button>
+      <!-- Textarea input area (Upper Section) -->
+      <div class="textarea-section" v-if="!isRecording && !hasRecording">
         <textarea
           ref="messageInput"
           v-model="newMessage"
           @keydown="handleKeyDown"
           @paste="handlePaste"
-          :placeholder="ticket.user ? 'Digite uma mensagem...' : 'Aceite o atendimento para responder...'"
+          :placeholder="ticket.user ? 'Digite uma mensagem ou / para ver comandos...' : 'Aceite o atendimento para responder...'"
           :disabled="!ticket.user"
           rows="1"
         />
-        <button
-          v-if="newMessage.trim()"
-          class="send-btn"
-          @click="send"
-          :disabled="!ticket.user"
-          title="Enviar Mensagem"
-        >
-          <SendIcon :size="20" />
-        </button>
-        <button
-          v-else
-          class="mic-btn"
-          @click="startRecording"
-          :disabled="!ticket.user"
-          title="Gravar Áudio"
-        >
-          <MicIcon :size="20" />
-        </button>
-      </template>
+      </div>
 
-      <!-- ESTADO GRAVANDO -->
-      <template v-else-if="isRecording">
+      <!-- Recording Audio active state -->
+      <div class="recording-section" v-else-if="isRecording">
         <div class="recording-indicator">
           <span class="recording-dot"></span>
           <span class="recording-text">Gravando ({{ formatTime(recordingTime) }})</span>
           <canvas ref="canvasRef" width="100" height="30" class="recording-canvas"></canvas>
         </div>
         <div class="recording-actions">
-          <button class="cancel-rec-btn" @click="cancelRecording" title="Cancelar Gravação">
-            <TrashIcon :size="20" />
+          <button class="rec-btn-action cancel" @click="cancelRecording" title="Cancelar Gravação">
+            <TrashIcon :size="16" />
           </button>
-          <button class="stop-rec-btn" @click="stopRecording" title="Parar Gravação">
-            <SquareIcon :size="20" />
+          <button class="rec-btn-action stop" @click="stopRecording" title="Parar Gravação">
+            <SquareIcon :size="16" />
           </button>
         </div>
-      </template>
+      </div>
 
-      <!-- ESTADO PRÉVIA DE ÁUDIO -->
-      <template v-else-if="hasRecording">
+      <!-- Audio Preview state -->
+      <div class="recording-section" v-else-if="hasRecording">
         <div class="audio-preview-container">
           <audio :src="recordedAudioUrl" controls class="audio-preview-player"></audio>
         </div>
         <div class="recording-actions">
-          <button class="cancel-rec-btn" @click="cancelRecording" :disabled="isSending" title="Descartar Áudio">
-            <TrashIcon :size="20" />
+          <button class="rec-btn-action cancel" @click="cancelRecording" :disabled="isSending" title="Descartar Áudio">
+            <TrashIcon :size="16" />
           </button>
-          <button class="send-rec-btn" @click="sendRecording" :disabled="isSending" title="Enviar Áudio">
-            <SendIcon :size="20" />
+          <button class="rec-btn-action send" @click="sendRecording" :disabled="isSending" title="Enviar Áudio">
+            <ArrowUpIcon :size="16" />
           </button>
         </div>
-      </template>
+      </div>
+
+      <!-- Rich Toolbar (Lower Section) -->
+      <div class="toolbar-section" v-if="!isRecording && !hasRecording">
+        <div class="toolbar-left">
+          <button class="toolbar-btn text-mode-btn" :disabled="!ticket.user">
+            <span>Responder</span>
+            <ChevronDownIcon :size="12" />
+          </button>
+          <div class="style-divider"></div>
+          <button class="toolbar-btn style-btn" @click="applyFormatting('*')" :disabled="!ticket.user" title="Negrito">
+            <BoldIcon :size="14" />
+          </button>
+          <button class="toolbar-btn style-btn" @click="applyFormatting('_')" :disabled="!ticket.user" title="Itálico">
+            <ItalicIcon :size="14" />
+          </button>
+          <button class="toolbar-btn style-btn" @click="applyFormatting('~')" :disabled="!ticket.user" title="Tachado">
+            <StrikethroughIcon :size="14" />
+          </button>
+          <button class="toolbar-btn style-btn" @click.stop="toggleQuickReplies" :disabled="!ticket.user" title="Respostas Rápidas (/)">
+            <ZapIcon :size="14" />
+          </button>
+        </div>
+
+        <div class="toolbar-right">
+          <button class="toolbar-btn attach-btn" @click="fileInput.click()" :disabled="!ticket.user" title="Enviar Mídia">
+            <PaperclipIcon :size="16" />
+          </button>
+          <button class="toolbar-btn" @click="startRecording" :disabled="!ticket.user" title="Gravar Áudio">
+            <MicIcon :size="16" />
+          </button>
+          <button class="toolbar-btn emoji-btn" @click.stop="toggleEmojiPicker" :disabled="!ticket.user" title="Inserir Emoji">
+            <SmileIcon :size="16" />
+          </button>
+          <button 
+            class="send-circle-btn" 
+            @click="send" 
+            :disabled="!ticket.user || !newMessage.trim()"
+            title="Enviar Mensagem"
+          >
+            <ArrowUpIcon :size="18" />
+          </button>
+        </div>
+      </div>
     </div>
   </footer>
 </template>
@@ -139,8 +156,6 @@ import { ref, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } fr
 import { useAudioRecorder } from '../../../composables/useAudioRecorder'
 import { cleanBody } from '../../../utils/whatsappMarkdown'
 import {
-  Plus as PlusIcon,
-  Send as SendIcon,
   Mic as MicIcon,
   Trash2 as TrashIcon,
   Square as SquareIcon,
@@ -148,7 +163,13 @@ import {
   Pencil as EditIcon,
   Reply as ReplyIcon,
   X as XIcon,
-  Zap as ZapIcon
+  Zap as ZapIcon,
+  Bold as BoldIcon,
+  Italic as ItalicIcon,
+  Strikethrough as StrikethroughIcon,
+  ChevronDown as ChevronDownIcon,
+  Paperclip as PaperclipIcon,
+  ArrowUp as ArrowUpIcon
 } from 'lucide-vue-next'
 
 // Lazy Load do EmojiPicker
@@ -371,6 +392,26 @@ const sendRecording = async () => {
   }
 }
 
+const applyFormatting = (prefix, suffix = prefix) => {
+  const textarea = messageInput.value
+  if (!textarea) return
+
+  const startPos = textarea.selectionStart
+  const endPos = textarea.selectionEnd
+  const text = newMessage.value
+
+  const selectedText = text.substring(startPos, endPos)
+  const replacement = prefix + selectedText + suffix
+
+  newMessage.value = text.substring(0, startPos) + replacement + text.substring(endPos)
+
+  setTimeout(() => {
+    textarea.focus()
+    const newCursorPos = startPos + prefix.length + selectedText.length + suffix.length
+    textarea.setSelectionRange(newCursorPos, newCursorPos)
+  }, 10)
+}
+
 defineExpose({
   newMessage,
   messageInput
@@ -378,312 +419,265 @@ defineExpose({
 </script>
 
 <style scoped>
-.chat-input {
+.chat-input-container {
   position: relative;
   z-index: 10;
   display: flex;
   flex-direction: column;
-  background: var(--bg-sidebar);
-  border-top: 1px solid var(--border);
+  padding: 16px 24px 24px 24px;
+  background: var(--chat-bg);
 }
 
-.chat-input-row {
-  padding: 15px 25px;
+.chat-input-card {
   display: flex;
-  gap: 15px;
-  align-items: flex-end;
-  width: 100%;
-  box-sizing: border-box;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
-.chat-input textarea {
+/* Upper Section: Textarea */
+.textarea-section {
+  display: flex;
+  padding: 14px 18px 4px 18px;
+}
+
+.textarea-section textarea {
   flex: 1;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  padding: 12px;
-  border-radius: 12px;
+  background: transparent;
+  border: none;
+  padding: 0;
   color: var(--text-primary);
   outline: none;
   resize: none;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   line-height: 1.4;
-  height: 44px;
+  height: 24px;
   max-height: 150px;
   overflow-y: auto;
 }
 
-.chat-input textarea:disabled {
+.textarea-section textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+.textarea-section textarea:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background: rgba(0, 0, 0, 0.1);
 }
 
-.attach-btn {
-  width: 42px;
-  height: 42px;
+/* Recording State active UI */
+.recording-section {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
-}
-
-.attach-btn:hover {
-  background: var(--accent-hover);
-  transform: scale(1.05) rotate(90deg);
-  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
-}
-
-.send-btn {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
-}
-
-.send-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: scale(1.05) translateX(2px);
-  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
-}
-
-.send-btn:disabled {
-  opacity: 0.5;
-  background: #64748b;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.mic-btn {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
-}
-
-.mic-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: scale(1.05);
-  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
-}
-
-.mic-btn:disabled {
-  opacity: 0.5;
-  background: #64748b;
-  cursor: not-allowed;
-  box-shadow: none;
+  justify-content: space-between;
+  padding: 14px 18px;
+  height: 48px;
 }
 
 .recording-indicator {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
+  gap: 8px;
   color: #ef4444;
-  font-weight: 500;
 }
 
 .recording-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   background-color: #ef4444;
   border-radius: 50%;
   animation: pulse-red 1.2s infinite;
 }
 
 .recording-text {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
+.recording-canvas {
+  margin-left: 10px;
+  background: transparent;
+  opacity: 0.8;
+}
+
 @keyframes pulse-red {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-  }
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 .recording-actions {
   display: flex;
-  gap: 10px;
+  gap: 6px;
 }
 
-.cancel-rec-btn {
-  width: 42px;
-  height: 42px;
+.rec-btn-action {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 12px;
-  color: #ef4444;
+  border-radius: 8px;
   cursor: pointer;
+  background: none;
+  border: none;
   transition: all 0.2s ease;
 }
 
-.cancel-rec-btn:hover {
+.rec-btn-action.cancel {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.rec-btn-action.cancel:hover {
   background: #ef4444;
   color: white;
 }
 
-.stop-rec-btn {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+.rec-btn-action.stop {
+  background: var(--border);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
 }
 
-.stop-rec-btn:hover {
+.rec-btn-action.stop:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rec-btn-action.send {
+  background: var(--accent);
+  color: white;
+  border: none;
+}
+
+.rec-btn-action.send:hover {
   background: var(--accent-hover);
-  transform: scale(1.05);
 }
 
 .audio-preview-container {
   flex: 1;
   display: flex;
   align-items: center;
+  margin-right: 12px;
 }
 
 .audio-preview-player {
   width: 100%;
-  height: 36px;
+  height: 32px;
+}
+
+/* Lower Section: Toolbar */
+.toolbar-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px 10px 12px;
+  background: rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--border);
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  height: 32px;
+  padding: 0 8px;
   border-radius: 8px;
-  background: transparent;
-}
-
-.recording-canvas {
-  margin-left: 10px;
-  background: transparent;
-  border-radius: 4px;
-}
-
-.send-rec-btn {
-  width: 42px;
-  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent);
-  border: none;
-  border-radius: 12px;
-  color: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
 }
 
-.send-rec-btn:hover {
-  background: var(--accent-hover);
-  transform: scale(1.05);
+.toolbar-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
 }
 
-.send-rec-btn:disabled,
-.cancel-rec-btn:disabled {
+.toolbar-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
 }
 
-.emoji-btn {
-  width: 42px;
-  height: 42px;
+.text-mode-btn {
+  font-size: 0.8rem;
+  font-weight: 700;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.style-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 6px;
+}
+
+.style-btn {
+  width: 32px;
+}
+
+.send-circle-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  color: var(--chat-bg);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.3s ease;
+  margin-left: 6px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.emoji-btn:hover {
-  color: var(--accent);
+.send-circle-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.send-circle-btn:disabled {
   background: var(--border);
-  transform: scale(1.05);
-}
-
-.quick-reply-btn {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 12px;
   color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.quick-reply-btn:hover {
-  color: #ffb700;
-  background: var(--border);
-  transform: scale(1.05);
+  cursor: not-allowed;
 }
 
 .emoji-picker-position {
   position: absolute;
-  bottom: 75px;
-  left: 20px;
+  bottom: 80px;
+  right: 24px;
 }
 
 .quick-replies-position {
   position: absolute;
-  bottom: 75px;
-  left: 20px;
+  bottom: 80px;
+  left: 24px;
 }
 
+/* Edit/Reply message banners */
 .edit-message-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--bg-hover);
-  border-bottom: 1px solid var(--border);
-  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 8px;
   box-sizing: border-box;
 }
 
@@ -696,7 +690,7 @@ defineExpose({
 }
 
 .edit-icon-label {
-  color: var(--primary-color);
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -708,15 +702,15 @@ defineExpose({
 }
 
 .edit-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--primary-color);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .edit-preview {
-  font-size: 13px;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -734,13 +728,13 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: all 0.2s ease;
   flex-shrink: 0;
   margin-left: 8px;
 }
 
 .cancel-edit-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
 }
 
@@ -749,32 +743,12 @@ defineExpose({
 }
 
 @media (max-width: 768px) {
-  .chat-input {
-    padding: 0;
-    gap: 0;
-  }
-
-  .chat-input-row {
-    padding: 10px 15px;
-    gap: 8px;
-  }
-
-  .chat-input textarea {
+  .chat-input-container {
     padding: 10px;
-    font-size: 0.9rem;
   }
-
-  .attach-btn,
-  .send-btn,
-  .mic-btn,
-  .cancel-rec-btn,
-  .stop-rec-btn,
-  .send-rec-btn,
-  .emoji-btn,
-  .quick-reply-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+  
+  .chat-input-card {
+    border-radius: 12px;
   }
 
   .recording-canvas {

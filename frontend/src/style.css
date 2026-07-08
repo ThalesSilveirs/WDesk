@@ -1,38 +1,48 @@
 :root {
-  --bg-dark: #0b0f1a;
-  --bg-card: rgba(30, 41, 59, 0.7);
-  --bg-sidebar: #0f172a;
+  --bg-dark: #09090b;
+  --bg-card: rgba(24, 24, 27, 0.85);
+  --bg-sidebar: #09090b;
   --accent: #10b981;
   --accent-hover: #059669;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --border: rgba(255, 255, 255, 0.1);
-  --glass: rgba(255, 255, 255, 0.03);
-  --pattern-opacity: 0.025;
-  --pattern-filter: grayscale(1) brightness(0.6);
-  --empty-bg-inner: #1e293b;
-  --empty-bg-outer: #0b0f1a;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --border: rgba(255, 255, 255, 0.08);
+  --glass: rgba(255, 255, 255, 0.02);
+  --pattern-opacity: 0.02;
+  --pattern-filter: grayscale(1) brightness(0.5);
+  --empty-bg-inner: #18181b;
+  --empty-bg-outer: #09090b;
   --sidebar-width: 350px;
-  --chat-bg: #090d16;
-  --bg-nav-sidebar: #0b0f1a;
-  --bg-ticket-sidebar: #0f172a;
+  --chat-bg: #09090b;
+  --bg-nav-sidebar: #09090b;
+  --bg-ticket-sidebar: #18181b;
+  --msg-bubble-received: #27272a;
+  --msg-bubble-sent: #f4f4f5;
+  --msg-text-received: #ffffff;
+  --msg-text-sent: #09090b;
+  --purple-pink-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f43f5e 100%);
 }
 
 [data-theme='light'] {
-  --bg-dark: #f1f5f9;
+  --bg-dark: #f4f4f5;
   --bg-card: rgba(255, 255, 255, 0.9);
   --bg-sidebar: #ffffff;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
+  --text-primary: #09090b;
+  --text-secondary: #71717a;
   --border: rgba(0, 0, 0, 0.08);
   --glass: rgba(0, 0, 0, 0.02);
-  --pattern-opacity: 0.04;
+  --pattern-opacity: 0.03;
   --pattern-filter: grayscale(1) brightness(0.4);
   --empty-bg-inner: #ffffff;
-  --empty-bg-outer: #e2e8f0;
-  --chat-bg: #efeae2;
-  --bg-nav-sidebar: #f1f5f9;
-  --bg-ticket-sidebar: #ffffff;
+  --empty-bg-outer: #e4e4e7;
+  --chat-bg: #f4f4f5;
+  --bg-nav-sidebar: #ffffff;
+  --bg-ticket-sidebar: #f4f4f5;
+  --msg-bubble-received: #ffffff;
+  --msg-bubble-sent: #27272a;
+  --msg-text-received: #09090b;
+  --msg-text-sent: #ffffff;
+  --purple-pink-gradient: linear-gradient(135deg, #c084fc 0%, #f472b6 50%, #fb7185 100%);
 }
 
 * {

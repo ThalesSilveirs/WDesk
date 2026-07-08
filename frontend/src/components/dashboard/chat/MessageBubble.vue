@@ -190,17 +190,17 @@ const getGroupedReactions = (reactions) => {
   max-width: 100%;
   padding: 10px 14px;
   border-radius: 12px;
-  background: var(--bg-card);
-  color: var(--text-primary);
+  background: var(--msg-bubble-received);
+  color: var(--msg-text-received);
   border: 1px solid var(--border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .message.me .message-bubble {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: rgba(16, 185, 129, 0.2);
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+  background: var(--msg-bubble-sent);
+  color: var(--msg-text-sent);
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   text-align: left;
 }
 
