@@ -24,6 +24,7 @@
           :showCRM="showCRM"
           :activeTabProp="crmTab"
           @update:showCRM="showCRM = $event"
+          @openHistory="openHistory"
         />
       </template>
       
@@ -162,6 +163,16 @@
       </div>
     </Transition>
 
+    <!-- Modal de Histórico de Atendimento -->
+    <HistoryModal
+      :show="showHistoryModal"
+      :contactId="historyParams.contactId"
+      :customerId="historyParams.customerId"
+      :contactName="historyParams.contactName"
+      :customerName="historyParams.customerName"
+      :initialTab="historyParams.type"
+      @close="showHistoryModal = false"
+    />
   </div>
 </template>
 
@@ -172,6 +183,7 @@ import { X as XIcon, Trash2 as TrashIcon } from 'lucide-vue-next'
 import TicketSidebar from '../components/dashboard/TicketSidebar.vue'
 import ChatWindow from '../components/dashboard/ChatWindow.vue'
 import CrmPanel from '../components/dashboard/CrmPanel.vue'
+import HistoryModal from '../components/dashboard/HistoryModal.vue'
 
 const chatStore = useChatStore()
 
@@ -180,11 +192,31 @@ const showTransferModal = ref(false)
 const showPriorityModal = ref(false)
 const showCloseModal = ref(false)
 const showDeleteModal = ref(false)
+const showHistoryModal = ref(false)
 const selectedImage = ref(null)
 const selectedVideo = ref(null)
 const showCRM = ref(window.innerWidth > 768)
 const resolutionSummary = ref('')
 const isDeleting = ref(false)
+
+const historyParams = ref({
+  contactId: null,
+  customerId: null,
+  contactName: '',
+  customerName: '',
+  type: 'contact'
+})
+
+const openHistory = (params) => {
+  historyParams.value = {
+    contactId: chatStore.activeTicket?.contact_details?.id || null,
+    customerId: chatStore.activeTicket?.customer_details?.id || null,
+    contactName: chatStore.activeTicket?.contact_details?.name || '',
+    customerName: chatStore.activeTicket?.customer_details?.name || '',
+    type: params.type
+  }
+  showHistoryModal.value = true
+}
 
 const openTransfer = () => {
   chatStore.fetchAttendants()

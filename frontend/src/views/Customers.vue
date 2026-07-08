@@ -80,6 +80,9 @@
                 <button @click="manageContacts(customer)" class="icon-btn" title="Contatos Adicionais">
                   <UsersIcon :size="18" />
                 </button>
+                <button @click="openCustomerHistory(customer)" class="icon-btn" title="Histórico de Atendimentos">
+                  <HistoryIcon :size="18" />
+                </button>
                 <button @click="editCustomer(customer)" class="icon-btn" title="Editar">
                   <EditIcon :size="18" />
                 </button>
@@ -159,6 +162,9 @@
                     </button>
                     <button @click="manageContacts(customer)" class="table-action-btn" title="Contatos Adicionais">
                       <UsersIcon :size="16" />
+                    </button>
+                    <button @click="openCustomerHistory(customer)" class="table-action-btn" title="Histórico de Atendimentos">
+                      <HistoryIcon :size="16" />
                     </button>
                     <button @click="editCustomer(customer)" class="table-action-btn" title="Editar">
                       <EditIcon :size="16" />
@@ -748,6 +754,14 @@
         </div>
       </div>
     </Transition>
+    <!-- Modal de Histórico de Atendimento -->
+    <HistoryModal
+      :show="showHistoryModal"
+      :customerId="historyParams.customerId"
+      :customerName="historyParams.customerName"
+      initialTab="customer"
+      @close="showHistoryModal = false"
+    />
   </div>
 </template>
 
@@ -769,8 +783,10 @@ import {
   Copy as CopyIcon,
   LayoutGrid as LayoutGridIcon,
   List as ListIcon,
-  Filter as FilterIcon
+  Filter as FilterIcon,
+  History as HistoryIcon
 } from 'lucide-vue-next'
+import HistoryModal from '../components/dashboard/HistoryModal.vue'
 import { useChatStore } from '../store/chat'
 
 const chatStore = useChatStore()
@@ -781,6 +797,20 @@ const showModal = ref(false)
 const showContactsModal = ref(false)
 const showTicketModal = ref(false)
 const selectedCustomerForTicket = ref(null)
+
+const showHistoryModal = ref(false)
+const historyParams = ref({
+  customerId: null,
+  customerName: ''
+})
+
+const openCustomerHistory = (customer) => {
+  historyParams.value = {
+    customerId: customer.id,
+    customerName: customer.name
+  }
+  showHistoryModal.value = true
+}
 
 const clientType = ref('PJ')
 

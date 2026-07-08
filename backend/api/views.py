@@ -389,14 +389,21 @@ class TicketViewSet(TenantModelViewSet):
         status_filter = self.request.query_params.get('status_filter')
         
         if status_filter == 'mine':
-            return qs.filter(user=self.request.user, status__in=['open', 'pending'])
+            qs = qs.filter(user=self.request.user, status__in=['open', 'pending'])
         elif status_filter == 'unassigned':
-            return qs.filter(user__isnull=True, status__in=['open', 'pending'])
+            qs = qs.filter(user__isnull=True, status__in=['open', 'pending'])
         elif status_filter == 'closed':
-            return qs.filter(status='closed')
+            qs = qs.filter(status='closed')
         elif status_filter == 'all' and self.request.user.role == 'admin':
-            return qs.filter(status__in=['open', 'pending'])
+            qs = qs.filter(status__in=['open', 'pending'])
         
+        contact_id = self.request.query_params.get('contact')
+        customer_id = self.request.query_params.get('customer')
+        if contact_id:
+            qs = qs.filter(contact_id=contact_id)
+        if customer_id:
+            qs = qs.filter(contact__customer_id=customer_id)
+            
         return qs
 
     @action(detail=True, methods=['post'])

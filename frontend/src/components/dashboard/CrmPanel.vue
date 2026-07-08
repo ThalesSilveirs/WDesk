@@ -130,6 +130,10 @@
               </div>
             </div>
           </div>
+
+          <div class="crm-contact-history-action" style="margin-top: 15px;">
+            <button @click="openContactHistory" class="btn-block-outline">Ver Histórico do Contato</button>
+          </div>
         </div>
 
         <!-- Dados do Cliente Vinculado -->
@@ -157,7 +161,7 @@
             </div>
 
             <div class="crm-actions">
-              <button @click="router.push('/customers')" class="btn-block-outline">Ver Histórico Completo</button>
+              <button @click="openCustomerHistory" class="btn-block-outline">Ver Histórico Completo</button>
               <button @click="unlinkCustomer" class="btn-danger-outline" :disabled="loadingCRM">
                 <UserMinusIcon :size="16" /> Desvincular Cliente
               </button>
@@ -332,7 +336,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:showCRM'])
+const emit = defineEmits(['update:showCRM', 'openHistory'])
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -450,6 +454,26 @@ const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const openContactHistory = () => {
+  const t = chatStore.activeTicket
+  if (!t) return
+  emit('openHistory', {
+    type: 'contact',
+    id: t.contact_details?.id,
+    name: contactName.value || t.contact_details?.name
+  })
+}
+
+const openCustomerHistory = () => {
+  const t = chatStore.activeTicket
+  if (!t || !t.customer_details) return
+  emit('openHistory', {
+    type: 'customer',
+    id: t.customer_details.id,
+    name: t.customer_details.name
+  })
 }
 
 // Estados de Busca e Vínculo de Clientes
