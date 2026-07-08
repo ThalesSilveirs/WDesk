@@ -5,7 +5,7 @@
       <header class="page-header glass-effect">
         <div class="header-info">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <MapPinIcon :size="28" style="color: #10b981;" />
+            <MapPinIcon :size="28" style="color: var(--accent);" />
             <h1>Cidades (IBGE)</h1>
           </div>
           <p>Gerencie cidades e códigos IBGE para vinculação aos clientes</p>
@@ -275,8 +275,8 @@ onMounted(() => {
 }
 
 .search-bar:focus-within {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .search-bar input {
@@ -293,7 +293,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #10b981;
+  background: var(--accent);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -301,11 +301,11 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .btn-primary:hover {
-  background: #059669;
+  background: var(--accent-hover);
   transform: translateY(-2px);
 }
 
@@ -368,8 +368,8 @@ onMounted(() => {
 }
 
 .state-pill {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--accent);
   padding: 4px 10px;
   border-radius: 20px;
   font-weight: 600;
@@ -503,8 +503,8 @@ onMounted(() => {
 }
 
 .input-glass:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 /* Transições */

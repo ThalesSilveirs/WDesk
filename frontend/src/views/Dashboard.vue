@@ -751,15 +751,16 @@ onUnmounted(() => {
 }
 
 .quick-btn.broadcast {
-  background: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+  color: var(--accent);
 }
 
 .quick-btn.broadcast:hover {
-  background: #10b981;
+  background: var(--brand-gradient);
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  border-color: transparent;
 }
 
 .quick-btn.report {
@@ -1099,7 +1100,7 @@ onUnmounted(() => {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+  background: var(--brand-gradient);
   display: flex;
   align-items: center;
   justify-content: center;

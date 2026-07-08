@@ -1284,7 +1284,7 @@ onUnmounted(() => {
 }
 
 .btn-primary {
-  background: #10b981;
+  background: var(--accent);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -1346,7 +1346,7 @@ onUnmounted(() => {
 .avatar {
   width: 50px;
   height: 50px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: var(--brand-gradient);
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -1372,9 +1372,9 @@ onUnmounted(() => {
 }
 
 .icon-btn:hover {
-  background: #10b981;
+  background: var(--accent);
   color: white;
-  border-color: #10b981;
+  border-color: var(--accent);
 }
 
 .icon-btn.delete:hover { background: #ef4444; border-color: #ef4444; }
@@ -1431,7 +1431,7 @@ onUnmounted(() => {
 .additional-count {
   margin-top: 15px;
   font-size: 0.75rem;
-  color: #10b981;
+  color: var(--accent);
   font-weight: 600;
   background: rgba(16, 185, 129, 0.1);
   display: inline-block;
@@ -1518,7 +1518,7 @@ onUnmounted(() => {
 .tabs-nav button.active {
   background: rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
+  color: var(--accent);
 }
 
 /* Área de formulário rolável */
@@ -1558,8 +1558,8 @@ onUnmounted(() => {
 }
 
 .address-subtabs button.active {
-  border-bottom-color: #10b981;
-  color: #10b981;
+  border-bottom-color: var(--accent);
+  color: var(--accent);
 }
 
 .subtab-pane {
@@ -1663,12 +1663,12 @@ onUnmounted(() => {
 }
 
 .checkbox-container:hover input ~ .checkmark {
-  border-color: #10b981;
+  border-color: var(--accent);
 }
 
 .checkbox-container input:checked ~ .checkmark {
-  background-color: #10b981;
-  border-color: #10b981;
+  background-color: var(--accent);
+  border-color: var(--accent);
 }
 
 .checkmark:after {
@@ -1863,7 +1863,7 @@ onUnmounted(() => {
 .add-contact-form h4 { margin-bottom: 15px; font-size: 1rem; }
 
 .btn-primary-sm {
-  background: #10b981;
+  background: var(--accent);
   color: white;
   border: none;
   padding: 8px 16px;
@@ -1914,7 +1914,7 @@ onUnmounted(() => {
 }
 
 .toggle-btn.active {
-  color: #10b981;
+  color: var(--accent);
   background: rgba(16, 185, 129, 0.15);
 }
 
@@ -1981,7 +1981,7 @@ onUnmounted(() => {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: var(--brand-gradient);
   color: white;
   display: flex;
   align-items: center;
@@ -2012,7 +2012,7 @@ onUnmounted(() => {
 .active-badge {
   display: inline-block;
   background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  color: var(--accent);
   padding: 4px 8px;
   border-radius: 8px;
   font-size: 0.75rem;
@@ -2044,8 +2044,8 @@ onUnmounted(() => {
 }
 
 .table-action-btn:hover {
-  color: #10b981;
-  border-color: #10b981;
+  color: var(--accent);
+  border-color: var(--accent);
   background: rgba(16, 185, 129, 0.05);
 }
 
@@ -2092,13 +2092,13 @@ onUnmounted(() => {
 }
 
 .btn-filter-toggle.btn-filter-active {
-  color: #10b981;
+  color: var(--accent);
   border-color: rgba(16, 185, 129, 0.3);
   background: rgba(16, 185, 129, 0.1);
 }
 
 .filter-count-badge {
-  background: #10b981;
+  background: var(--accent);
   color: white;
   font-size: 0.75rem;
   font-weight: 700;
@@ -2159,7 +2159,7 @@ onUnmounted(() => {
 }
 
 .select-glass:focus {
-  border-color: #10b981;
+  border-color: var(--accent);
   background: rgba(255, 255, 255, 0.08);
 }
 

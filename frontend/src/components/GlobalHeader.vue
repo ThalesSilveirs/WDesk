@@ -478,7 +478,7 @@ onUnmounted(() => {
 }
 
 .header-search input:focus {
-  border-color: #10b981;
+  border-color: var(--accent);
 }
 
 .notification-container {
@@ -589,15 +589,15 @@ onUnmounted(() => {
 }
 
 .notif-item.unread {
-  background: rgba(16, 185, 129, 0.05);
+  background: rgba(37, 99, 235, 0.05);
 }
 
 .notif-icon {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -792,8 +792,8 @@ onUnmounted(() => {
 }
 
 .toggle-switch.active {
-  background: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
 }
 
 .toggle-thumb {
@@ -841,7 +841,7 @@ onUnmounted(() => {
 }
 
 .btn-success-sm {
-  background: #10b981;
+  background: var(--accent);
   color: white;
   border: none;
   padding: 10px 20px;

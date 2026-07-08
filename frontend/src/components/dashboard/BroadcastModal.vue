@@ -218,14 +218,14 @@ const submitBroadcast = async () => {
 }
 
 .header-icon {
-  background: #10b981;
+  background: var(--accent);
   color: white;
   padding: 10px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .modal-header h2 { font-size: 1.25rem; font-weight: 800; margin: 0; color: white; }
@@ -281,7 +281,7 @@ const submitBroadcast = async () => {
 .text-link {
   background: none;
   border: none;
-  color: #10b981;
+  color: var(--accent);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -289,7 +289,7 @@ const submitBroadcast = async () => {
 }
 
 .text-link:hover {
-  color: #059669;
+  color: var(--accent-hover);
 }
 
 .premium-input-textarea {
@@ -306,8 +306,8 @@ const submitBroadcast = async () => {
 }
 
 .premium-input-textarea:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
 .search-wrapper {
@@ -335,7 +335,7 @@ const submitBroadcast = async () => {
 }
 
 .premium-search-input:focus {
-  border-color: #10b981;
+  border-color: var(--accent);
 }
 
 .customers-list-wrapper {
@@ -362,7 +362,7 @@ const submitBroadcast = async () => {
 }
 
 .customer-selection-item.selected {
-  background: rgba(16, 185, 129, 0.08);
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .checkbox-indicator {
@@ -378,8 +378,8 @@ const submitBroadcast = async () => {
 }
 
 .customer-selection-item.selected .checkbox-indicator {
-  border-color: #10b981;
-  background: #10b981;
+  border-color: var(--accent);
+  background: var(--accent);
   color: white;
 }
 
@@ -453,7 +453,7 @@ const submitBroadcast = async () => {
 }
 
 .btn-primary-v2 {
-  background: #10b981;
+  background: var(--accent);
   border: none;
   color: white;
   padding: 10px 25px;
@@ -467,7 +467,7 @@ const submitBroadcast = async () => {
 }
 
 .btn-primary-v2:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary-v2:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+.btn-primary-v2:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
