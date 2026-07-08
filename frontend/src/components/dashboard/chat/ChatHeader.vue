@@ -35,7 +35,7 @@
     <div class="header-actions">
       <!-- Accept/Take Over Button -->
       <button v-if="activeTicket.status !== 'closed' && !activeTicket.user" @click="handleAccept" class="accept-btn">
-        <span>Assumir conversa</span>
+        <span>Assumir</span>
       </button>
 
       <!-- Transfer Button -->
@@ -46,7 +46,7 @@
         title="Transferir Atendimento"
       >
         <TransferIcon :size="15" />
-        <span>Transferir</span>
+        <span class="btn-text">Transferir</span>
       </button>
 
       <!-- Finalizar Button -->
@@ -57,7 +57,7 @@
         title="Finalizar Atendimento"
       >
         <CheckIcon :size="15" />
-        <span>Finalizar</span>
+        <span class="btn-text">Finalizar</span>
       </button>
 
       <!-- Copilot Sparkle Button -->
@@ -238,6 +238,23 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .btn-text {
+    display: none;
+  }
+
+  .transfer-btn,
+  .close-ticket-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .chat-header {
+    padding: 10px 16px;
   }
 }
 

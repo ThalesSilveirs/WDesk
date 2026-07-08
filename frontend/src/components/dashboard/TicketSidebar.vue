@@ -2,8 +2,53 @@
   <aside class="sidebar glass-effect">
     <!-- Header of the conversation list -->
     <div class="sidebar-header">
-      <h2>Conversas</h2>
+      <div class="header-left-group">
+        <!-- Mobile Profile Dropdown -->
+        <div class="mobile-profile-container" ref="profileContainerRef">
+          <button @click.stop="toggleProfileMenu" class="mobile-avatar-btn" :title="userDisplayName">
+            <div class="avatar-circle">
+              {{ userInitials }}
+            </div>
+            <span class="status-dot-mobile" :class="currentStatus"></span>
+          </button>
+          
+          <Transition name="fade">
+            <div v-if="showProfileMenu" class="profile-popover glass-effect">
+              <div class="popover-header">
+                <span class="user-name">{{ userDisplayName }}</span>
+                <span class="user-role">{{ chatStore.userRole === 'admin' ? 'Administrador' : 'Atendente' }}</span>
+              </div>
+              <div class="popover-divider"></div>
+              <div class="status-option" :class="{ active: currentStatus === 'online' }" @click="changeStatus('online')">
+                <span class="status-dot online"></span>
+                <span>Online</span>
+              </div>
+              <div class="status-option" :class="{ active: currentStatus === 'away' }" @click="changeStatus('away')">
+                <span class="status-dot away"></span>
+                <span>Ausente</span>
+              </div>
+              <div class="status-option" :class="{ active: currentStatus === 'offline' }" @click="changeStatus('offline')">
+                <span class="status-dot offline"></span>
+                <span>Offline</span>
+              </div>
+              <div class="popover-divider"></div>
+              <button @click="triggerLogout" class="popover-logout-btn">
+                <LogOutIcon :size="16" />
+                <span>Sair</span>
+              </button>
+            </div>
+          </Transition>
+        </div>
+        <h2>Conversas</h2>
+      </div>
+
       <div class="header-actions">
+        <!-- Mobile Theme Toggle -->
+        <button @click="chatStore.toggleTheme" class="action-btn mobile-theme-toggle" :title="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
+          <SunIcon v-if="chatStore.theme === 'dark'" :size="18" />
+          <MoonIcon v-else :size="18" />
+        </button>
+
         <button class="action-btn" @click="chatStore.showBroadcastModal = true" title="Nova Transmissão">
           <PlusIcon :size="18" />
         </button>
@@ -129,23 +174,89 @@
       <MessageSquareIcon :size="32" class="empty-icon" />
       <span>Nenhuma conversa encontrada</span>
     </div>
+    <!-- Logout Confirmation Modal -->
+    <Transition name="modal-fade">
+      <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
+        <div class="modal-content small-modal" @click.stop>
+          <h2>Sair do Sistema</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
+          <div class="modal-actions">
+            <button @click="showLogoutModal = false" class="btn-secondary">Cancelar</button>
+            <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </aside>
 </template>
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useChatStore } from '../../store/chat'
 import {
   Plus as PlusIcon,
   LayoutGrid as LayoutGridIcon,
   Filter as FilterIcon,
   Search as SearchIcon,
-  MessageSquare as MessageSquareIcon
+  MessageSquare as MessageSquareIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon,
+  LogOut as LogOutIcon
 } from 'lucide-vue-next'
 
+const router = useRouter()
 const chatStore = useChatStore()
 const localSearchQuery = ref(chatStore.searchQuery)
 const searchInputRef = ref(null)
+
+const showLogoutModal = ref(false)
+const showProfileMenu = ref(false)
+const currentStatus = ref('online')
+const profileContainerRef = ref(null)
+
+const toggleProfileMenu = () => {
+  showProfileMenu.value = !showProfileMenu.value
+}
+
+const changeStatus = (status) => {
+  currentStatus.value = status
+  showProfileMenu.value = false
+  chatStore.changeUserStatus(status)
+}
+
+const triggerLogout = () => {
+  showProfileMenu.value = false
+  showLogoutModal.value = true
+}
+
+const logout = () => {
+  chatStore.logout()
+  router.push('/login')
+}
+
+const handleStatusSynced = (e) => {
+  currentStatus.value = e.detail.status
+}
+
+const userDisplayName = computed(() => {
+  if (!chatStore.user) return 'Carregando...'
+  return chatStore.user.first_name 
+    ? `${chatStore.user.first_name} ${chatStore.user.last_name || ''}` 
+    : chatStore.user.username
+})
+
+const userInitials = computed(() => {
+  if (!chatStore.user) return '?'
+  const name = chatStore.user.first_name || chatStore.user.username
+  return name.charAt(0).toUpperCase()
+})
+
+const handleClickOutside = (event) => {
+  if (profileContainerRef.value && !profileContainerRef.value.contains(event.target)) {
+    showProfileMenu.value = false
+  }
+}
 
 const isMac = computed(() => {
   return window.navigator.platform.toUpperCase().indexOf('MAC') >= 0
@@ -178,6 +289,11 @@ const handleGlobalKeydown = (e) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalKeydown)
+  window.addEventListener('user-status-synced', handleStatusSynced)
+  window.addEventListener('click', handleClickOutside)
+  if (chatStore.user?.status) {
+    currentStatus.value = chatStore.user.status
+  }
   // Fetch initial data if lists are empty
   if (chatStore.myTickets.length === 0) {
     chatStore.fetchMyTickets()
@@ -189,6 +305,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
+  window.removeEventListener('user-status-synced', handleStatusSynced)
+  window.removeEventListener('click', handleClickOutside)
 })
 
 const myTicketsCount = computed(() => chatStore.myTickets.length)
@@ -601,5 +719,223 @@ const formatTime = (dateStr) => {
 
 .empty-icon {
   opacity: 0.4;
+}
+
+/* Mobile Profile and Header Styling */
+.header-left-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-profile-container {
+  position: relative;
+  display: none;
+}
+
+.mobile-avatar-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.status-dot-mobile {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-sidebar);
+}
+
+.status-dot-mobile.online { background: #10b981; }
+.status-dot-mobile.away { background: #f59e0b; }
+.status-dot-mobile.offline { background: #94a3b8; }
+
+.profile-popover {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  width: 220px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.popover-header {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px 8px 8px;
+  text-align: left;
+}
+
+.popover-header .user-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.popover-header .user-role {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.popover-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: background 0.2s ease;
+  text-align: left;
+}
+
+.status-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.status-option.active {
+  background: rgba(37, 99, 235, 0.1);
+  color: #60a5fa;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.online { background: #10b981; }
+.status-dot.away { background: #f59e0b; }
+.status-dot.offline { background: #94a3b8; }
+
+.popover-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ef4444;
+  width: 100%;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  text-align: left;
+}
+
+.popover-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.mobile-theme-toggle {
+  display: none;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.modal-content h2 {
+  font-size: 1.3rem;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger-sm {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .mobile-profile-container {
+    display: block;
+  }
+  .mobile-theme-toggle {
+    display: flex !important;
+  }
 }
 </style>

@@ -755,4 +755,11 @@ defineExpose({
     display: none;
   }
 }
+
+@media (max-width: 560px) {
+  .style-btn,
+  .style-divider {
+    display: none !important;
+  }
+}
 </style>
