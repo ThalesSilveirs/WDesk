@@ -242,11 +242,11 @@ onUnmounted(() => {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: var(--purple-pink-gradient);
+  background: var(--brand-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.35);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
   transition: transform 0.3s ease;
 }
 
@@ -309,7 +309,9 @@ onUnmounted(() => {
     left: calc(100% + 12px);
     top: 50%;
     transform: translateY(-50%) translateX(-8px);
-    background: #18181b;
+    background: var(--bg-card);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border);
     color: var(--text-primary);
     padding: 6px 12px;

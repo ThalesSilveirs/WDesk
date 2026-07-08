@@ -446,17 +446,17 @@ onUnmounted(() => {
 }
 
 .copilot-btn:hover {
-  background: rgba(168, 85, 247, 0.1);
-  color: #c084fc;
-  border-color: rgba(168, 85, 247, 0.2);
+  background: rgba(37, 99, 235, 0.1);
+  color: #60a5fa;
+  border-color: rgba(37, 99, 235, 0.2);
   transform: translateY(-1px);
 }
 
 .copilot-btn.active {
-  background: var(--purple-pink-gradient);
+  background: var(--brand-gradient);
   color: white;
   border: none;
-  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 /* Dropdown styling */

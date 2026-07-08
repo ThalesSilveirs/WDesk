@@ -656,10 +656,10 @@ const askCopilot = async () => {
   height: 100%;
 }
 
-/* Banner gradient purple to pink */
+/* Banner gradient navy brand */
 .banner-gradient {
   height: 90px;
-  background: var(--purple-pink-gradient);
+  background: var(--brand-gradient);
   width: 100%;
   position: relative;
   flex-shrink: 0;
@@ -1159,12 +1159,12 @@ const askCopilot = async () => {
 
 /* COPILOT AI STYLING */
 .copilot-card {
-  background: var(--purple-pink-gradient);
+  background: var(--brand-gradient);
   border-radius: 12px;
   padding: 16px;
   color: white;
   margin-bottom: 16px;
-  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.25);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
 }
 
 .copilot-card-header {

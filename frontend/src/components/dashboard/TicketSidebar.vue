@@ -66,7 +66,7 @@
         :class="{ active: chatStore.currentFilter === 'all' }"
         @click="selectFilter('all')"
       >
-        Todos
+        Abertos
       </button>
     </div>
 
