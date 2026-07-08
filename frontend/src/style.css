@@ -17,9 +17,9 @@
   --bg-nav-sidebar: #09090b;
   --bg-ticket-sidebar: #18181b;
   --msg-bubble-received: #27272a;
-  --msg-bubble-sent: #f4f4f5;
-  --msg-text-received: #ffffff;
-  --msg-text-sent: #09090b;
+  --msg-bubble-sent: #059669;
+  --msg-text-received: #f4f4f5;
+  --msg-text-sent: #ffffff;
   --purple-pink-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f43f5e 100%);
 }
 
@@ -38,10 +38,10 @@
   --chat-bg: #f4f4f5;
   --bg-nav-sidebar: #ffffff;
   --bg-ticket-sidebar: #f4f4f5;
-  --msg-bubble-received: #ffffff;
-  --msg-bubble-sent: #27272a;
-  --msg-text-received: #09090b;
-  --msg-text-sent: #ffffff;
+  --msg-bubble-received: #e4e4e7;
+  --msg-bubble-sent: #dcfce7;
+  --msg-text-received: #18181b;
+  --msg-text-sent: #14532d;
   --purple-pink-gradient: linear-gradient(135deg, #c084fc 0%, #f472b6 50%, #fb7185 100%);
 }
 
