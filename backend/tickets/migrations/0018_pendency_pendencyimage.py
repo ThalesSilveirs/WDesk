@@ -9,7 +9,7 @@ import django.utils.timezone
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tickets', '0015_absenceschedule_quickreply'),
+        ('tickets', '0017_city_customer_city_relationship'),
     ]
 
     operations = [
