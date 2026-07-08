@@ -35,6 +35,10 @@
         <router-link to="/analytics" class="nav-link-item" active-class="active" data-tooltip="Métricas">
           <BarChartIcon :size="20" />
         </router-link>
+
+        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active" data-tooltip="Configurações">
+          <SettingsIcon :size="20" />
+        </router-link>
       </nav>
 
       <!-- Bottom Actions -->
