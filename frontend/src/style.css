@@ -2,8 +2,8 @@
   --bg-dark: #09090b;
   --bg-card: rgba(24, 24, 27, 0.85);
   --bg-sidebar: #09090b;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
+  --accent: #22b55f;
+  --accent-hover: #15803d;
   --text-primary: #f4f4f5;
   --text-secondary: #a1a1aa;
   --border: rgba(255, 255, 255, 0.08);
@@ -20,7 +20,7 @@
   --msg-bubble-sent: #059669;
   --msg-text-received: #f4f4f5;
   --msg-text-sent: #ffffff;
-  --brand-gradient: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #38bdf8 100%);
+  --brand-gradient: linear-gradient(135deg, #14532d 0%, #22b55f 50%, #3fcd67 100%);
 }
 
 [data-theme='light'] {
@@ -42,7 +42,7 @@
   --msg-bubble-sent: #dcfce7;
   --msg-text-received: #18181b;
   --msg-text-sent: #14532d;
-  --brand-gradient: linear-gradient(135deg, #172554 0%, #1d4ed8 50%, #60a5fa 100%);
+  --brand-gradient: linear-gradient(135deg, #166534 0%, #22b55f 50%, #4ade80 100%);
 }
 
 * {

@@ -246,7 +246,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 15px rgba(34, 181, 95, 0.35);
   transition: transform 0.3s ease;
 }
 

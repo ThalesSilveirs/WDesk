@@ -589,14 +589,14 @@ onUnmounted(() => {
 }
 
 .notif-item.unread {
-  background: rgba(37, 99, 235, 0.05);
+  background: rgba(34, 181, 95, 0.05);
 }
 
 .notif-icon {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: rgba(37, 99, 235, 0.1);
+  background: rgba(34, 181, 95, 0.1);
   color: var(--accent);
   display: flex;
   align-items: center;
@@ -793,7 +793,7 @@ onUnmounted(() => {
 
 .toggle-switch.active {
   background: var(--accent);
-  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 0 8px rgba(34, 181, 95, 0.4);
 }
 
 .toggle-thumb {

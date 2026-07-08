@@ -276,7 +276,7 @@ onMounted(() => {
 
 .search-bar:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(34, 181, 95, 0.15);
 }
 
 .search-bar input {
@@ -301,7 +301,7 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4px 12px rgba(34, 181, 95, 0.2);
 }
 
 .btn-primary:hover {
@@ -368,7 +368,7 @@ onMounted(() => {
 }
 
 .state-pill {
-  background: rgba(37, 99, 235, 0.1);
+  background: rgba(34, 181, 95, 0.1);
   color: var(--accent);
   padding: 4px 10px;
   border-radius: 20px;
@@ -504,7 +504,7 @@ onMounted(() => {
 
 .input-glass:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(34, 181, 95, 0.15);
 }
 
 /* Transições */

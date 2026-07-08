@@ -401,7 +401,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(34, 181, 95, 0.3);
 }
 
 .modal-header h2 { margin: 0; font-size: 1.25rem; }
@@ -460,7 +460,7 @@ onUnmounted(() => {
 }
 
 .btn-primary-v2:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary-v2:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+.btn-primary-v2:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(34, 181, 95, 0.3); }
 
 @keyframes pulse {
   0% { opacity: 1; transform: scale(1); }

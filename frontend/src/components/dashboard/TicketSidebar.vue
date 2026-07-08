@@ -754,7 +754,7 @@ const formatTime = (dateStr) => {
   justify-content: center;
   font-weight: 700;
   font-size: 0.85rem;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 2px 8px rgba(34, 181, 95, 0.25);
 }
 
 .status-dot-mobile {
@@ -832,7 +832,7 @@ const formatTime = (dateStr) => {
 }
 
 .status-option.active {
-  background: rgba(37, 99, 235, 0.1);
+  background: rgba(34, 181, 95, 0.1);
   color: #60a5fa;
 }
 

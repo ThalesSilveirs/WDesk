@@ -1164,7 +1164,7 @@ const askCopilot = async () => {
   padding: 16px;
   color: white;
   margin-bottom: 16px;
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 4px 15px rgba(34, 181, 95, 0.25);
 }
 
 .copilot-card-header {

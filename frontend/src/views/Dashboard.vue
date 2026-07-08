@@ -751,15 +751,15 @@ onUnmounted(() => {
 }
 
 .quick-btn.broadcast {
-  background: rgba(37, 99, 235, 0.08);
-  border-color: rgba(37, 99, 235, 0.2);
+  background: rgba(34, 181, 95, 0.08);
+  border-color: rgba(34, 181, 95, 0.2);
   color: var(--accent);
 }
 
 .quick-btn.broadcast:hover {
   background: var(--brand-gradient);
   color: white;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 4px 12px rgba(34, 181, 95, 0.25);
   border-color: transparent;
 }
 

@@ -225,7 +225,7 @@ const submitBroadcast = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(34, 181, 95, 0.3);
 }
 
 .modal-header h2 { font-size: 1.25rem; font-weight: 800; margin: 0; color: white; }
@@ -307,7 +307,7 @@ const submitBroadcast = async () => {
 
 .premium-input-textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 4px rgba(34, 181, 95, 0.1);
 }
 
 .search-wrapper {
@@ -362,7 +362,7 @@ const submitBroadcast = async () => {
 }
 
 .customer-selection-item.selected {
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(34, 181, 95, 0.08);
 }
 
 .checkbox-indicator {
@@ -467,7 +467,7 @@ const submitBroadcast = async () => {
 }
 
 .btn-primary-v2:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary-v2:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+.btn-primary-v2:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(34, 181, 95, 0.3); }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
