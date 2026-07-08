@@ -110,7 +110,7 @@
                     <span>{{ formatDateTime(selectedTicket.created_at) }}</span>
                   </div>
                   <div class="meta-item">
-                    <label>Fechamento / Atualização</label>
+                    <label>Data de Fechamento</label>
                     <span>{{ formatDateTime(selectedTicket.updated_at) }}</span>
                   </div>
                   <div class="meta-item">
