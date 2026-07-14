@@ -25,6 +25,7 @@ class User(AbstractUser):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='users', null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='attendant')
     department = models.CharField(max_length=100, null=True, blank=True) # Área de atuação
+    whatsapp = models.CharField(max_length=20, null=True, blank=True)
 
 class Connection(models.Model):
     STATUS_CHOICES = (

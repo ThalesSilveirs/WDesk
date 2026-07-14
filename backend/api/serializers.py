@@ -64,7 +64,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status')
+        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status', 'whatsapp')
 
     def get_status(self, obj):
         return get_cached_user_status(obj.id)

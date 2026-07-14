@@ -20,6 +20,10 @@
             <h3>{{ user.first_name }} {{ user.last_name }}</h3>
             <p class="department" v-if="user.department">{{ user.department }}</p>
             <p class="username">@{{ user.username }}</p>
+            <p class="whatsapp" v-if="user.whatsapp">
+              <WhatsAppIcon :size="14" style="vertical-align: middle; margin-right: 4px; color: #25D366;" />
+              {{ user.whatsapp }}
+            </p>
             <span class="role-badge" :class="user.role">{{ user.role }}</span>
           </div>
           <div class="user-actions">
@@ -45,6 +49,7 @@
               <input v-model="newUser.last_name" type="text" class="input-glass" placeholder="Sobrenome" required />
             </div>
             <input v-model="newUser.department" type="text" class="input-glass" placeholder="Área de Atuação (ex: Vendas, Suporte)" />
+            <input v-model="newUser.whatsapp" type="text" class="input-glass" placeholder="WhatsApp (ex: 5511999999999)" />
             <input v-model="newUser.username" type="text" class="input-glass" placeholder="Usuário (login)" required />
             <input v-model="newUser.email" type="email" class="input-glass" placeholder="E-mail" required />
             <input v-model="newUser.password" type="password" class="input-glass" :placeholder="editingId ? 'Senha (deixe em branco para não alterar)' : 'Senha'" :required="!editingId" />
@@ -69,7 +74,8 @@ import axios from 'axios'
 import { 
   Plus as PlusIcon,
   Trash2 as TrashIcon,
-  Pencil as PencilIcon
+  Pencil as PencilIcon,
+  MessageSquare as WhatsAppIcon
 } from 'lucide-vue-next'
 const users = ref([])
 const showAddModal = ref(false)
@@ -81,7 +87,8 @@ const newUser = ref({
   email: '',
   password: '',
   role: 'attendant',
-  department: ''
+  department: '',
+  whatsapp: ''
 })
 
 const fetchUsers = async () => {
@@ -98,7 +105,7 @@ const editUser = (user) => {
 const closeModal = () => {
   showAddModal.value = false
   editingId.value = null
-  newUser.value = { username: '', first_name: '', last_name: '', email: '', password: '', role: 'attendant', department: '' }
+  newUser.value = { username: '', first_name: '', last_name: '', email: '', password: '', role: 'attendant', department: '', whatsapp: '' }
 }
 
 const saveUser = async () => {
@@ -208,6 +215,14 @@ onUnmounted(() => {
 .user-details h3 { margin: 0; font-size: 1.1rem; }
 .department { color: var(--accent); font-size: 0.85rem; font-weight: 600; margin: 2px 0; }
 .username { color: var(--text-secondary); font-size: 0.85rem; margin: 2px 0; }
+.whatsapp {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 
 .role-badge {
   font-size: 0.75rem;
