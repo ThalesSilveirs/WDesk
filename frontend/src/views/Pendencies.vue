@@ -133,7 +133,10 @@
                 <span class="priority-badge" :class="item.priority">{{ priorityLabels[item.priority] }}</span>
                 <div class="card-actions">
                   <button v-if="item.status !== 'closed'" @click="openFinishModal(item)" class="icon-btn finish" title="Finalizar"><CheckCircleIcon :size="16" /></button>
-                  <button @click="openMovementsModal(item)" class="icon-btn" title="Movimentações"><HistoryIcon :size="16" /></button>
+                  <button @click="openMovementsModal(item)" class="icon-btn" title="Movimentações">
+                    <HistoryIcon :size="16" />
+                    <span v-if="item.movements?.length > 0" class="movement-count-badge">{{ item.movements.length }}</span>
+                  </button>
                   <button @click="editPendency(item)" class="icon-btn" title="Editar"><EditIcon :size="16" /></button>
                   <button @click="confirmDelete(item)" class="icon-btn delete" title="Excluir"><TrashIcon :size="16" /></button>
                 </div>
@@ -179,7 +182,7 @@
             <!-- Footer do Card -->
             <div class="card-footer">
               <span class="status-indicator" :class="item.status">{{ statusLabels[item.status] }}</span>
-              <span class="created-at">Atualizado: {{ formatDateTime(item.updated_at) }}</span>
+              <span class="created-at">Atualizado por <strong>{{ getLastUpdater(item) }}</strong> em {{ formatDateTime(item.updated_at) }}</span>
             </div>
           </div>
         </div>
@@ -242,7 +245,10 @@
                 <td class="actions-col">
                   <div class="table-actions">
                     <button v-if="item.status !== 'closed'" @click="openFinishModal(item)" class="table-action-btn finish" title="Finalizar"><CheckCircleIcon :size="16" /></button>
-                    <button @click="openMovementsModal(item)" class="table-action-btn" title="Movimentações"><HistoryIcon :size="16" /></button>
+                    <button @click="openMovementsModal(item)" class="table-action-btn" title="Movimentações">
+                      <HistoryIcon :size="16" />
+                      <span v-if="item.movements?.length > 0" class="movement-count-badge">{{ item.movements.length }}</span>
+                    </button>
                     <button @click="editPendency(item)" class="table-action-btn" title="Editar"><EditIcon :size="16" /></button>
                     <button @click="confirmDelete(item)" class="table-action-btn delete" title="Excluir"><TrashIcon :size="16" /></button>
                   </div>
@@ -1116,6 +1122,19 @@ const submitFinish = async () => {
   }
 }
 
+const getLastUpdater = (item) => {
+  if (item.movements && item.movements.length > 0) {
+    const lastMov = item.movements[item.movements.length - 1]
+    if (lastMov.user_details) {
+      return lastMov.user_details.first_name || lastMov.user_details.username
+    }
+  }
+  if (item.user_details) {
+    return item.user_details.first_name || item.user_details.username
+  }
+  return 'Sistema'
+}
+
 // Ciclo de Vida
 onMounted(() => {
   fetchData()
@@ -1448,6 +1467,18 @@ onUnmounted(() => {
 .icon-btn.finish:hover {
   background: rgba(16, 185, 129, 0.1);
   color: #10b981;
+}
+
+.movement-count-badge {
+  font-size: 0.7rem;
+  background: var(--accent);
+  color: white;
+  padding: 1px 5px;
+  border-radius: 6px;
+  margin-left: 4px;
+  font-weight: 700;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .card-body {
