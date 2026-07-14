@@ -1008,8 +1008,12 @@ def send_daily_pendencies_reports(company_id=None):
         other_open = []
         
         for p in user_pendencies:
-            if p.forecast_date and p.forecast_date.date() <= current_date:
-                today_due.append(p)
+            if p.forecast_date:
+                local_forecast = timezone.localtime(p.forecast_date)
+                if local_forecast.date() <= current_date:
+                    today_due.append((p, local_forecast))
+                else:
+                    other_open.append(p)
             else:
                 other_open.append(p)
                 
@@ -1020,12 +1024,12 @@ def send_daily_pendencies_reports(company_id=None):
         
         if today_due:
             msg += "🔴 *Pendências para hoje ou em atraso:*\n"
-            for p in today_due:
+            for p, local_forecast in today_due:
                 client_name = p.customer.name if p.customer else "Sem Cliente"
                 priority_emoji = "🔴" if p.priority == 'high' else ("🟡" if p.priority == 'medium' else "🟢")
-                forecast_str = p.forecast_date.strftime('%H:%M') if p.forecast_date else ""
-                time_suffix = f" (Previsão: {forecast_str})" if forecast_str else ""
-                msg += f"• {priority_emoji} *{p.title}* - {client_name}{time_suffix}\n"
+                forecast_str = local_forecast.strftime('%H:%M')
+                time_suffix = f" (Previsão: {forecast_str})"
+                msg += f"{priority_emoji} *{p.title}* - {client_name}{time_suffix}\n"
             msg += "\n"
             
         if other_open:
@@ -1033,7 +1037,7 @@ def send_daily_pendencies_reports(company_id=None):
             for p in other_open:
                 client_name = p.customer.name if p.customer else "Sem Cliente"
                 priority_emoji = "🔴" if p.priority == 'high' else ("🟡" if p.priority == 'medium' else "🟢")
-                msg += f"• {priority_emoji} *{p.title}* - {client_name}\n"
+                msg += f"{priority_emoji} *{p.title}* - {client_name}\n"
             msg += "\n"
             
         msg += f"📊 *Total de Pendências:* {user_pendencies.count()}\n\n"
