@@ -14,6 +14,10 @@ class Company(models.Model):
     evolution_api_url = models.CharField(max_length=255, null=True, blank=True)
     evolution_api_key = models.CharField(max_length=255, null=True, blank=True)
 
+    # Configurações do Relatório de Pendências
+    pendency_report_time = models.TimeField(default="08:00")
+    pendency_report_only_support = models.BooleanField(default=False)
+
     def __str__(self):
         return self.name
 

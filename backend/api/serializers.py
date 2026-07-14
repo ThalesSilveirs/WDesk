@@ -20,7 +20,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ['id', 'name', 'is_active', 'evolution_api_url', 'evolution_api_key']
+        fields = ['id', 'name', 'is_active', 'evolution_api_url', 'evolution_api_key', 'pendency_report_time', 'pendency_report_only_support']
 
 import threading
 import redis

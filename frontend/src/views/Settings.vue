@@ -228,6 +228,42 @@
             </div>
           </section>
 
+          <!-- Seção Relatório de Pendências -->
+          <section class="settings-section glass-effect">
+            <div class="section-header">
+              <ClipboardIcon :size="24" style="color: var(--accent);" />
+              <h2>Relatório Diário de Pendências</h2>
+            </div>
+            <p class="section-desc">Defina o horário de envio automático e filtros de notificação para o WhatsApp dos atendentes.</p>
+
+            <div class="form-container">
+              <div class="form-group">
+                <label>Horário de Envio Automático</label>
+                <input 
+                  v-model="settings.pendency_report_time" 
+                  type="time" 
+                  class="input-glass premium-input"
+                  style="max-width: 150px; font-family: monospace;"
+                />
+                <small>Horário em que a mensagem de relatório de pendências do dia será disparada automaticamente.</small>
+              </div>
+
+              <div class="form-group flex-row">
+                <label class="switch-container">
+                  <input type="checkbox" v-model="settings.pendency_report_only_support" />
+                  <span class="switch-slider"></span>
+                  <span class="switch-label">Enviar apenas pendências com tipo de operação "Suporte"</span>
+                </label>
+              </div>
+
+              <div class="action-bar" style="margin-top: 30px;">
+                <button @click="saveSettings" class="btn-primary" :disabled="saving">
+                  <SaveIcon :size="20" />
+                  {{ saving ? 'Salvando...' : 'Salvar Relatório e Filtros' }}
+                </button>
+              </div>
+            </div>
+          </section>
 
         </div>
 
@@ -340,7 +376,8 @@ import {
   Clock as ClockIcon,
   Check as CheckIcon,
   Pencil as EditIcon,
-  Plus as PlusIcon
+  Plus as PlusIcon,
+  ClipboardList as ClipboardIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -359,7 +396,9 @@ const triggerResetModal = () => {
 
 const settings = ref({
   evolution_api_url: '',
-  evolution_api_key: ''
+  evolution_api_key: '',
+  pendency_report_time: '08:00',
+  pendency_report_only_support: false
 })
 
 const webhookUrl = computed(() => {
@@ -448,16 +487,20 @@ const absence = ref({
   enabled: false,
   message: '',
   timezone: 'America/Sao_Paulo',
-  schedule: []
+  schedule: [
+    { day: 0, start: '08:00', end: '18:00', active: false },
+    { day: 1, start: '08:00', end: '18:00', active: false },
+    { day: 2, start: '08:00', end: '18:00', active: false },
+    { day: 3, start: '08:00', end: '18:00', active: false },
+    { day: 4, start: '08:00', end: '18:00', active: false },
+    { day: 5, start: '08:00', end: '18:00', active: false },
+    { day: 6, start: '08:00', end: '18:00', active: false }
+  ]
 })
 
 const getDaySchedule = (dayIdx) => {
-  let item = absence.value.schedule.find(s => parseInt(s.day) === dayIdx)
-  if (!item) {
-    item = { day: dayIdx, start: '08:00', end: '18:00', active: false }
-    absence.value.schedule.push(item)
-  }
-  return item
+  const item = absence.value.schedule.find(s => parseInt(s.day) === dayIdx)
+  return item || { day: dayIdx, start: '08:00', end: '18:00', active: false }
 }
 
 const savingAbsence = ref(false)
@@ -470,7 +513,14 @@ const fetchAbsenceSettings = async () => {
       absence.value.enabled = data.enabled
       absence.value.message = data.message
       absence.value.timezone = data.timezone
-      absence.value.schedule = data.schedule || []
+      if (data.schedule && data.schedule.length > 0) {
+        data.schedule.forEach(item => {
+          const idx = absence.value.schedule.findIndex(s => parseInt(s.day) === parseInt(item.day))
+          if (idx !== -1) {
+            absence.value.schedule[idx] = { ...absence.value.schedule[idx], ...item }
+          }
+        })
+      }
     }
   } catch (e) {
     console.error("Erro ao buscar horários de ausência", e)
@@ -497,6 +547,12 @@ const fetchSettings = async () => {
     const data = await chatStore.fetchCompanySettings()
     settings.value.evolution_api_url = data.evolution_api_url || ''
     settings.value.evolution_api_key = data.evolution_api_key || ''
+    let repTime = data.pendency_report_time || '08:00'
+    if (repTime.length > 5) {
+      repTime = repTime.slice(0, 5)
+    }
+    settings.value.pendency_report_time = repTime
+    settings.value.pendency_report_only_support = data.pendency_report_only_support || false
   } catch (e) {
     console.error("Erro ao buscar configurações", e)
   }
