@@ -100,10 +100,27 @@
         <!-- Empty State -->
         <div v-else-if="filteredPendencies.length === 0" class="empty-state glass-effect animate-in">
           <div class="empty-icon">
-            <ClipboardListIcon :size="64" />
+            <SearchIcon v-if="hasActiveFilters || search.trim()" :size="40" />
+            <ClipboardListIcon v-else :size="40" />
           </div>
-          <h2>Nenhuma pendência encontrada</h2>
-          <p>Crie uma nova pendência ou ajuste seus filtros de busca.</p>
+          <template v-if="hasActiveFilters || search.trim()">
+            <h2>Nenhum resultado encontrado</h2>
+            <p>Nenhuma pendência corresponde aos filtros ou termos de busca aplicados. Tente ajustar ou limpar os critérios de busca.</p>
+            <div class="empty-actions">
+              <button @click="clearFiltersAndSearch" class="btn-primary">
+                Limpar Filtros e Busca
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <h2>Tudo em dia!</h2>
+            <p>Você não possui pendências registradas no momento. Que tal começar criando uma nova agora?</p>
+            <div class="empty-actions">
+              <button @click="openCreateModal" class="btn-primary">
+                <PlusIcon :size="18" /> Nova Pendência
+              </button>
+            </div>
+          </template>
         </div>
 
         <!-- Grade de Cards (Grid Mode) -->
@@ -632,6 +649,11 @@ const clearFilters = () => {
   filterStatus.value = 'all'
   filterStartDate.value = ''
   filterEndDate.value = ''
+}
+
+const clearFiltersAndSearch = () => {
+  clearFilters()
+  search.value = ''
 }
 
 // Requisições e Carregamento de Dados
@@ -1723,5 +1745,63 @@ onUnmounted(() => {
 .slide-fade-enter-from, .slide-fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+/* Empty State Stylings */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 40px;
+  border-radius: 16px;
+  max-width: 600px;
+  margin: 40px auto;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.03) 0%, transparent 80%), var(--bg-card);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02);
+  transition: all 0.3s ease;
+}
+
+.empty-state:hover .empty-icon {
+  transform: translateY(-4px) scale(1.05);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 10px 20px rgba(34, 181, 95, 0.15), inset 0 0 20px rgba(34, 181, 95, 0.05);
+}
+
+.empty-state h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.empty-state p {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  max-width: 400px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 12px;
 }
 </style>
