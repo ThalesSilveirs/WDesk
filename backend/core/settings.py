@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from celery.schedules import crontab
 import environ
 
 env = environ.Env(
@@ -112,3 +113,11 @@ CORS_ALLOW_ALL_ORIGINS = True # Ajustar em produção
 # Evolution API Settings
 EVOLUTION_API_URL = env('EVOLUTION_API_URL', default='http://evolution-go:8080')
 EVOLUTION_API_KEY = env('EVOLUTION_API_TOKEN', default='your-token-here')
+
+# Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+    'send-daily-pendencies-reports': {
+        'task': 'tickets.tasks.send_daily_pendencies_reports',
+        'schedule': crontab(hour=8, minute=0), # Executa diariamente às 08:00 AM
+    },
+}

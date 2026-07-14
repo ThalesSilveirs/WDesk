@@ -1827,6 +1827,16 @@ class PendencyViewSet(TenantModelViewSet):
         except PendencyImage.DoesNotExist:
             return Response({"error": "Imagem não encontrada neste ticket"}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(detail=False, methods=['post'], url_path='send-daily-reports')
+    def send_daily_reports(self, request):
+        if request.user.role != 'admin':
+            return Response({"detail": "Permissão negada. Apenas administradores podem disparar os relatórios."}, status=status.HTTP_403_FORBIDDEN)
+        
+        from tickets.tasks import send_daily_pendencies_reports
+        send_daily_pendencies_reports.delay(company_id=str(request.user.company.id))
+        
+        return Response({"detail": "Envio dos relatórios diários de pendências iniciado!"}, status=status.HTTP_200_OK)
+
 
 class PendencyMovementViewSet(viewsets.ModelViewSet):
     queryset = PendencyMovement.objects.all()

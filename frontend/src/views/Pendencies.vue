@@ -25,6 +25,10 @@
               <ListIcon :size="18" />
             </button>
           </div>
+          <button v-if="chatStore.userRole === 'admin'" @click="sendDailyReports" class="btn-secondary" :disabled="sendingReports" title="Enviar Relatório Diário por WhatsApp para toda a equipe">
+            <SendIcon :size="18" />
+            <span>{{ sendingReports ? 'Enviando...' : 'Relatórios WhatsApp' }}</span>
+          </button>
           <button @click="openCreateModal" class="btn-primary">
             <PlusIcon :size="20" /> Nova Pendência
           </button>
@@ -583,8 +587,10 @@ import {
   UploadCloud as UploadCloudIcon,
   History as HistoryIcon,
   Printer as PrinterIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  Send as SendIcon
 } from 'lucide-vue-next'
+import { useChatStore } from '../store/chat'
 
 // Constantes e Labels
 const operationTypes = {
@@ -610,6 +616,8 @@ const statusLabels = {
 }
 
 // Estados Reativos
+const chatStore = useChatStore()
+const sendingReports = ref(false)
 const pendencies = ref([])
 const customers = ref([])
 const users = ref([])
@@ -1133,6 +1141,20 @@ const getLastUpdater = (item) => {
     return item.user_details.first_name || item.user_details.username
   }
   return 'Sistema'
+}
+
+const sendDailyReports = async () => {
+  if (!confirm('Deseja realmente enviar o relatório diário de pendências para o WhatsApp de toda a equipe?')) return
+  sendingReports.value = true
+  try {
+    const res = await axios.post('/api/v1/pendencies/send-daily-reports/')
+    alert(res.data.detail || 'Relatórios diários enviados com sucesso!')
+  } catch (error) {
+    console.error(error)
+    alert('Erro ao enviar relatórios: ' + (error.response?.data?.detail || 'Erro interno.'))
+  } finally {
+    sendingReports.value = false
+  }
 }
 
 // Ciclo de Vida
