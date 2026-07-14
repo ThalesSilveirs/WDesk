@@ -20,12 +20,12 @@
           <MessageSquareIcon :size="20" />
         </router-link>
 
-        <router-link to="/customers" class="nav-link-item" active-class="active" data-tooltip="Clientes">
-          <ContactIcon :size="20" />
-        </router-link>
-
         <router-link to="/pendencies" class="nav-link-item" active-class="active" data-tooltip="Pendências">
           <ClipboardListIcon :size="20" />
+        </router-link>
+
+        <router-link to="/customers" class="nav-link-item" active-class="active" data-tooltip="Clientes">
+          <ContactIcon :size="20" />
         </router-link>
 
         <router-link to="/cities" class="nav-link-item" active-class="active" data-tooltip="Cidades">
