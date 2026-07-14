@@ -132,6 +132,7 @@
               <div class="badge-actions">
                 <span class="priority-badge" :class="item.priority">{{ priorityLabels[item.priority] }}</span>
                 <div class="card-actions">
+                  <button v-if="item.status !== 'closed'" @click="openFinishModal(item)" class="icon-btn finish" title="Finalizar"><CheckCircleIcon :size="16" /></button>
                   <button @click="openMovementsModal(item)" class="icon-btn" title="Movimentações"><HistoryIcon :size="16" /></button>
                   <button @click="editPendency(item)" class="icon-btn" title="Editar"><EditIcon :size="16" /></button>
                   <button @click="confirmDelete(item)" class="icon-btn delete" title="Excluir"><TrashIcon :size="16" /></button>
@@ -240,6 +241,7 @@
                 </td>
                 <td class="actions-col">
                   <div class="table-actions">
+                    <button v-if="item.status !== 'closed'" @click="openFinishModal(item)" class="table-action-btn finish" title="Finalizar"><CheckCircleIcon :size="16" /></button>
                     <button @click="openMovementsModal(item)" class="table-action-btn" title="Movimentações"><HistoryIcon :size="16" /></button>
                     <button @click="editPendency(item)" class="table-action-btn" title="Editar"><EditIcon :size="16" /></button>
                     <button @click="confirmDelete(item)" class="table-action-btn delete" title="Excluir"><TrashIcon :size="16" /></button>
@@ -445,8 +447,11 @@
           </div>
 
           <div class="modal-body movements-modal-body">
-            <!-- Botão de Impressão -->
+            <!-- Botão de Impressão e Finalização -->
             <div class="movements-actions-header">
+              <button v-if="selectedPendencyForMovements?.status !== 'closed'" @click="openFinishModal(selectedPendencyForMovements)" class="btn-finish-action">
+                <CheckCircleIcon :size="16" /> Finalizar Pendência
+              </button>
               <button @click="printPendency(selectedPendencyForMovements)" class="btn-print-report">
                 <PrinterIcon :size="16" /> Imprimir Relatório
               </button>
@@ -512,6 +517,41 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Modal de Confirmação de Finalização com Explicação -->
+    <Transition name="modal-fade">
+      <div v-if="showFinishModal" class="modal-overlay" @click="showFinishModal = false">
+        <div class="modal-content small-modal" @click.stop>
+          <div class="modal-header">
+            <h2>Finalizar Pendência</h2>
+            <button @click="showFinishModal = false" class="close-btn-round"><XIcon :size="20" /></button>
+          </div>
+          
+          <div class="modal-body">
+            <p>Para finalizar a pendência <strong>{{ selectedPendencyForFinish?.title }}</strong>, por favor forneça uma explicação ou motivo de conclusão:</p>
+            
+            <form @submit.prevent="submitFinish" class="finish-form">
+              <div class="form-group" style="margin-top: 12px;">
+                <textarea 
+                  v-model="finishExplanation" 
+                  required 
+                  class="input-glass" 
+                  placeholder="Digite a explicação da conclusão..."
+                  rows="4"
+                ></textarea>
+              </div>
+              
+              <div class="modal-actions" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" @click="showFinishModal = false" class="btn-secondary">Cancelar</button>
+                <button type="submit" class="btn-primary" :disabled="loadingFinish">
+                  {{ loadingFinish ? 'Finalizando...' : 'Confirmar Finalização' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -536,7 +576,8 @@ import {
   Image as ImageIcon,
   UploadCloud as UploadCloudIcon,
   History as HistoryIcon,
-  Printer as PrinterIcon
+  Printer as PrinterIcon,
+  CheckCircle as CheckCircleIcon
 } from 'lucide-vue-next'
 
 // Constantes e Labels
@@ -594,6 +635,11 @@ const selectedPendencyForMovements = ref(null)
 const newMovementText = ref('')
 const loadingAddMovement = ref(false)
 const loadingMovements = ref(false)
+
+const showFinishModal = ref(false)
+const selectedPendencyForFinish = ref(null)
+const finishExplanation = ref('')
+const loadingFinish = ref(false)
 
 // Form e Cadastro
 const editingId = ref(null)
@@ -1025,6 +1071,51 @@ const sortedMovementsForModal = computed(() => {
   })
 } )
 
+const openFinishModal = (item) => {
+  selectedPendencyForFinish.value = item
+  finishExplanation.value = ''
+  showFinishModal.value = true
+}
+
+const submitFinish = async () => {
+  if (!finishExplanation.value.trim() || !selectedPendencyForFinish.value) return
+  loadingFinish.value = true
+  try {
+    const pendencyId = selectedPendencyForFinish.value.id
+    
+    // 1. Atualiza o status para closed
+    await axios.patch(`/api/v1/pendencies/${pendencyId}/`, { status: 'closed' })
+    
+    // 2. Cria a movimentação explicando a finalização
+    const movementPayload = {
+      pendency: pendencyId,
+      description: `Finalização de Pendência. Explicação: ${finishExplanation.value.trim()}`
+    }
+    await axios.post('/api/v1/pendency-movements/', movementPayload)
+    
+    // 3. Recarrega os dados completos da pendência
+    const resUpdated = await axios.get(`/api/v1/pendencies/${pendencyId}/`)
+    
+    const idx = pendencies.value.findIndex(p => p.id === pendencyId)
+    if (idx !== -1) {
+      pendencies.value[idx] = resUpdated.data
+    }
+    
+    if (showMovementsModal.value && selectedPendencyForMovements.value?.id === pendencyId) {
+      selectedPendencyForMovements.value = resUpdated.data
+    }
+    
+    showFinishModal.value = false
+    selectedPendencyForFinish.value = null
+    finishExplanation.value = ''
+  } catch (error) {
+    console.error('Erro ao finalizar pendência:', error)
+    alert('Erro ao finalizar pendência.')
+  } finally {
+    loadingFinish.value = false
+  }
+}
+
 // Ciclo de Vida
 onMounted(() => {
   fetchData()
@@ -1354,6 +1445,11 @@ onUnmounted(() => {
   color: #ef4444;
 }
 
+.icon-btn.finish:hover {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
 .card-body {
   flex: 1;
   display: flex;
@@ -1569,6 +1665,11 @@ onUnmounted(() => {
 .table-action-btn.delete:hover {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
+}
+
+.table-action-btn.finish:hover {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
 }
 
 /* Modal extra styles */
@@ -1954,6 +2055,25 @@ onUnmounted(() => {
 .movements-actions-header {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-finish-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-finish-action:hover {
+  background-color: #059669;
 }
 
 .btn-print-report {
@@ -1968,6 +2088,12 @@ onUnmounted(() => {
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s ease;
+}
+
+.finish-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .btn-print-report:hover {
@@ -2069,5 +2195,24 @@ onUnmounted(() => {
   line-height: 1.4;
   white-space: pre-wrap;
   margin: 0;
+}
+
+.close-btn-round {
+  background: var(--glass);
+  border: none;
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn-round:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 </style>
