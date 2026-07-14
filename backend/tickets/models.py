@@ -297,4 +297,18 @@ class PendencyImage(models.Model):
         return f"Image for {self.pendency.title}"
 
 
+class PendencyMovement(models.Model):
+    pendency = models.ForeignKey(Pendency, on_delete=models.CASCADE, related_name='movements')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Movimentação {self.id} - Pendência {self.pendency.title}"
+
+
+
 

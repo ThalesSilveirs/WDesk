@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TicketViewSet, ConnectionViewSet, WebhookView, UserViewSet, CustomerViewSet, 
     CustomerContactViewSet, ContactViewSet, CompanyViewSet, QuickReplyViewSet, 
-    AbsenceScheduleViewSet, CityViewSet, PendencyViewSet
+    AbsenceScheduleViewSet, CityViewSet, PendencyViewSet, PendencyMovementViewSet
 )
 
 router = DefaultRouter()
@@ -18,6 +18,7 @@ router.register(r'quick-replies', QuickReplyViewSet, basename='quick-reply')
 router.register(r'absence-schedules', AbsenceScheduleViewSet, basename='absence-schedule')
 router.register(r'cities', CityViewSet, basename='city')
 router.register(r'pendencies', PendencyViewSet, basename='pendency')
+router.register(r'pendency-movements', PendencyMovementViewSet, basename='pendency-movement')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -12,6 +12,12 @@ const router = createRouter({
       component: Login
     },
     {
+      path: '/pendencies/:id/print',
+      name: 'PendencyPrint',
+      component: () => import('../views/PendencyPrint.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/',
       component: MainLayout,
       meta: { requiresAuth: true },

@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.response import Response
 from django.db import transaction
 from rest_framework.decorators import action
-from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage
+from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement
 from .serializers import (
     TicketSerializer, 
     TicketListSerializer,
@@ -17,7 +17,8 @@ from .serializers import (
     QuickReplySerializer,
     AbsenceScheduleSerializer,
     CitySerializer,
-    PendencySerializer
+    PendencySerializer,
+    PendencyMovementSerializer
 )
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.views.decorators.csrf import csrf_exempt
@@ -1825,6 +1826,18 @@ class PendencyViewSet(TenantModelViewSet):
             return Response({"status": "image deleted"})
         except PendencyImage.DoesNotExist:
             return Response({"error": "Imagem não encontrada neste ticket"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class PendencyMovementViewSet(viewsets.ModelViewSet):
+    queryset = PendencyMovement.objects.all()
+    serializer_class = PendencyMovementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(pendency__company=self.request.user.company)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 

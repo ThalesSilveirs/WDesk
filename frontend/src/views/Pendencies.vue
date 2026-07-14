@@ -132,6 +132,7 @@
               <div class="badge-actions">
                 <span class="priority-badge" :class="item.priority">{{ priorityLabels[item.priority] }}</span>
                 <div class="card-actions">
+                  <button @click="openMovementsModal(item)" class="icon-btn" title="Movimentações"><HistoryIcon :size="16" /></button>
                   <button @click="editPendency(item)" class="icon-btn" title="Editar"><EditIcon :size="16" /></button>
                   <button @click="confirmDelete(item)" class="icon-btn delete" title="Excluir"><TrashIcon :size="16" /></button>
                 </div>
@@ -239,6 +240,7 @@
                 </td>
                 <td class="actions-col">
                   <div class="table-actions">
+                    <button @click="openMovementsModal(item)" class="table-action-btn" title="Movimentações"><HistoryIcon :size="16" /></button>
                     <button @click="editPendency(item)" class="table-action-btn" title="Editar"><EditIcon :size="16" /></button>
                     <button @click="confirmDelete(item)" class="table-action-btn delete" title="Excluir"><TrashIcon :size="16" /></button>
                   </div>
@@ -433,6 +435,74 @@
       </div>
     </Transition>
 
+    <!-- Modal de Movimentações (Histórico e Registro) -->
+    <Transition name="modal-fade">
+      <div v-if="showMovementsModal" class="modal-overlay" @click="showMovementsModal = false">
+        <div class="modal-content medium-modal" @click.stop>
+          <div class="modal-header">
+            <h2>Movimentações: {{ selectedPendencyForMovements?.title }}</h2>
+            <button @click="showMovementsModal = false" class="close-btn-round"><XIcon :size="20" /></button>
+          </div>
+
+          <div class="modal-body movements-modal-body">
+            <!-- Botão de Impressão -->
+            <div class="movements-actions-header">
+              <button @click="printPendency(selectedPendencyForMovements)" class="btn-print-report">
+                <PrinterIcon :size="16" /> Imprimir Relatório
+              </button>
+            </div>
+
+            <!-- Form para nova movimentação -->
+            <form @submit.prevent="addMovement" class="new-movement-form">
+              <div class="form-group">
+                <label>Nova Movimentação</label>
+                <textarea 
+                  v-model="newMovementText" 
+                  required 
+                  class="input-glass" 
+                  placeholder="Descreva a atualização ou andamento da pendência..."
+                  rows="3"
+                ></textarea>
+              </div>
+              <div class="form-actions-right">
+                <button type="submit" class="btn-primary" :disabled="loadingAddMovement">
+                  {{ loadingAddMovement ? 'Adicionando...' : 'Adicionar Histórico' }}
+                </button>
+              </div>
+            </form>
+
+            <hr class="modal-divider" />
+
+            <!-- Lista de movimentações existentes -->
+            <div class="movements-history-section">
+              <h3>Histórico de Andamentos</h3>
+              <div v-if="loadingMovements" class="loading-inline">
+                <div class="spinner-sm"></div>
+                <span>Carregando histórico...</span>
+              </div>
+              <div v-else-if="!selectedPendencyForMovements?.movements || selectedPendencyForMovements.movements.length === 0" class="no-movements-placeholder">
+                Nenhuma movimentação registrada. Use o campo acima para adicionar o primeiro andamento.
+              </div>
+              <div v-else class="movements-timeline">
+                <div v-for="m in sortedMovementsForModal" :key="m.id" class="timeline-item glass-effect">
+                  <div class="timeline-header">
+                    <span class="timeline-user">
+                      <UserIcon :size="14" />
+                      {{ m.user_details ? `${m.user_details.first_name || ''} ${m.user_details.last_name || ''}`.trim() || m.user_details.username : 'Sistema' }}
+                    </span>
+                    <span class="timeline-date">{{ formatDateTime(m.created_at) }}</span>
+                  </div>
+                  <div class="timeline-content">
+                    <p>{{ m.description }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Modal Lightbox (Visualizar Imagem cheia) -->
     <Transition name="fade">
       <div v-if="showLightbox" class="lightbox-overlay" @click="showLightbox = false">
@@ -464,7 +534,9 @@ import {
   Clock as ClockIcon,
   Phone as PhoneIcon,
   Image as ImageIcon,
-  UploadCloud as UploadCloudIcon
+  UploadCloud as UploadCloudIcon,
+  History as HistoryIcon,
+  Printer as PrinterIcon
 } from 'lucide-vue-next'
 
 // Constantes e Labels
@@ -517,6 +589,11 @@ const showModal = ref(false)
 const showDeleteModal = ref(false)
 const showLightbox = ref(false)
 const lightboxSrc = ref('')
+const showMovementsModal = ref(false)
+const selectedPendencyForMovements = ref(null)
+const newMovementText = ref('')
+const loadingAddMovement = ref(false)
+const loadingMovements = ref(false)
 
 // Form e Cadastro
 const editingId = ref(null)
@@ -890,6 +967,63 @@ const deletePendency = async () => {
     loadingDelete.value = false
   }
 }
+
+const openMovementsModal = async (item) => {
+  selectedPendencyForMovements.value = item
+  newMovementText.value = ''
+  showMovementsModal.value = true
+  
+  loadingMovements.value = true
+  try {
+    const res = await axios.get(`/api/v1/pendencies/${item.id}/`)
+    const idx = pendencies.value.findIndex(p => p.id === item.id)
+    if (idx !== -1) {
+      pendencies.value[idx] = res.data
+    }
+    selectedPendencyForMovements.value = res.data
+  } catch (error) {
+    console.error('Erro ao buscar movimentações:', error)
+  } finally {
+    loadingMovements.value = false
+  }
+}
+
+const addMovement = async () => {
+  if (!newMovementText.value.trim()) return
+  loadingAddMovement.value = true
+  try {
+    const payload = {
+      pendency: selectedPendencyForMovements.value.id,
+      description: newMovementText.value.trim()
+    }
+    await axios.post('/api/v1/pendency-movements/', payload)
+    
+    const resUpdated = await axios.get(`/api/v1/pendencies/${selectedPendencyForMovements.value.id}/`)
+    const idx = pendencies.value.findIndex(p => p.id === selectedPendencyForMovements.value.id)
+    if (idx !== -1) {
+      pendencies.value[idx] = resUpdated.data
+    }
+    selectedPendencyForMovements.value = resUpdated.data
+    newMovementText.value = ''
+  } catch (error) {
+    console.error('Erro ao adicionar movimentação:', error)
+    alert('Erro ao adicionar movimentação.')
+  } finally {
+    loadingAddMovement.value = false
+  }
+}
+
+const printPendency = (item) => {
+  if (!item) return
+  window.open(`/pendencies/${item.id}/print`, '_blank')
+}
+
+const sortedMovementsForModal = computed(() => {
+  if (!selectedPendencyForMovements.value?.movements) return []
+  return [...selectedPendencyForMovements.value.movements].sort((a, b) => {
+    return new Date(b.created_at) - new Date(a.created_at)
+  })
+} )
 
 // Ciclo de Vida
 onMounted(() => {
@@ -1803,5 +1937,137 @@ onUnmounted(() => {
 .empty-actions {
   display: flex;
   gap: 12px;
+}
+
+/* Estilos adicionais para Movimentações de Pendência */
+.medium-modal {
+  max-width: 650px;
+  width: 90%;
+}
+
+.movements-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.movements-actions-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-print-report {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-print-report:hover {
+  background: var(--border);
+  border-color: var(--accent);
+}
+
+.new-movement-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-actions-right {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-divider {
+  border: 0;
+  height: 1px;
+  background: var(--border);
+  margin: 5px 0;
+}
+
+.movements-history-section h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.loading-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.spinner-sm {
+  border: 2px solid rgba(255,255,255,0.1);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border-left-color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+.no-movements-placeholder {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+  padding: 15px 0;
+  text-align: center;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+.movements-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.timeline-item {
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+.timeline-user {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.timeline-date {
+  color: var(--text-secondary);
+}
+
+.timeline-content p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  margin: 0;
 }
 </style>

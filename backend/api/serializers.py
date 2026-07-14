@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage
+from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -165,8 +165,20 @@ class PendencyImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'image', 'created_at']
 
 
+class PendencyMovementSerializer(serializers.ModelSerializer):
+    user_details = UserSerializer(source='user', read_only=True)
+
+    class Meta:
+        model = PendencyMovement
+        fields = ['id', 'pendency', 'user', 'user_details', 'description', 'created_at']
+        extra_kwargs = {
+            'user': {'read_only': True}
+        }
+
+
 class PendencySerializer(serializers.ModelSerializer):
     images = PendencyImageSerializer(many=True, read_only=True)
+    movements = PendencyMovementSerializer(many=True, read_only=True)
     uploaded_images = serializers.ListField(
         child=serializers.CharField(),
         write_only=True,
