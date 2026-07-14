@@ -2197,6 +2197,13 @@ onUnmounted(() => {
   margin: 0;
 }
 
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .close-btn-round {
   background: var(--glass);
   border: none;
