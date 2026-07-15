@@ -299,7 +299,7 @@
             <!-- Seleção de Cliente com Autocomplete -->
             <div class="grid-2">
               <div class="form-group customer-autocomplete" style="position: relative;">
-                <label>Vincular Cliente (Razão Social/Nome)</label>
+                <label>Vincular Cliente (Razão Social/Nome) *</label>
                 <input 
                   v-model="customerSearch" 
                   @input="handleCustomerSearch"
@@ -1025,6 +1025,10 @@ const savePendency = async () => {
   }
   if (!form.value.operation_type) {
     alert('Por favor, selecione o Tipo de Operação.')
+    return
+  }
+  if (!form.value.customer) {
+    alert('Por favor, selecione e vincule um Cliente.')
     return
   }
   if (!form.value.user || form.value.user === 'null') {
