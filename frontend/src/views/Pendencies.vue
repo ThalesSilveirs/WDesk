@@ -872,7 +872,7 @@ const handleCustomerSearch = () => {
   customerSearchResults.value = customers.value.filter(c => 
     c.name.toLowerCase().includes(query) || 
     (c.fantasy_name || '').toLowerCase().includes(query) || 
-    c.phone.includes(query)
+    (c.phone || '').includes(query)
   ).slice(0, 5) // Limitar a 5 resultados
 }
 
