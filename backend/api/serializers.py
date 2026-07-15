@@ -74,18 +74,13 @@ class ConnectionSerializer(serializers.ModelSerializer):
         model = Connection
         fields = '__all__'
 
-class CustomerContactSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomerContact
-        fields = '__all__'
-
 class CitySerializer(serializers.ModelSerializer):
     class Meta:
         model = City
         fields = '__all__'
 
 class CustomerSerializer(serializers.ModelSerializer):
-    additional_contacts = CustomerContactSerializer(many=True, read_only=True)
+    additional_contacts = serializers.SerializerMethodField()
     city_relationship_details = CitySerializer(source='city_relationship', read_only=True)
     class Meta:
         model = Customer
@@ -94,11 +89,46 @@ class CustomerSerializer(serializers.ModelSerializer):
             'company': {'read_only': True}
         }
 
+    def get_additional_contacts(self, obj):
+        return ContactSerializer(obj.contacts.all(), many=True, context=self.context).data
+
 class ContactSerializer(serializers.ModelSerializer):
     customer_details = CustomerSerializer(source='customer', read_only=True)
     class Meta:
         model = Contact
         fields = '__all__'
+
+    def validate(self, attrs):
+        # Auto-gerar remote_jid se estiver ausente mas houver whatsapp/cellphone/phone
+        remote_jid = attrs.get('remote_jid')
+        company = attrs.get('company')
+        
+        if not company and 'request' in self.context:
+            company = self.context['request'].user.company
+            attrs['company'] = company
+            
+        if not remote_jid and company:
+            raw_phone = attrs.get('whatsapp') or attrs.get('cellphone') or attrs.get('phone')
+            if raw_phone:
+                import re
+                phone_digits = re.sub(r'\D', '', raw_phone)
+                if phone_digits:
+                    if len(phone_digits) in [10, 11] and not phone_digits.startswith('55'):
+                        phone_digits = '55' + phone_digits
+                    generated_jid = f"{phone_digits}@s.whatsapp.net"
+                    
+                    from tickets.models import Contact
+                    existing = Contact.objects.filter(company=company, remote_jid=generated_jid).first()
+                    if existing:
+                        if not self.instance or self.instance.id != existing.id:
+                            raise serializers.ValidationError({
+                                "whatsapp": "Já existe um contato com este número de WhatsApp cadastrado."
+                            })
+                    attrs['remote_jid'] = generated_jid
+        return attrs
+
+class CustomerContactSerializer(ContactSerializer):
+    pass
 
 class MessageReactionSerializer(serializers.ModelSerializer):
     class Meta:

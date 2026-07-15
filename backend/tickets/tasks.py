@@ -473,10 +473,15 @@ def process_webhook_event(connection_id, payload):
             ).first()
             
             if not customer:
-                additional_contact = CustomerContact.objects.filter(
+                additional_contact = Contact.objects.filter(
                     customer__company=connection.company,
                     phone__icontains=phone_digits[-8:]
                 ).first()
+                if not additional_contact:
+                    additional_contact = Contact.objects.filter(
+                        customer__company=connection.company,
+                        whatsapp__icontains=phone_digits[-8:]
+                    ).first()
                 if additional_contact:
                     customer = additional_contact.customer
                     contact_name = additional_contact.name
@@ -487,6 +492,18 @@ def process_webhook_event(connection_id, payload):
             
             # Preserve manually linked customer and custom contact name
             existing_contact = Contact.objects.filter(remote_jid=remote_jid, company=connection.company).first()
+            if not existing_contact:
+                from django.db.models import Q
+                existing_contact = Contact.objects.filter(
+                    Q(whatsapp__icontains=phone_digits[-8:]) |
+                    Q(cellphone__icontains=phone_digits[-8:]) |
+                    Q(phone__icontains=phone_digits[-8:]),
+                    company=connection.company
+                ).first()
+                if existing_contact:
+                    existing_contact.remote_jid = remote_jid
+                    existing_contact.save()
+
             if existing_contact:
                 if existing_contact.customer:
                     customer = existing_contact.customer

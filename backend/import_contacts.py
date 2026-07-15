@@ -6,7 +6,7 @@ from datetime import datetime
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from tickets.models import Customer, CustomerContact
+from tickets.models import Customer, Contact
 
 csv_path = '/app/contatos_cliente_202607151129.csv'
 
@@ -54,24 +54,52 @@ with open(csv_path, mode='r', encoding='utf-8') as f:
                 except ValueError:
                     pass
         
-        contact, created = CustomerContact.objects.update_or_create(
-            customer=customer,
-            name=nome.strip(),
-            defaults={
-                'phone': phone.strip() if phone else None,
-                'cellphone': cellphone.strip() if cellphone else None,
-                'whatsapp': whatsapp.strip() if whatsapp else None,
-                'email': email.strip() if email else None,
-                'birth_date': birth_date,
-                'sector': sector.strip() if sector else None,
-                'role': role.strip() if role else None,
-                'observation': observation.strip() if observation else None,
-            }
-        )
-        
-        if created:
-            created_count += 1
-        else:
+        # Auto-generate remote_jid if possible
+        remote_jid = None
+        raw_phone = whatsapp or cellphone or phone
+        if raw_phone:
+            import re
+            phone_digits = re.sub(r'\D', '', raw_phone)
+            if phone_digits:
+                if len(phone_digits) in [10, 11] and not phone_digits.startswith('55'):
+                    phone_digits = '55' + phone_digits
+                remote_jid = f"{phone_digits}@s.whatsapp.net"
+
+        # Check if contact already exists by remote_jid (if available) or customer/name
+        contact = None
+        if remote_jid:
+            contact = Contact.objects.filter(company=customer.company, remote_jid=remote_jid).first()
+            
+        if not contact:
+            contact = Contact.objects.filter(customer=customer, name=nome.strip()).first()
+            
+        defaults = {
+            'phone': phone.strip() if phone else None,
+            'cellphone': cellphone.strip() if cellphone else None,
+            'whatsapp': whatsapp.strip() if whatsapp else None,
+            'email': email.strip() if email else None,
+            'birth_date': birth_date,
+            'sector': sector.strip() if sector else None,
+            'role': role.strip() if role else None,
+            'observation': observation.strip() if observation else None,
+            'customer': customer,
+            'name': nome.strip(),
+        }
+        if remote_jid:
+            defaults['remote_jid'] = remote_jid
+            
+        if contact:
+            # Update existing
+            for k, v in defaults.items():
+                setattr(contact, k, v)
+            contact.save()
             updated_count += 1
+        else:
+            # Create new
+            Contact.objects.create(
+                company=customer.company,
+                **defaults
+            )
+            created_count += 1
 
 print(f"Import complete! Created: {created_count}, Updated: {updated_count}, Skipped: {skipped_count}")

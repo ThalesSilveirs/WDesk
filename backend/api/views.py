@@ -103,57 +103,14 @@ class CustomerViewSet(TenantModelViewSet):
         return Response(CustomerSerializer(customers, many=True).data)
 
 class CustomerContactViewSet(viewsets.ModelViewSet):
-    queryset = CustomerContact.objects.all()
+    queryset = Contact.objects.all()
     serializer_class = CustomerContactSerializer
 
     def get_queryset(self):
         return self.queryset.filter(customer__company=self.request.user.company)
 
     def perform_create(self, serializer):
-        customer_contact = serializer.save()
-        self.sync_to_whatsapp_contact(customer_contact)
-
-    def perform_update(self, serializer):
-        customer_contact = serializer.save()
-        self.sync_to_whatsapp_contact(customer_contact)
-
-    def sync_to_whatsapp_contact(self, customer_contact):
-        import re
-        # Obter número bruto (preferência: whatsapp -> celular -> telefone)
-        raw_phone = customer_contact.whatsapp or customer_contact.cellphone or customer_contact.phone
-        if not raw_phone:
-            return
-        
-        # Filtrar apenas dígitos
-        phone_digits = re.sub(r'\D', '', raw_phone)
-        if not phone_digits:
-            return
-            
-        # Adicionar DDI 55 do Brasil caso não possua e tenha DDD (tamanho 10 ou 11)
-        if len(phone_digits) in [10, 11] and not phone_digits.startswith('55'):
-            phone_digits = '55' + phone_digits
-            
-        remote_jid = f"{phone_digits}@s.whatsapp.net"
-        
-        from tickets.models import Contact
-        contact, created = Contact.objects.get_or_create(
-            company=customer_contact.customer.company,
-            remote_jid=remote_jid,
-            defaults={
-                'customer': customer_contact.customer,
-                'name': customer_contact.name
-            }
-        )
-        if not created:
-            updated = False
-            if not contact.customer:
-                contact.customer = customer_contact.customer
-                updated = True
-            if customer_contact.name and contact.name != customer_contact.name:
-                contact.name = customer_contact.name
-                updated = True
-            if updated:
-                contact.save()
+        serializer.save(company=self.request.user.company)
 
 class ContactViewSet(TenantModelViewSet):
     queryset = Contact.objects.all()
@@ -161,24 +118,6 @@ class ContactViewSet(TenantModelViewSet):
 
     def perform_update(self, serializer):
         contact = serializer.save()
-        
-        # Sync as additional contact in customer registry if linked
-        if contact.customer:
-            raw_phone = contact.remote_jid.split('@')[0]
-            import re
-            phone_digits = re.sub(r'\D', '', raw_phone)
-            
-            if phone_digits:
-                from tickets.models import CustomerContact
-                customer_contact, created = CustomerContact.objects.get_or_create(
-                    customer=contact.customer,
-                    phone=phone_digits,
-                    defaults={'name': contact.name or phone_digits}
-                )
-                if not created and contact.name and customer_contact.name != contact.name:
-                    customer_contact.name = contact.name
-                    customer_contact.save()
-
         tickets = Ticket.objects.filter(contact=contact, status__in=['open', 'pending'])
         for ticket in tickets:
             event_payload = {
