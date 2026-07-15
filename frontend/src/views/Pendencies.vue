@@ -1018,6 +1018,32 @@ const editPendency = (item) => {
 }
 
 const savePendency = async () => {
+  // Validação explícita de campos obrigatórios
+  if (!form.value.title || !form.value.title.trim()) {
+    alert('Por favor, preencha o campo Título / Assunto.')
+    return
+  }
+  if (!form.value.operation_type) {
+    alert('Por favor, selecione o Tipo de Operação.')
+    return
+  }
+  if (!form.value.user || form.value.user === 'null') {
+    alert('Por favor, selecione um Responsável.')
+    return
+  }
+  if (!form.value.priority) {
+    alert('Por favor, selecione a Prioridade.')
+    return
+  }
+  if (!form.value.status) {
+    alert('Por favor, selecione o Status.')
+    return
+  }
+  if (!form.value.opening_date) {
+    alert('Por favor, defina o Horário de Abertura.')
+    return
+  }
+
   loadingSave.value = true
   try {
     const payload = {
