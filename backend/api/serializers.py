@@ -159,6 +159,24 @@ class AbsenceScheduleSerializer(serializers.ModelSerializer):
         }
 
 
+class CustomerLightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['id', 'name']
+
+
+class UserLightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name']
+
+
+class ContactLightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = ['id', 'name', 'remote_jid']
+
+
 class PendencyImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = PendencyImage
@@ -166,7 +184,7 @@ class PendencyImageSerializer(serializers.ModelSerializer):
 
 
 class PendencyMovementSerializer(serializers.ModelSerializer):
-    user_details = UserSerializer(source='user', read_only=True)
+    user_details = UserLightSerializer(source='user', read_only=True)
 
     class Meta:
         model = PendencyMovement
@@ -184,9 +202,9 @@ class PendencySerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
-    customer_details = CustomerSerializer(source='customer', read_only=True)
-    user_details = UserSerializer(source='user', read_only=True)
-    contact_details = ContactSerializer(source='contact', read_only=True)
+    customer_details = CustomerLightSerializer(source='customer', read_only=True)
+    user_details = UserLightSerializer(source='user', read_only=True)
+    contact_details = ContactLightSerializer(source='contact', read_only=True)
 
     class Meta:
         model = Pendency

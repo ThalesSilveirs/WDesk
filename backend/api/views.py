@@ -1773,7 +1773,8 @@ class PendencyViewSet(TenantModelViewSet):
     serializer_class = PendencySerializer
 
     def get_queryset(self):
-        from django.db.models import Case, When, Value, IntegerField
+        from django.db.models import Case, When, Value, IntegerField, Prefetch
+        from tickets.models import PendencyMovement
         qs = super().get_queryset().select_related('customer', 'contact', 'user')
 
         # Filtros
@@ -1812,7 +1813,10 @@ class PendencyViewSet(TenantModelViewSet):
             )
         ).order_by('priority_order', 'forecast_date')
 
-        return qs
+        return qs.prefetch_related(
+            'images',
+            Prefetch('movements', queryset=PendencyMovement.objects.select_related('user'))
+        )
 
     @action(detail=True, methods=['post'], url_path='delete-image')
     def delete_image(self, request, pk=None):

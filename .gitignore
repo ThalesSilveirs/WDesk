@@ -34,3 +34,8 @@ dist/
 
 #Others
 .key
+
+# Local config & data
+certbot/
+dados/
+scratch/

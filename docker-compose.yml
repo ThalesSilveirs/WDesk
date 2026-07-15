@@ -110,6 +110,26 @@ services:
     networks:
       - app-network
 
+  beat:
+    build: ./backend
+    command: celery -A core beat -l info --pidfile=/tmp/celerybeat.pid --schedule=/tmp/celerybeat-schedule
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-go:8080}
+      - EVOLUTION_API_TOKEN=${EVOLUTION_API_TOKEN:-0f00f38b042ada23b3437e74b0141dd4d40ac50daf2afd9c8c524b79958a54cd}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - app-network
+
   realtime:
     build: ./realtime
     command: npm start

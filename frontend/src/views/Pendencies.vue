@@ -1,6 +1,6 @@
 <template>
   <div class="pendencies-page-container">
-    <main class="main-content">
+    <main ref="mainContentEl" class="main-content">
       <!-- Cabeçalho da Página -->
       <header class="page-header glass-effect animate-in">
         <div class="header-info">
@@ -129,7 +129,7 @@
 
         <!-- Grade de Cards (Grid Mode) -->
         <div v-else-if="viewMode === 'grid'" class="pendencies-grid">
-          <div v-for="item in filteredPendencies" :key="item.id" class="pendency-card glass-effect animate-in" :class="item.priority">
+          <div v-for="item in displayedPendencies" :key="item.id" class="pendency-card glass-effect animate-in" :class="item.priority">
             <!-- Header do Card -->
             <div class="card-header">
               <span class="operation-badge">{{ operationTypes[item.operation_type] }}</span>
@@ -208,7 +208,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in filteredPendencies" :key="item.id" :class="item.priority">
+              <tr v-for="item in displayedPendencies" :key="item.id" :class="item.priority">
                 <td>
                   <div class="title-cell">
                     <span class="tbl-title">{{ item.title }}</span>
@@ -260,6 +260,14 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Lazy Loading Footer -->
+        <div v-if="visibleItemsLimit < filteredPendencies.length" class="load-more-container glass-effect">
+          <p class="load-more-text">Exibindo {{ displayedPendencies.length }} de {{ filteredPendencies.length }} pendências</p>
+          <button @click="visibleItemsLimit += 50" class="btn-primary btn-load-more">
+            Carregar Mais
+          </button>
         </div>
       </div>
     </main>
@@ -566,7 +574,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import {
   ClipboardList as ClipboardListIcon,
@@ -628,11 +636,17 @@ const viewMode = ref('grid')
 // Filtros
 const showFilters = ref(false)
 const filterCustomer = ref('all')
-const filterUser = ref('all')
+const filterUser = ref(chatStore.user?.id || 'all')
 const filterOperation = ref('all')
-const filterStatus = ref('all')
+const filterStatus = ref('open')
 const filterStartDate = ref('')
 const filterEndDate = ref('')
+
+watch(() => chatStore.user, (newVal) => {
+  if (newVal && (filterUser.value === 'all' || !filterUser.value)) {
+    filterUser.value = newVal.id
+  }
+}, { immediate: true })
 
 // Controle de Loading
 const loadingList = ref(false)
@@ -748,6 +762,35 @@ const filteredPendencies = computed(() => {
     return true
   })
 })
+
+// Lazy Loading / Infinite Scroll
+const mainContentEl = ref(null)
+const visibleItemsLimit = ref(20)
+
+const displayedPendencies = computed(() => {
+  return filteredPendencies.value.slice(0, visibleItemsLimit.value)
+})
+
+watch(
+  [search, filterCustomer, filterUser, filterOperation, filterStatus, filterStartDate, filterEndDate],
+  () => {
+    visibleItemsLimit.value = 20
+  }
+)
+
+const handleScroll = () => {
+  if (!mainContentEl.value) return
+  const el = mainContentEl.value
+  const scrollTop = el.scrollTop
+  const clientHeight = el.clientHeight
+  const scrollHeight = el.scrollHeight
+  
+  if (scrollHeight - (scrollTop + clientHeight) < 150) {
+    if (visibleItemsLimit.value < filteredPendencies.value.length) {
+      visibleItemsLimit.value += 20
+    }
+  }
+}
 
 // Funções utilitárias
 const formatPhone = (phone) => {
@@ -1161,10 +1204,16 @@ const sendDailyReports = async () => {
 onMounted(() => {
   fetchData()
   window.addEventListener('click', handleClickOutsideAutocomplete)
+  if (mainContentEl.value) {
+    mainContentEl.value.addEventListener('scroll', handleScroll)
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('click', handleClickOutsideAutocomplete)
+  if (mainContentEl.value) {
+    mainContentEl.value.removeEventListener('scroll', handleScroll)
+  }
 })
 </script>
 
@@ -2274,5 +2323,34 @@ onUnmounted(() => {
 .close-btn-round:hover {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
+}
+
+/* Lazy Loading Footer */
+.load-more-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 16px;
+  margin-top: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.load-more-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.btn-load-more {
+  padding: 10px 24px;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-load-more:hover {
+  transform: translateY(-1px);
 }
 </style>
