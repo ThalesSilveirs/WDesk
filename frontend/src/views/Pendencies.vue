@@ -2353,4 +2353,30 @@ onUnmounted(() => {
 .btn-load-more:hover {
   transform: translateY(-1px);
 }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.btn-danger-sm {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-danger-sm:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
 </style>

@@ -1028,18 +1028,22 @@ def send_daily_pendencies_reports(company_id=None):
                 continue # Sem pendências ativas elegíveis
                 
             # 5. Agrupa as pendências
+            overdue = []
             today_due = []
             other_open = []
             
             for p in user_pendencies:
                 if p.forecast_date:
                     local_forecast = timezone.localtime(p.forecast_date)
-                    if local_forecast.date() <= current_date:
+                    forecast_date_only = local_forecast.date()
+                    if forecast_date_only < current_date:
+                        overdue.append((p, local_forecast))
+                    elif forecast_date_only == current_date:
                         today_due.append((p, local_forecast))
                     else:
-                        other_open.append(p)
+                        other_open.append((p, local_forecast))
                 else:
-                    other_open.append(p)
+                    other_open.append((p, None))
                     
             # 6. Formata a mensagem
             date_str = current_date.strftime('%d/%m/%Y')
@@ -1049,22 +1053,44 @@ def send_daily_pendencies_reports(company_id=None):
             else:
                 msg += f"Olá, *{user.first_name or user.username}*! Aqui está o resumo das suas pendências para hoje ({date_str}):\n\n"
             
+            priority_map = {
+                'high': 'Alta',
+                'medium': 'Média',
+                'low': 'Baixa'
+            }
+            
+            if overdue:
+                msg += "⚠️ *PENDÊNCIAS ATRASADAS:*\n"
+                for p, local_forecast in overdue:
+                    client_name = p.customer.name if p.customer else "Sem Cliente"
+                    priority_label = priority_map.get(p.priority, 'Normal')
+                    forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
+                    msg += f"🔴 *{p.title}* - {client_name}\n"
+                    msg += f"   ┗ _Previsão: {forecast_str} | Prioridade: {priority_label}_\n"
+                msg += "\n"
+                
             if today_due:
-                msg += "🔴 *Pendências para hoje ou em atraso:*\n"
+                msg += "📅 *PREVISTAS PARA HOJE:*\n"
                 for p, local_forecast in today_due:
                     client_name = p.customer.name if p.customer else "Sem Cliente"
-                    priority_emoji = "🔴" if p.priority == 'high' else ("🟡" if p.priority == 'medium' else "🟢")
-                    forecast_str = local_forecast.strftime('%H:%M')
-                    time_suffix = f" (Previsão: {forecast_str})"
-                    msg += f"{priority_emoji} *{p.title}* - {client_name}{time_suffix}\n"
+                    priority_label = priority_map.get(p.priority, 'Normal')
+                    forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
+                    msg += f"🟡 *{p.title}* - {client_name}\n"
+                    msg += f"   ┗ _Previsão: {forecast_str} | Prioridade: {priority_label}_\n"
                 msg += "\n"
                 
             if other_open:
-                msg += "📝 *Outras Pendências Ativas:*\n"
-                for p in other_open:
+                msg += "📝 *OUTRAS PENDÊNCIAS ATIVAS:*\n"
+                for p, local_forecast in other_open:
                     client_name = p.customer.name if p.customer else "Sem Cliente"
-                    priority_emoji = "🔴" if p.priority == 'high' else ("🟡" if p.priority == 'medium' else "🟢")
-                    msg += f"{priority_emoji} *{p.title}* - {client_name}\n"
+                    priority_label = priority_map.get(p.priority, 'Normal')
+                    if local_forecast:
+                        forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
+                        time_info = f"Previsão: {forecast_str} | "
+                    else:
+                        time_info = ""
+                    msg += f"🔵 *{p.title}* - {client_name}\n"
+                    msg += f"   ┗ _{time_info}Prioridade: {priority_label}_\n"
                 msg += "\n"
                 
             msg += f"📊 *Total de Pendências:* {user_pendencies.count()}\n\n"
