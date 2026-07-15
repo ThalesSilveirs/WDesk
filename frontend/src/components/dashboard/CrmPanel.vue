@@ -206,6 +206,17 @@
           </div>
         </div>
 
+        <!-- Ações de Pendência -->
+        <div class="crm-section-card">
+          <h4 class="section-title">Pendências</h4>
+          <div class="crm-actions" style="margin-top: 5px;">
+            <button @click="emit('openCreatePendency')" class="btn-block-outline" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border-color: var(--accent); color: var(--accent);">
+              <ClipboardListIcon :size="16" />
+              Criar Pendência do Chat
+            </button>
+          </div>
+        </div>
+
         <div v-if="chatStore.activeTicket.resolution" class="resolution-view crm-section-card">
           <h4 class="section-title text-success">Resolução Final</h4>
           <p>{{ chatStore.activeTicket.resolution }}</p>
@@ -325,7 +336,8 @@ import {
   Sparkles as SparklesIcon,
   FileText as FileTextIcon,
   MessageSquare as MessageSquareIcon,
-  Languages as LanguagesIcon
+  Languages as LanguagesIcon,
+  ClipboardList as ClipboardListIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -336,7 +348,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:showCRM', 'openHistory'])
+const emit = defineEmits(['update:showCRM', 'openHistory', 'openCreatePendency'])
 
 const router = useRouter()
 const chatStore = useChatStore()

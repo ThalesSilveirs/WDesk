@@ -86,6 +86,10 @@
               <ContactIcon :size="15" />
               <span>{{ showCRM ? 'Ocultar Detalhes' : 'Mostrar Detalhes' }}</span>
             </button>
+            <button @click="triggerAction('openCreatePendencyModal')" class="menu-item">
+              <ClipboardListIcon :size="15" />
+              <span>Criar Pendência</span>
+            </button>
             <div class="divider" v-if="activeTicket.status !== 'closed'"></div>
             <button v-if="activeTicket.status !== 'closed'" @click="triggerAction('openPriorityModal')" class="menu-item">
               <span class="priority-dot-indicator" :class="activeTicket.priority"></span>
@@ -118,7 +122,8 @@ import {
   ArrowRightLeft as TransferIcon,
   CheckCircle2 as CheckIcon,
   Trash2 as TrashIcon,
-  X as XIcon
+  X as XIcon,
+  ClipboardList as ClipboardListIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -132,7 +137,8 @@ const emit = defineEmits([
   'openCloseModal',
   'openDeleteModal',
   'openImage',
-  'setCRMTab'
+  'setCRMTab',
+  'openCreatePendencyModal'
 ])
 
 const chatStore = useChatStore()

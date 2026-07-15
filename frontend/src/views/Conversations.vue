@@ -18,6 +18,7 @@
           @openImage="openImage"
           @openVideo="openVideo"
           @setCRMTab="crmTab = $event; showCRM = true"
+          @openCreatePendencyModal="openCreatePendencyModal"
         />
 
         <CrmPanel 
@@ -25,6 +26,7 @@
           :activeTabProp="crmTab"
           @update:showCRM="showCRM = $event"
           @openHistory="openHistory"
+          @openCreatePendency="openCreatePendencyModal"
         />
       </template>
       
@@ -163,6 +165,120 @@
       </div>
     </Transition>
 
+    <!-- Modal de Criar Pendência a partir do Chat -->
+    <Transition name="modal-fade">
+      <div v-if="showCreatePendencyModal" class="modal-overlay" @click="showCreatePendencyModal = false">
+        <div class="modal-content large-modal" @click.stop style="width: 650px; max-width: 95vw;">
+          <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px;">
+            <h2 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+              <ClipboardListIcon :size="24" style="color: var(--accent);" />
+              Criar Pendência do Chat
+            </h2>
+            <button @click="showCreatePendencyModal = false" class="close-btn-round" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><XIcon :size="20" /></button>
+          </div>
+
+          <form @submit.prevent="savePendencyFromChat" style="display: flex; flex-direction: column; gap: 15px; max-height: 70vh; overflow-y: auto; padding-right: 5px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>Título / Assunto *</label>
+                <input v-model="pendencyForm.title" required class="input-glass" placeholder="Ex: Resolver problema de conexão" />
+              </div>
+
+              <div class="form-group">
+                <label>Tipo de Operação *</label>
+                <select v-model="pendencyForm.operation_type" required class="select-glass">
+                  <option v-for="(label, key) in operationTypes" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <!-- Cliente -->
+              <div class="form-group" style="position: relative;">
+                <label>Cliente *</label>
+                <div v-if="selectedCustomer" class="selected-badge glass-effect" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent); margin-top: 5px;">
+                  <span>Selecionado: <strong>{{ selectedCustomer.name }}</strong></span>
+                  <button type="button" @click="clearSelectedCustomer" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding: 0 5px;">&times;</button>
+                </div>
+                <div v-else>
+                  <input 
+                    v-model="customerSearchText" 
+                    @input="searchCustomersForPendency"
+                    @focus="showCustomerDropdown = true"
+                    class="input-glass" 
+                    placeholder="Buscar cliente..." 
+                  />
+                  <div v-if="showCustomerDropdown && customerSearchResults.length > 0" class="autocomplete-dropdown glass-effect" style="position: absolute; width: 100%; max-height: 200px; overflow-y: auto; z-index: 1100; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 5px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+                    <div 
+                      v-for="c in customerSearchResults" 
+                      :key="c.id" 
+                      @click="selectCustomer(c)"
+                      class="dropdown-item"
+                      style="padding: 10px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; flex-direction: column;"
+                    >
+                      <span style="font-weight: 600;">{{ c.name }}</span>
+                      <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ c.phone }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Contato -->
+              <div class="form-group">
+                <label>Contato Vinculado</label>
+                <input :value="chatStore.activeTicket?.contact_details?.name || chatStore.activeTicket?.contact_details?.remote_jid" disabled class="input-glass" style="opacity: 0.7;" />
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>Responsável *</label>
+                <select v-model="pendencyForm.user" required class="select-glass">
+                  <option value="" disabled>Selecione um responsável</option>
+                  <option v-for="user in chatStore.attendants" :key="user.id" :value="user.id">
+                    {{ user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.username }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Prioridade *</label>
+                <select v-model="pendencyForm.priority" required class="select-glass">
+                  <option value="low">Baixa</option>
+                  <option value="medium">Média</option>
+                  <option value="high">Alta</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>Horário de Abertura *</label>
+                <input v-model="pendencyForm.opening_date" type="datetime-local" required class="input-glass" />
+              </div>
+
+              <div class="form-group">
+                <label>Previsão de Entrega (Opcional)</label>
+                <input v-model="pendencyForm.forecast_date" type="datetime-local" class="input-glass" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Descrição / Detalhes</label>
+              <textarea v-model="pendencyForm.description" class="input-glass" rows="4" placeholder="Detalhes da pendência..."></textarea>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
+              <button type="button" @click="showCreatePendencyModal = false" class="btn-secondary">Cancelar</button>
+              <button type="submit" class="btn-primary" :disabled="savingPendency">
+                {{ savingPendency ? 'Criando...' : 'Criar Pendência' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Modal de Histórico de Atendimento -->
     <HistoryModal
       :show="showHistoryModal"
@@ -178,8 +294,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import axios from 'axios'
 import { useChatStore } from '../store/chat'
-import { X as XIcon, Trash2 as TrashIcon } from 'lucide-vue-next'
+import { X as XIcon, Trash2 as TrashIcon, ClipboardList as ClipboardListIcon } from 'lucide-vue-next'
 import TicketSidebar from '../components/dashboard/TicketSidebar.vue'
 import ChatWindow from '../components/dashboard/ChatWindow.vue'
 import CrmPanel from '../components/dashboard/CrmPanel.vue'
@@ -271,6 +388,157 @@ const setPriority = async (level) => {
 
 const openImage = (url) => { selectedImage.value = url }
 const openVideo = (url) => { selectedVideo.value = url }
+
+// Ações de Criar Pendência a partir do Chat
+const showCreatePendencyModal = ref(false)
+const savingPendency = ref(false)
+const customerSearchText = ref('')
+const customerSearchResults = ref([])
+const showCustomerDropdown = ref(false)
+const selectedCustomer = ref(null)
+
+const pendencyForm = ref({
+  title: '',
+  operation_type: 'suporte',
+  user: '',
+  priority: 'medium',
+  status: 'open',
+  opening_date: '',
+  forecast_date: '',
+  description: ''
+})
+
+const operationTypes = {
+  suporte: 'Suporte',
+  desenvolvimento: 'Desenvolvimento',
+  consultoria: 'Consultoria / Assessoria',
+  atualizacao: 'Atualização',
+  reuniao: 'Reunião',
+  tef: 'TEF',
+  reforma_tributaria: 'Reforma Tributária'
+}
+
+const openCreatePendencyModal = async () => {
+  const activeTicket = chatStore.activeTicket
+  if (!activeTicket) return
+
+  // Fetch attendants list if empty
+  if (chatStore.attendants.length === 0) {
+    await chatStore.fetchAttendants()
+  }
+
+  // Pre-fill fields
+  let latestMsg = ''
+  if (chatStore.messages && chatStore.messages.length > 0) {
+    latestMsg = chatStore.messages[chatStore.messages.length - 1].body || ''
+  }
+
+  // Date formatted to local ISO
+  const now = new Date()
+  const offset = now.getTimezoneOffset() * 60000
+  const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16)
+
+  pendencyForm.value = {
+    title: activeTicket.subject || `Suporte WhatsApp: ${activeTicket.contact_details?.name || activeTicket.contact_details?.remote_jid?.split('@')[0]}`,
+    operation_type: 'suporte',
+    user: chatStore.user?.id || '',
+    priority: 'medium',
+    status: 'open',
+    opening_date: localISOTime,
+    forecast_date: '',
+    description: `Contato: ${activeTicket.contact_details?.name || ''} (${activeTicket.contact_details?.remote_jid?.split('@')[0] || ''})\nÚltima Mensagem: "${latestMsg}"\n`
+  }
+
+  selectedCustomer.value = activeTicket.customer_details || null
+  customerSearchText.value = ''
+  customerSearchResults.value = []
+  
+  showCreatePendencyModal.value = true
+}
+
+const searchCustomersForPendency = async () => {
+  const query = customerSearchText.value.trim()
+  if (query.length < 2) {
+    customerSearchResults.value = []
+    showCustomerDropdown.value = false
+    return
+  }
+  try {
+    const res = await chatStore.searchCustomers(query)
+    customerSearchResults.value = res
+    showCustomerDropdown.value = true
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const selectCustomer = (c) => {
+  selectedCustomer.value = c
+  showCustomerDropdown.value = false
+  customerSearchText.value = ''
+  customerSearchResults.value = []
+}
+
+const clearSelectedCustomer = () => {
+  selectedCustomer.value = null
+}
+
+const savePendencyFromChat = async () => {
+  if (!selectedCustomer.value) {
+    alert('Por favor, selecione e vincule um Cliente.')
+    return
+  }
+  if (!pendencyForm.value.title) {
+    alert('Por favor, digite o Título / Assunto.')
+    return
+  }
+  if (!pendencyForm.value.user) {
+    alert('Por favor, selecione um Responsável.')
+    return
+  }
+  
+  savingPendency.value = true
+  try {
+    const payload = {
+      title: pendencyForm.value.title,
+      operation_type: pendencyForm.value.operation_type,
+      customer: selectedCustomer.value.id,
+      contact: chatStore.activeTicket?.contact_details?.id || null,
+      user: pendencyForm.value.user,
+      priority: pendencyForm.value.priority,
+      status: pendencyForm.value.status,
+      opening_date: pendencyForm.value.opening_date,
+      forecast_date: pendencyForm.value.forecast_date || null,
+      description: pendencyForm.value.description,
+      uploaded_images: []
+    }
+    
+    await axios.post('/api/v1/pendencies/', payload)
+    
+    // Se o contato do ticket não tiver cliente vinculado ainda,
+    // e o usuário selecionou um cliente no modal, vincula automaticamente!
+    if (chatStore.activeTicket?.contact_details && !chatStore.activeTicket.customer_details) {
+      try {
+        await chatStore.updateContact(chatStore.activeTicket.contact_details.id, {
+          customer: selectedCustomer.value.id
+        })
+        chatStore.activeTicket.customer_details = selectedCustomer.value
+        chatStore.activeTicket.contact_details.customer = selectedCustomer.value.id
+      } catch (linkErr) {
+        console.error('Erro ao vincular cliente ao contato:', linkErr)
+      }
+    }
+    
+    alert('Pendência criada com sucesso!')
+    showCreatePendencyModal.value = false
+  } catch (error) {
+    console.error('Erro ao criar pendência a partir do chat:', error)
+    alert('Erro ao criar pendência. Verifique os dados informados.')
+  } finally {
+    savingPendency.value = false
+  }
+}
+
 
 onMounted(() => {
   chatStore.fetchTickets()

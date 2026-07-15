@@ -10,6 +10,7 @@
       @openDeleteModal="emit('openDeleteModal')"
       @openImage="emit('openImage', $event)"
       @setCRMTab="emit('setCRMTab', $event)"
+      @openCreatePendencyModal="emit('openCreatePendencyModal')"
     />
 
     <!-- Message List -->
@@ -74,7 +75,8 @@ const emit = defineEmits([
   'openDeleteModal',
   'openImage',
   'openVideo',
-  'setCRMTab'
+  'setCRMTab',
+  'openCreatePendencyModal'
 ])
 
 const chatStore = useChatStore()
