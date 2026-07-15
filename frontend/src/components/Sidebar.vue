@@ -47,6 +47,72 @@
 
       <!-- Bottom Actions -->
       <div class="bottom-section">
+        <!-- Search Toggle -->
+        <div class="sidebar-popover-container" ref="searchContainerRef">
+          <button @click.stop="toggleSearchMenu" class="nav-link-item" :class="{ active: showSearchMenu }" data-tooltip="Buscar">
+            <SearchIcon :size="20" />
+          </button>
+          <Transition name="fade">
+            <div v-if="showSearchMenu" class="search-popover glass-effect">
+              <div class="popover-header">
+                <span class="popover-title">Busca Global</span>
+              </div>
+              <div class="popover-divider"></div>
+              <div class="search-input-wrapper">
+                <SearchIcon :size="16" class="search-input-icon" />
+                <input 
+                  v-model="localSearchQuery" 
+                  type="text" 
+                  placeholder="Buscar conversas..."
+                  class="search-input"
+                  ref="searchInputRef"
+                />
+              </div>
+            </div>
+          </Transition>
+        </div>
+
+        <!-- Notifications Toggle -->
+        <div class="sidebar-popover-container" ref="notificationsContainerRef">
+          <button @click.stop="toggleNotificationsMenu" class="nav-link-item" :class="{ active: showNotificationsMenu }" data-tooltip="Notificações">
+            <BellIcon :size="20" />
+            <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+          </button>
+          <Transition name="fade">
+            <div v-if="showNotificationsMenu" class="notifications-popover glass-effect">
+              <div class="popover-header">
+                <span class="popover-title">Notificações</span>
+                <button v-if="chatStore.notifications.length > 0" @click="clearAllNotifications" class="clear-btn">
+                  Limpar
+                </button>
+              </div>
+              <div class="popover-divider"></div>
+              <div class="notifications-list">
+                <div 
+                  v-for="notif in chatStore.notifications" 
+                  :key="notif.id" 
+                  class="notif-item" 
+                  :class="{ unread: !notif.read }"
+                  @click="handleNotificationClick(notif)"
+                >
+                  <div class="notif-icon">
+                    <MessageSquareIcon :size="14" />
+                  </div>
+                  <div class="notif-content">
+                    <h5>{{ notif.title }}</h5>
+                    <p>{{ notif.body }}</p>
+                    <span class="notif-time">{{ formatTime(notif.timestamp) }}</span>
+                  </div>
+                </div>
+                
+                <div v-if="chatStore.notifications.length === 0" class="empty-notif">
+                  Nenhuma notificação nova
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </div>
+
         <!-- Theme Toggle -->
         <button @click="chatStore.toggleTheme" class="nav-link-item theme-toggle" :data-tooltip="chatStore.theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'">
           <SunIcon v-if="chatStore.theme === 'dark'" :size="20" />
@@ -89,6 +155,22 @@
                 <span class="status-dot offline"></span>
                 <span>Offline</span>
               </div>
+
+              <!-- Toggle: Notificações de Todas as Conversas (só admin) -->
+              <template v-if="chatStore.userRole === 'admin'">
+                <div class="popover-divider"></div>
+                <div
+                  class="status-option toggle-item"
+                  @click.stop="toggleNotifyAll"
+                  title="Receber notificações de todas as conversas"
+                >
+                  <BellIcon :size="14" />
+                  <span style="flex: 1; margin-left: 4px; font-size: 0.85rem;">Notificar Todos</span>
+                  <div class="toggle-switch" :class="{ active: chatStore.notifyAll }">
+                    <div class="toggle-thumb"></div>
+                  </div>
+                </div>
+              </template>
 
               <div class="popover-divider"></div>
               <button @click="triggerLogout" class="popover-logout-btn">
@@ -136,7 +218,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useChatStore } from '../store/chat'
 import {
@@ -151,7 +233,9 @@ import {
   Contact as ContactIcon,
   MapPin as MapPinIcon,
   ClipboardList as ClipboardListIcon,
-  LogOut as LogOutIcon
+  LogOut as LogOutIcon,
+  Search as SearchIcon,
+  Bell as BellIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -161,11 +245,101 @@ const chatStore = useChatStore()
 const showHelpModal = ref(false)
 const showLogoutModal = ref(false)
 const showProfileMenu = ref(false)
+const showSearchMenu = ref(false)
+const showNotificationsMenu = ref(false)
 const currentStatus = ref('online')
+
 const profileContainerRef = ref(null)
+const searchContainerRef = ref(null)
+const notificationsContainerRef = ref(null)
+const searchInputRef = ref(null)
+
+const localSearchQuery = ref(chatStore.searchQuery)
+
+let debounceTimeout = null
+watch(localSearchQuery, (newVal) => {
+  if (debounceTimeout) clearTimeout(debounceTimeout)
+  debounceTimeout = setTimeout(() => {
+    chatStore.searchQuery = newVal
+  }, 250)
+})
+
+watch(() => chatStore.searchQuery, (newQuery) => {
+  if (newQuery !== localSearchQuery.value) {
+    localSearchQuery.value = newQuery
+  }
+  if (newQuery && route.path !== '/conversations') {
+    router.push('/conversations')
+  }
+})
+
+const unreadCount = computed(() => {
+  return chatStore.notifications.filter(n => !n.read).length
+})
+
+const clearAllNotifications = () => {
+  chatStore.clearNotifications()
+}
+
+const handleNotificationClick = async (notif) => {
+  notif.read = true
+  showNotificationsMenu.value = false
+  if (notif.ticket_id) {
+    try {
+      chatStore.currentFilter = 'all'
+      await chatStore.fetchTickets()
+      
+      const foundTicket = chatStore.tickets.find(t => t.id === notif.ticket_id) || 
+                          chatStore.myTickets.find(t => t.id === notif.ticket_id)
+      
+      if (foundTicket) {
+        chatStore.activeTicket = foundTicket
+      } else {
+        chatStore.activeTicket = { id: notif.ticket_id }
+      }
+      
+      chatStore.fetchMessages(notif.ticket_id)
+      router.push('/conversations')
+    } catch (e) {
+      console.error("Erro ao redirecionar da notificação:", e)
+    }
+  }
+}
+
+const formatTime = (date) => {
+  if (!date) return ''
+  const d = new Date(date)
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+const toggleNotifyAll = () => {
+  chatStore.toggleNotifyAll()
+}
 
 const toggleProfileMenu = () => {
   showProfileMenu.value = !showProfileMenu.value
+  showSearchMenu.value = false
+  showNotificationsMenu.value = false
+}
+
+const toggleSearchMenu = () => {
+  showSearchMenu.value = !showSearchMenu.value
+  showNotificationsMenu.value = false
+  showProfileMenu.value = false
+  if (showSearchMenu.value) {
+    nextTick(() => {
+      searchInputRef.value?.focus()
+    })
+  }
+}
+
+const toggleNotificationsMenu = () => {
+  showNotificationsMenu.value = !showNotificationsMenu.value
+  showSearchMenu.value = false
+  showProfileMenu.value = false
+  if (showNotificationsMenu.value) {
+    chatStore.markAllNotificationsAsRead()
+  }
 }
 
 const changeStatus = (status) => {
@@ -204,6 +378,12 @@ const userInitials = computed(() => {
 const handleClickOutside = (event) => {
   if (profileContainerRef.value && !profileContainerRef.value.contains(event.target)) {
     showProfileMenu.value = false
+  }
+  if (searchContainerRef.value && !searchContainerRef.value.contains(event.target)) {
+    showSearchMenu.value = false
+  }
+  if (notificationsContainerRef.value && !notificationsContainerRef.value.contains(event.target)) {
+    showNotificationsMenu.value = false
   }
 }
 
@@ -356,9 +536,9 @@ onUnmounted(() => {
 }
 
 /* Profile container & popover */
-.profile-container {
+.profile-container,
+.sidebar-popover-container {
   position: relative;
-  margin-top: 5px;
 }
 
 .avatar-btn {
@@ -436,8 +616,15 @@ onUnmounted(() => {
 
 .popover-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
   padding: 4px 8px;
+}
+
+.popover-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
 }
 
 .user-name {
@@ -612,6 +799,205 @@ onUnmounted(() => {
   opacity: 0;
 }
 
+/* Search Popover */
+.search-popover {
+  position: absolute;
+  bottom: 0;
+  left: 55px;
+  width: 250px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.search-input-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px 8px 32px;
+  color: var(--text-primary);
+  outline: none;
+  font-size: 0.85rem;
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+}
+
+/* Notifications Popover */
+.notifications-popover {
+  position: absolute;
+  bottom: 0;
+  left: 55px;
+  width: 300px;
+  max-height: 350px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+}
+
+.notifications-list {
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.notif-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-bottom: 4px;
+}
+
+.notif-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.notif-item.unread {
+  background: rgba(34, 181, 95, 0.05);
+}
+
+.notif-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(34, 181, 95, 0.1);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notif-content {
+  flex: 1;
+  text-align: left;
+}
+
+.notif-content h5 {
+  margin: 0 0 2px 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notif-content p {
+  margin: 0 0 4px 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.notif-time {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.empty-notif {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.clear-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.nav-link-item .badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* iOS-style toggle switch */
+.toggle-item {
+  justify-content: space-between !important;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-switch {
+  width: 30px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.25s;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.toggle-switch.active {
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(34, 181, 95, 0.4);
+}
+
+.toggle-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.25s;
+}
+
+.toggle-switch.active .toggle-thumb {
+  transform: translateX(14px);
+}
+
 /* Responsiveness */
 @media (max-width: 768px) {
   .sidebar-container {
@@ -635,7 +1021,8 @@ onUnmounted(() => {
 
   .logo-section,
   .bottom-section,
-  .profile-container {
+  .profile-container,
+  .sidebar-popover-container {
     display: none !important;
   }
 

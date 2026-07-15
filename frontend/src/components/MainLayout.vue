@@ -1,10 +1,8 @@
 <template>
-  <div class="app-layout" :class="{ 'chat-layout-active': route.name === 'Conversations' }">
+  <div class="app-layout">
     <Sidebar />
     
-    <div class="main-content-wrapper" :class="{ 'full-height-layout': route.name === 'Conversations' }">
-      <GlobalHeader v-if="route.name !== 'Conversations'" />
-
+    <div class="main-content-wrapper">
       <!-- Main Router View with Page Transitions -->
       <div class="page-content-wrapper">
         <router-view v-slot="{ Component }">
@@ -24,7 +22,6 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useChatStore } from '../store/chat'
 import Sidebar from './Sidebar.vue'
-import GlobalHeader from './GlobalHeader.vue'
 import BroadcastModal from './dashboard/BroadcastModal.vue'
 
 const chatStore = useChatStore()
