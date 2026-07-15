@@ -25,6 +25,9 @@
       <div class="header-text">
         <div class="name-status">
           <h3>{{ activeTicket.contact_details?.name || activeTicket.contact_details?.remote_jid }}</h3>
+          <span v-if="activeTicket.customer_details?.fantasy_name || activeTicket.customer_details?.name" class="company-badge" :title="activeTicket.customer_details?.name">
+            {{ activeTicket.customer_details?.fantasy_name || activeTicket.customer_details?.name }}
+          </span>
           <span class="status-dot-indicator" :class="activeTicket.status" :title="activeTicket.status === 'open' ? 'Em aberto' : (activeTicket.status === 'pending' ? 'Pendente' : 'Finalizado')"></span>
         </div>
         <p class="ticket-subject">{{ activeTicket.subject || 'Sem assunto definido' }}</p>
@@ -345,6 +348,22 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.company-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 2px 8px;
+  border-radius: 6px;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .status-dot-indicator {
