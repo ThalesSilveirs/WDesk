@@ -146,8 +146,14 @@ class Customer(models.Model):
 class CustomerContact(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='additional_contacts')
     name = models.CharField(max_length=255)
-    phone = models.CharField(max_length=20, db_index=True)
+    phone = models.CharField(max_length=20, db_index=True, null=True, blank=True)
+    cellphone = models.CharField(max_length=20, null=True, blank=True)
+    whatsapp = models.CharField(max_length=20, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    sector = models.CharField(max_length=100, null=True, blank=True)
+    role = models.CharField(max_length=100, null=True, blank=True)
+    observation = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

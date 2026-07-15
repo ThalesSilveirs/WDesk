@@ -677,16 +677,44 @@
           
           <div class="contacts-list">
             <div v-for="contact in selectedCustomer.additional_contacts" :key="contact.id" class="contact-item-row">
-              <div class="contact-avatar">
-                {{ contact.name.charAt(0) }}
+              <div class="contact-info-header">
+                <div class="contact-avatar">
+                  {{ contact.name.charAt(0).toUpperCase() }}
+                </div>
+                <div class="contact-title-group">
+                  <strong>{{ contact.name }}</strong>
+                  <div class="contact-badges" v-if="contact.sector || contact.role">
+                    <span v-if="contact.sector" class="contact-badge sector">{{ contact.sector }}</span>
+                    <span v-if="contact.role" class="contact-badge role">{{ contact.role }}</span>
+                  </div>
+                </div>
+                <button @click="deleteContact(contact.id)" class="icon-btn delete small" title="Excluir contato">
+                  <TrashIcon :size="14" />
+                </button>
               </div>
-              <div class="contact-details-mini">
-                <strong>{{ contact.name }}</strong>
-                <span>{{ contact.phone }}</span>
+              
+              <div class="contact-meta-details">
+                <span v-if="contact.phone" class="meta-item" title="Telefone Fixo">
+                  <PhoneIcon :size="12" /> {{ contact.phone }}
+                </span>
+                <span v-if="contact.cellphone" class="meta-item" title="Celular">
+                  <SmartphoneIcon :size="12" /> {{ contact.cellphone }}
+                </span>
+                <span v-if="contact.whatsapp" class="meta-item whatsapp" title="WhatsApp">
+                  <svg class="whatsapp-icon-mini" viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 001.37 5.054L2 22l5.177-1.354a9.97 9.97 0 004.822 1.254h.008c5.502 0 9.985-4.477 9.986-9.984A10.002 10.002 0 0012.012 2zm5.835 14.16c-.25.706-1.443 1.293-1.99 1.347-.497.05-1.147.25-3.327-.655-2.79-1.157-4.59-4.004-4.73-4.188-.137-.184-1.116-1.48-1.116-2.825 0-1.344.706-2.003.955-2.27.25-.267.548-.334.73-.334.183 0 .365.003.523.01.162.008.38-.063.593.453.22.53.75 1.83.816 1.964.066.134.11.29.02.47-.09.18-.135.29-.27.447-.135.156-.285.348-.407.467-.136.133-.28.277-.12.553.16.276.71.1.2.98.67 1.05.6 1.486.9 1.286.3-.2.628-.26.928-.1.3.16 1.9.896 2.083.986.183.09.305.134.35.213.046.08.046.463-.204 1.17z"/></svg>
+                  {{ contact.whatsapp }}
+                </span>
+                <span v-if="contact.email" class="meta-item" title="E-mail">
+                  <MailIcon :size="12" /> {{ contact.email }}
+                </span>
+                <span v-if="contact.birth_date" class="meta-item" title="Data de Nascimento">
+                  <CalendarIcon :size="12" /> {{ formatDate(contact.birth_date) }}
+                </span>
               </div>
-              <button @click="deleteContact(contact.id)" class="icon-btn delete small" title="Excluir contato">
-                <TrashIcon :size="14" />
-              </button>
+              
+              <div v-if="contact.observation" class="contact-observation-text">
+                <strong>Obs:</strong> {{ contact.observation }}
+              </div>
             </div>
 
             <div v-if="!selectedCustomer.additional_contacts?.length" class="empty-mini">
@@ -696,9 +724,43 @@
 
           <div class="add-contact-form">
             <h4>Adicionar Novo Contato</h4>
-            <div class="form-row">
-              <input v-model="newContact.name" class="input-glass" placeholder="Nome da Pessoa" />
-              <input v-model="newContact.phone" class="input-glass" placeholder="WhatsApp (55...)" />
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Nome *</label>
+                <input v-model="newContact.name" class="input-glass" placeholder="Nome da Pessoa" />
+              </div>
+              <div class="form-group">
+                <label>E-mail</label>
+                <input v-model="newContact.email" class="input-glass" type="email" placeholder="email@exemplo.com" />
+              </div>
+              <div class="form-group">
+                <label>Telefone Fixo</label>
+                <input v-model="newContact.phone" class="input-glass" placeholder="(51) 3333-3333" />
+              </div>
+              <div class="form-group">
+                <label>Celular</label>
+                <input v-model="newContact.cellphone" class="input-glass" placeholder="(51) 99999-9999" />
+              </div>
+              <div class="form-group">
+                <label>WhatsApp</label>
+                <input v-model="newContact.whatsapp" class="input-glass" placeholder="(51) 99999-9999" />
+              </div>
+              <div class="form-group">
+                <label>Data de Nascimento</label>
+                <input v-model="newContact.birth_date" class="input-glass" type="date" />
+              </div>
+              <div class="form-group">
+                <label>Setor</label>
+                <input v-model="newContact.sector" class="input-glass" placeholder="Ex: Financeiro" />
+              </div>
+              <div class="form-group">
+                <label>Cargo</label>
+                <input v-model="newContact.role" class="input-glass" placeholder="Ex: Gerente" />
+              </div>
+              <div class="form-group full-width">
+                <label>Observação</label>
+                <textarea v-model="newContact.observation" class="input-glass" placeholder="Detalhes adicionais..." rows="2"></textarea>
+              </div>
             </div>
             <button @click="addContact" class="btn-primary-sm block" :disabled="loadingContact">
               {{ loadingContact ? 'Adicionando...' : 'Adicionar Contato' }}
@@ -784,7 +846,9 @@ import {
   LayoutGrid as LayoutGridIcon,
   List as ListIcon,
   Filter as FilterIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Smartphone as SmartphoneIcon,
+  Calendar as CalendarIcon
 } from 'lucide-vue-next'
 import HistoryModal from '../components/dashboard/HistoryModal.vue'
 import { useChatStore } from '../store/chat'
@@ -1000,8 +1064,23 @@ const form = ref(defaultForm())
 const newContact = ref({
   name: '',
   phone: '',
-  email: ''
+  cellphone: '',
+  whatsapp: '',
+  email: '',
+  birth_date: '',
+  sector: '',
+  role: '',
+  observation: ''
 })
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const parts = dateStr.split('-')
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+  return dateStr
+}
 
 const filteredCustomers = computed(() => {
   return customers.value.filter(c => {
@@ -1173,16 +1252,38 @@ const saveCustomer = async () => {
 
 const manageContacts = (customer) => {
   selectedCustomer.value = customer
-  newContact.value = { name: '', phone: '', email: '', customer: customer.id }
+  newContact.value = {
+    name: '',
+    phone: '',
+    cellphone: '',
+    whatsapp: '',
+    email: '',
+    birth_date: '',
+    sector: '',
+    role: '',
+    observation: '',
+    customer: customer.id
+  }
   showContactsModal.value = true
 }
 
 const addContact = async () => {
-  if (!newContact.value.name || !newContact.value.phone) return
+  if (!newContact.value.name) return
   loadingContact.value = true
   try {
     await axios.post(`/api/v1/customer-contacts/`, newContact.value)
-    newContact.value = { name: '', phone: '', email: '', customer: selectedCustomer.value.id }
+    newContact.value = {
+      name: '',
+      phone: '',
+      cellphone: '',
+      whatsapp: '',
+      email: '',
+      birth_date: '',
+      sector: '',
+      role: '',
+      observation: '',
+      customer: selectedCustomer.value.id
+    }
     await fetchCustomers()
     selectedCustomer.value = customers.value.find(c => c.id === selectedCustomer.value.id)
   } catch (e) {
@@ -1797,7 +1898,7 @@ onUnmounted(() => {
 
 /* Contacts Modal Específicos */
 .contacts-modal {
-  max-width: 500px;
+  max-width: 680px;
 }
 
 /* Ticket Contact Selector Modal */
@@ -1855,42 +1956,135 @@ onUnmounted(() => {
 
 .contact-item-row {
   display: flex;
-  align-items: center;
-  gap: 15px;
+  flex-direction: column;
+  gap: 8px;
   background: var(--glass);
-  padding: 10px 15px;
+  padding: 12px 18px;
   border-radius: 12px;
   border: 1px solid var(--border);
   color: var(--text-primary);
 }
 
+.contact-info-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
 .contact-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   background: var(--border);
   color: var(--text-primary);
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
 }
 
-.contact-details-mini {
+.contact-title-group {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.contact-details-mini strong { font-size: 0.9rem; }
-.contact-details-mini span { font-size: 0.8rem; color: var(--text-secondary); }
+.contact-title-group strong {
+  font-size: 0.95rem;
+}
+
+.contact-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.contact-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.contact-badge.sector {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.contact-badge.role {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.contact-meta-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding-left: 44px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-item.whatsapp {
+  color: #25d366;
+}
+
+.whatsapp-icon-mini {
+  fill: currentColor;
+}
+
+.contact-observation-text {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-left: 44px;
+  border-left: 2px solid var(--border);
+}
 
 .add-contact-form {
   border-top: 1px solid var(--border);
   padding-top: 20px;
 }
 
-.add-contact-form h4 { margin-bottom: 15px; font-size: 1rem; }
+.add-contact-form h4 {
+  margin-bottom: 15px;
+  font-size: 1rem;
+}
+
+.add-contact-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.add-contact-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.add-contact-form .form-group.full-width {
+  grid-column: span 3;
+}
+
+.add-contact-form label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
 
 .btn-primary-sm {
   background: var(--accent);
