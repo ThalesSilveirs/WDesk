@@ -79,6 +79,11 @@ class CitySerializer(serializers.ModelSerializer):
         model = City
         fields = '__all__'
 
+class ContactNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = '__all__'
+
 class CustomerSerializer(serializers.ModelSerializer):
     additional_contacts = serializers.SerializerMethodField()
     city_relationship_details = CitySerializer(source='city_relationship', read_only=True)
@@ -90,7 +95,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         }
 
     def get_additional_contacts(self, obj):
-        return ContactSerializer(obj.contacts.all(), many=True, context=self.context).data
+        return ContactNestedSerializer(obj.contacts.all(), many=True, context=self.context).data
 
 class ContactSerializer(serializers.ModelSerializer):
     customer_details = CustomerSerializer(source='customer', read_only=True)

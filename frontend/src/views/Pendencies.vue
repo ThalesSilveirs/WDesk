@@ -71,7 +71,6 @@
                 <select v-model="filterStatus" class="select-glass">
                   <option value="all">Todos os Status</option>
                   <option value="open">Aberta</option>
-                  <option value="pending">Pendente</option>
                   <option value="closed">Finalizada</option>
                 </select>
               </div>
@@ -366,7 +365,6 @@
                 <label>Status *</label>
                 <select v-model="form.status" required class="select-glass">
                   <option value="open">Aberta</option>
-                  <option value="pending">Pendente</option>
                   <option value="closed">Finalizada</option>
                 </select>
               </div>
@@ -619,7 +617,6 @@ const priorityLabels = {
 
 const statusLabels = {
   open: 'Aberta',
-  pending: 'Pendente',
   closed: 'Finalizada'
 }
 

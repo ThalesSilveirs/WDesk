@@ -268,7 +268,6 @@ class AbsenceSchedule(models.Model):
 class Pendency(models.Model):
     STATUS_CHOICES = (
         ('open', 'Aberta'),
-        ('pending', 'Pendente'),
         ('closed', 'Finalizada'),
     )
     PRIORITY_CHOICES = (
