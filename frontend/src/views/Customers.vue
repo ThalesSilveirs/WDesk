@@ -688,9 +688,14 @@
                     <span v-if="contact.role" class="contact-badge role">{{ contact.role }}</span>
                   </div>
                 </div>
-                <button @click="deleteContact(contact.id)" class="icon-btn delete small" title="Excluir contato">
-                  <TrashIcon :size="14" />
-                </button>
+                <div class="contact-actions-mini">
+                  <button @click="startEditingContact(contact)" class="icon-btn edit small" title="Editar contato">
+                    <EditIcon :size="14" />
+                  </button>
+                  <button @click="deleteContact(contact.id)" class="icon-btn delete small" title="Excluir contato">
+                    <TrashIcon :size="14" />
+                  </button>
+                </div>
               </div>
               
               <div class="contact-meta-details">
@@ -723,7 +728,7 @@
           </div>
 
           <div class="add-contact-form">
-            <h4>Adicionar Novo Contato</h4>
+            <h4>{{ editingContactId ? 'Editar Contato' : 'Adicionar Novo Contato' }}</h4>
             <div class="form-grid">
               <div class="form-group">
                 <label>Nome *</label>
@@ -762,9 +767,14 @@
                 <textarea v-model="newContact.observation" class="input-glass" placeholder="Detalhes adicionais..." rows="2"></textarea>
               </div>
             </div>
-            <button @click="addContact" class="btn-primary-sm block" :disabled="loadingContact">
-              {{ loadingContact ? 'Adicionando...' : 'Adicionar Contato' }}
-            </button>
+            <div class="form-actions-row">
+              <button @click="addContact" class="btn-primary-sm block" :disabled="loadingContact">
+                {{ loadingContact ? 'Salvando...' : (editingContactId ? 'Salvar Alterações' : 'Adicionar Contato') }}
+              </button>
+              <button v-if="editingContactId" @click="cancelEditingContact" class="btn-secondary-sm block" type="button">
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1073,6 +1083,40 @@ const newContact = ref({
   observation: ''
 })
 
+const editingContactId = ref(null)
+
+const startEditingContact = (contact) => {
+  editingContactId.value = contact.id
+  newContact.value = {
+    name: contact.name || '',
+    phone: contact.phone || '',
+    cellphone: contact.cellphone || '',
+    whatsapp: contact.whatsapp || '',
+    email: contact.email || '',
+    birth_date: contact.birth_date || '',
+    sector: contact.sector || '',
+    role: contact.role || '',
+    observation: contact.observation || '',
+    customer: selectedCustomer.value.id
+  }
+}
+
+const cancelEditingContact = () => {
+  editingContactId.value = null
+  newContact.value = {
+    name: '',
+    phone: '',
+    cellphone: '',
+    whatsapp: '',
+    email: '',
+    birth_date: '',
+    sector: '',
+    role: '',
+    observation: '',
+    customer: selectedCustomer.value.id
+  }
+}
+
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const parts = dateStr.split('-')
@@ -1252,6 +1296,7 @@ const saveCustomer = async () => {
 
 const manageContacts = (customer) => {
   selectedCustomer.value = customer
+  editingContactId.value = null
   newContact.value = {
     name: '',
     phone: '',
@@ -1271,7 +1316,12 @@ const addContact = async () => {
   if (!newContact.value.name) return
   loadingContact.value = true
   try {
-    await axios.post(`/api/v1/customer-contacts/`, newContact.value)
+    if (editingContactId.value) {
+      await axios.put(`/api/v1/customer-contacts/${editingContactId.value}/`, newContact.value)
+      editingContactId.value = null
+    } else {
+      await axios.post(`/api/v1/customer-contacts/`, newContact.value)
+    }
     newContact.value = {
       name: '',
       phone: '',
@@ -1287,7 +1337,7 @@ const addContact = async () => {
     await fetchCustomers()
     selectedCustomer.value = customers.value.find(c => c.id === selectedCustomer.value.id)
   } catch (e) {
-    alert("Erro ao adicionar contato")
+    alert("Erro ao salvar contato")
   } finally {
     loadingContact.value = false
   }
@@ -1898,7 +1948,7 @@ onUnmounted(() => {
 
 /* Contacts Modal Específicos */
 .contacts-modal {
-  max-width: 680px;
+  max-width: 680px !important;
 }
 
 /* Ticket Contact Selector Modal */
@@ -2084,6 +2134,39 @@ onUnmounted(() => {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+.add-contact-form .input-glass,
+.add-contact-form textarea {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.contact-actions-mini {
+  display: flex;
+  gap: 8px;
+}
+
+.form-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.form-actions-row .block {
+  margin-top: 0 !important;
+  flex: 1;
+}
+
+.icon-btn.edit {
+  color: var(--accent);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.icon-btn.edit:hover {
+  background: var(--accent);
+  color: white;
 }
 
 .btn-primary-sm {
