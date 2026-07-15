@@ -715,7 +715,12 @@ const hasActiveFilters = computed(() => activeFiltersCount.value > 0)
 // Contatos filtrados com base no cliente selecionado
 const availableContacts = computed(() => {
   if (!form.value.customer) return []
-  return contacts.value.filter(ct => ct.customer === form.value.customer)
+  const targetId = Number(form.value.customer)
+  return contacts.value.filter(ct => {
+    if (!ct.customer) return false
+    const ctCustId = typeof ct.customer === 'object' ? ct.customer.id : ct.customer
+    return Number(ctCustId) === targetId
+  })
 })
 
 // Aberturas de pendência ordenadas/filtradas no frontend reativamente
