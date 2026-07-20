@@ -168,20 +168,17 @@
     <!-- Modal de Criar Pendência a partir do Chat -->
     <Transition name="modal-fade">
       <div v-if="showCreatePendencyModal" class="modal-overlay" @click="showCreatePendencyModal = false">
-        <div class="modal-content large-modal" @click.stop style="width: 650px; max-width: 95vw;">
-          <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px;">
-            <h2 style="display: flex; align-items: center; gap: 8px; margin: 0;">
-              <ClipboardListIcon :size="24" style="color: var(--accent);" />
-              Criar Pendência do Chat
-            </h2>
-            <button @click="showCreatePendencyModal = false" class="close-btn-round" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><XIcon :size="20" /></button>
+        <div class="modal-content large-modal" @click.stop>
+          <div class="modal-header">
+            <h2>Criar Pendência do Chat</h2>
+            <button @click="showCreatePendencyModal = false" class="close-btn-round"><XIcon :size="20" /></button>
           </div>
 
-          <form @submit.prevent="savePendencyFromChat" style="display: flex; flex-direction: column; gap: 15px; max-height: 70vh; overflow-y: auto; padding-right: 5px;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <form @submit.prevent="savePendencyFromChat" class="modal-form-scrollable">
+            <div class="grid-2">
               <div class="form-group">
                 <label>Título / Assunto *</label>
-                <input v-model="pendencyForm.title" required class="input-glass" placeholder="Ex: Resolver problema de conexão" />
+                <input v-model="pendencyForm.title" required class="input-glass" placeholder="Ex: Ajuste fiscal ou erro de suporte" />
               </div>
 
               <div class="form-group">
@@ -192,34 +189,32 @@
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="grid-2">
               <!-- Cliente -->
-              <div class="form-group" style="position: relative;">
-                <label>Cliente *</label>
-                <div v-if="selectedCustomer" class="selected-badge glass-effect" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent); margin-top: 5px;">
-                  <span>Selecionado: <strong>{{ selectedCustomer.name }}</strong></span>
-                  <button type="button" @click="clearSelectedCustomer" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding: 0 5px;">&times;</button>
-                </div>
-                <div v-else>
-                  <input 
-                    v-model="customerSearchText" 
-                    @input="searchCustomersForPendency"
-                    @focus="showCustomerDropdown = true"
-                    class="input-glass" 
-                    placeholder="Buscar cliente..." 
-                  />
-                  <div v-if="showCustomerDropdown && customerSearchResults.length > 0" class="autocomplete-dropdown glass-effect" style="position: absolute; width: 100%; max-height: 200px; overflow-y: auto; z-index: 1100; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 5px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
-                    <div 
-                      v-for="c in customerSearchResults" 
-                      :key="c.id" 
-                      @click="selectCustomer(c)"
-                      class="dropdown-item"
-                      style="padding: 10px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; flex-direction: column;"
-                    >
-                      <span style="font-weight: 600;">{{ c.name }}</span>
-                      <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ c.phone }}</span>
-                    </div>
+              <div class="form-group customer-autocomplete" style="position: relative;">
+                <label>Vincular Cliente (Razão Social/Nome) *</label>
+                <input 
+                  v-model="customerSearchText" 
+                  @input="searchCustomersForPendency"
+                  @focus="showCustomerDropdown = true"
+                  class="input-glass" 
+                  placeholder="Digite para buscar clientes..." 
+                />
+                <!-- Dropdown Autocomplete -->
+                <div v-if="showCustomerDropdown && customerSearchResults.length > 0" class="autocomplete-dropdown glass-effect">
+                  <div 
+                    v-for="c in customerSearchResults" 
+                    :key="c.id" 
+                    @click="selectCustomer(c)"
+                    class="dropdown-item"
+                  >
+                    <span>{{ c.name }}</span>
+                    <span class="sub">{{ c.phone }}</span>
                   </div>
+                </div>
+                <div v-if="selectedCustomer" class="selected-badge glass-effect">
+                  <span>Selecionado: <strong>{{ selectedCustomer.name }}</strong></span>
+                  <button type="button" @click="clearSelectedCustomer" class="clear-btn">&times;</button>
                 </div>
               </div>
 
@@ -230,17 +225,19 @@
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="grid-2">
+              <!-- Responsável -->
               <div class="form-group">
-                <label>Responsável *</label>
+                <label>Responsável / Usuário *</label>
                 <select v-model="pendencyForm.user" required class="select-glass">
-                  <option value="" disabled>Selecione um responsável</option>
+                  <option value="" disabled>Selecione o responsável</option>
                   <option v-for="user in chatStore.attendants" :key="user.id" :value="user.id">
                     {{ user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.username }}
                   </option>
                 </select>
               </div>
 
+              <!-- Prioridade -->
               <div class="form-group">
                 <label>Prioridade *</label>
                 <select v-model="pendencyForm.priority" required class="select-glass">
@@ -251,12 +248,23 @@
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="grid-3">
+              <!-- Status -->
+              <div class="form-group">
+                <label>Status *</label>
+                <select v-model="pendencyForm.status" required class="select-glass">
+                  <option value="open">Aberta</option>
+                  <option value="closed">Finalizada</option>
+                </select>
+              </div>
+
+              <!-- Horário de Abertura -->
               <div class="form-group">
                 <label>Horário de Abertura *</label>
                 <input v-model="pendencyForm.opening_date" type="datetime-local" required class="input-glass" />
               </div>
 
+              <!-- Previsão -->
               <div class="form-group">
                 <label>Previsão de Entrega (Opcional)</label>
                 <input v-model="pendencyForm.forecast_date" type="datetime-local" class="input-glass" />
@@ -264,15 +272,19 @@
             </div>
 
             <div class="form-group">
-              <label>Descrição / Detalhes</label>
-              <textarea v-model="pendencyForm.description" class="input-glass" rows="4" placeholder="Detalhes da pendência..."></textarea>
+              <label>Descrição dos Dados / Detalhes *</label>
+              <textarea v-model="pendencyForm.description" required class="input-glass" placeholder="Forneça os detalhes e dados relevantes da pendência..." rows="4"></textarea>
             </div>
 
-            <div class="modal-actions" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
-              <button type="button" @click="showCreatePendencyModal = false" class="btn-secondary">Cancelar</button>
-              <button type="submit" class="btn-primary" :disabled="savingPendency">
-                {{ savingPendency ? 'Criando...' : 'Criar Pendência' }}
-              </button>
+            <!-- Botões de Ação -->
+            <div class="modal-actions-container">
+              <span class="required-note">* Campos obrigatórios</span>
+              <div class="modal-actions">
+                <button type="button" @click="showCreatePendencyModal = false" class="btn-secondary">Cancelar</button>
+                <button type="submit" class="btn-primary" :disabled="savingPendency">
+                  {{ savingPendency ? 'Criando...' : 'Criar Pendência' }}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -439,14 +451,14 @@ const openCreatePendencyModal = async () => {
   const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16)
 
   pendencyForm.value = {
-    title: activeTicket.subject || `Suporte WhatsApp: ${activeTicket.contact_details?.name || activeTicket.contact_details?.remote_jid?.split('@')[0]}`,
+    title: '',
     operation_type: 'suporte',
     user: chatStore.user?.id || '',
     priority: 'medium',
     status: 'open',
     opening_date: localISOTime,
     forecast_date: '',
-    description: `Contato: ${activeTicket.contact_details?.name || ''} (${activeTicket.contact_details?.remote_jid?.split('@')[0] || ''})\nÚltima Mensagem: "${latestMsg}"\n`
+    description: ''
   }
 
   selectedCustomer.value = activeTicket.customer_details || null
@@ -490,6 +502,10 @@ const savePendencyFromChat = async () => {
   }
   if (!pendencyForm.value.title) {
     alert('Por favor, digite o Título / Assunto.')
+    return
+  }
+  if (!pendencyForm.value.description) {
+    alert('Por favor, preencha a Descrição dos Dados / Detalhes.')
     return
   }
   if (!pendencyForm.value.user) {
@@ -858,5 +874,159 @@ onMounted(() => {
     height: 100%;
     z-index: 100;
   }
+}
+
+/* Modal extra styles matching Pendencies.vue */
+.large-modal {
+  max-width: 650px;
+  width: 100%;
+}
+
+.modal-form-scrollable {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .grid-2, .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.select-glass, .input-glass {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 8px;
+  outline: none;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.select-glass option {
+  background: #18181b;
+  color: var(--text-primary);
+}
+
+.modal-actions-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 25px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+}
+
+.required-note {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.close-btn-round {
+  background: var(--glass);
+  border: none;
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn-round:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Autocomplete styling */
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1010;
+  max-height: 180px;
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  background: #18181b;
+}
+
+.dropdown-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.dropdown-item span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dropdown-item .sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.selected-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+
+.clear-btn {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
 }
 </style>

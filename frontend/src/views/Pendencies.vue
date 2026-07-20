@@ -130,19 +130,21 @@
         <div v-else-if="viewMode === 'grid'" class="pendencies-grid">
           <div v-for="item in displayedPendencies" :key="item.id" class="pendency-card glass-effect animate-in" :class="item.priority">
             <!-- Header do Card -->
-            <div class="card-header">
-              <span class="operation-badge">{{ operationTypes[item.operation_type] }}</span>
-              <div class="badge-actions">
-                <span class="priority-badge" :class="item.priority">{{ priorityLabels[item.priority] }}</span>
-                <div class="card-actions">
+            <div class="card-header-new">
+              <div class="card-top-row">
+                <div class="card-actions-new">
                   <button v-if="item.status !== 'closed'" @click="openFinishModal(item)" class="icon-btn finish" title="Finalizar"><CheckCircleIcon :size="16" /></button>
-                  <button @click="openMovementsModal(item)" class="icon-btn" title="Movimentações">
-                    <HistoryIcon :size="16" />
-                    <span v-if="item.movements?.length > 0" class="movement-count-badge">{{ item.movements.length }}</span>
-                  </button>
                   <button @click="editPendency(item)" class="icon-btn" title="Editar"><EditIcon :size="16" /></button>
                   <button @click="confirmDelete(item)" class="icon-btn delete" title="Excluir"><TrashIcon :size="16" /></button>
                 </div>
+              </div>
+              <div v-if="item.customer_details" class="card-customer-header-new">
+                <ContactIcon :size="18" />
+                <span class="customer-name-large" :title="item.customer_details.name">{{ item.customer_details.name }}</span>
+              </div>
+              <div v-else class="card-customer-header-new empty">
+                <ContactIcon :size="18" />
+                <span class="customer-name-large">Sem Cliente</span>
               </div>
             </div>
 
@@ -152,10 +154,6 @@
               <p class="card-desc">{{ item.description || 'Sem descrição.' }}</p>
 
               <div class="card-details">
-                <div v-if="item.customer_details" class="detail-row">
-                  <ContactIcon :size="14" />
-                  <span><strong>Cliente:</strong> {{ item.customer_details.name }}</span>
-                </div>
                 <div v-if="item.contact_details" class="detail-row">
                   <PhoneIcon :size="14" />
                   <span><strong>Contato:</strong> {{ item.contact_details.name || item.contact_details.remote_jid }}</span>
@@ -172,6 +170,26 @@
                   <ClockIcon :size="14" />
                   <span><strong>Previsão:</strong> {{ item.forecast_date ? formatDateTime(item.forecast_date) : 'Não informada' }}</span>
                 </div>
+                <div class="detail-row">
+                  <TagIcon :size="14" />
+                  <span><strong>Tipo:</strong> {{ operationTypes[item.operation_type] }}</span>
+                </div>
+                <div class="detail-row">
+                  <AlertTriangleIcon :size="14" />
+                  <span><strong>Prioridade:</strong> <span class="priority-text" :class="item.priority">{{ priorityLabels[item.priority] }}</span></span>
+                </div>
+                <div class="detail-row">
+                  <ActivityIcon :size="14" />
+                  <span><strong>Status:</strong> <span class="status-indicator-inline" :class="item.status">{{ statusLabels[item.status] }}</span></span>
+                </div>
+                <!-- Botão de Movimentações abaixo do Status -->
+                <div class="card-movements-btn-row">
+                  <button @click="openMovementsModal(item)" class="btn-movements-inline">
+                    <HistoryIcon :size="14" />
+                    <span>Movimentações</span>
+                    <span v-if="item.movements?.length > 0" class="movement-badge-inline">{{ item.movements.length }}</span>
+                  </button>
+                </div>
               </div>
 
               <!-- Imagens Anexadas -->
@@ -184,7 +202,6 @@
 
             <!-- Footer do Card -->
             <div class="card-footer">
-              <span class="status-indicator" :class="item.status">{{ statusLabels[item.status] }}</span>
               <span class="created-at">Atualizado por <strong>{{ getLastUpdater(item) }}</strong> em {{ formatDateTime(item.updated_at) }}</span>
             </div>
           </div>
@@ -463,17 +480,42 @@
           </div>
 
           <div class="modal-body movements-modal-body">
-            <!-- Botão de Impressão e Finalização -->
-            <div class="movements-actions-header">
-              <button v-if="selectedPendencyForMovements?.status !== 'closed'" @click="openFinishModal(selectedPendencyForMovements)" class="btn-finish-action">
-                <CheckCircleIcon :size="16" /> Finalizar Pendência
-              </button>
-              <button @click="printPendency(selectedPendencyForMovements)" class="btn-print-report">
+            <!-- 1. Lista de movimentações existentes (Histórico em cima) -->
+            <div class="movements-history-section">
+              <h3>Histórico de Andamentos</h3>
+              <div v-if="loadingMovements" class="loading-inline">
+                <div class="spinner-sm"></div>
+                <span>Carregando histórico...</span>
+              </div>
+              <div v-else-if="!selectedPendencyForMovements?.movements || selectedPendencyForMovements.movements.length === 0" class="no-movements-placeholder">
+                Nenhuma movimentação registrada. Use o campo abaixo para adicionar o primeiro andamento.
+              </div>
+              <div v-else class="movements-timeline">
+                <div v-for="m in sortedMovementsForModal" :key="m.id" class="timeline-item glass-effect">
+                  <div class="timeline-header">
+                    <span class="timeline-user">
+                      <UserIcon :size="14" />
+                      {{ m.user_details ? `${m.user_details.first_name || ''} ${m.user_details.last_name || ''}`.trim() || m.user_details.username : 'Sistema' }}
+                    </span>
+                    <span class="timeline-date">{{ formatDateTime(m.created_at) }}</span>
+                  </div>
+                  <div class="timeline-content">
+                    <p>{{ m.description }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Botão de Impressão no meio -->
+            <div class="movements-middle-actions">
+              <button type="button" @click="printPendency(selectedPendencyForMovements)" class="btn-print-report-middle">
                 <PrinterIcon :size="16" /> Imprimir Relatório
               </button>
             </div>
 
-            <!-- Form para nova movimentação -->
+            <hr class="modal-divider" />
+
+            <!-- 3. Form para nova movimentação (Embaixo) -->
             <form @submit.prevent="addMovement" class="new-movement-form">
               <div class="form-group">
                 <label>Nova Movimentação</label>
@@ -491,34 +533,6 @@
                 </button>
               </div>
             </form>
-
-            <hr class="modal-divider" />
-
-            <!-- Lista de movimentações existentes -->
-            <div class="movements-history-section">
-              <h3>Histórico de Andamentos</h3>
-              <div v-if="loadingMovements" class="loading-inline">
-                <div class="spinner-sm"></div>
-                <span>Carregando histórico...</span>
-              </div>
-              <div v-else-if="!selectedPendencyForMovements?.movements || selectedPendencyForMovements.movements.length === 0" class="no-movements-placeholder">
-                Nenhuma movimentação registrada. Use o campo acima para adicionar o primeiro andamento.
-              </div>
-              <div v-else class="movements-timeline">
-                <div v-for="m in sortedMovementsForModal" :key="m.id" class="timeline-item glass-effect">
-                  <div class="timeline-header">
-                    <span class="timeline-user">
-                      <UserIcon :size="14" />
-                      {{ m.user_details ? `${m.user_details.first_name || ''} ${m.user_details.last_name || ''}`.trim() || m.user_details.username : 'Sistema' }}
-                    </span>
-                    <span class="timeline-date">{{ formatDateTime(m.created_at) }}</span>
-                  </div>
-                  <div class="timeline-content">
-                    <p>{{ m.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -594,7 +608,10 @@ import {
   History as HistoryIcon,
   Printer as PrinterIcon,
   CheckCircle as CheckCircleIcon,
-  Send as SendIcon
+  Send as SendIcon,
+  Tag as TagIcon,
+  AlertTriangle as AlertTriangleIcon,
+  Activity as ActivityIcon
 } from 'lucide-vue-next'
 import { useChatStore } from '../store/chat'
 
@@ -1501,11 +1518,131 @@ onUnmounted(() => {
 .pendency-card.medium::before { background: #f59e0b; }
 .pendency-card.low::before { background: #10b981; }
 
-.card-header {
+.card-header-new {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.card-actions-new {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pendency-card:hover .card-actions-new {
+  opacity: 1;
+}
+
+.card-customer-header-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-customer-header-new svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.card-customer-header-new.empty svg {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.customer-name-large {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.3px;
+}
+
+.card-customer-header-new.empty .customer-name-large {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.card-movements-btn-row {
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.btn-movements-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-movements-inline:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.movement-badge-inline {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 2px;
+}
+
+.priority-text.high {
+  color: #ef4444;
+  font-weight: 600;
+}
+.priority-text.medium {
+  color: #f59e0b;
+  font-weight: 600;
+}
+.priority-text.low {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.status-indicator-inline {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.status-indicator-inline.open {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.status-indicator-inline.closed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .operation-badge {
@@ -2186,53 +2323,38 @@ onUnmounted(() => {
   gap: 20px;
 }
 
-.movements-actions-header {
+.movements-middle-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: center;
+  margin: 10px 0;
 }
 
-.btn-finish-action {
-  display: flex;
+.btn-print-report-middle {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background-color: #10b981;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.btn-finish-action:hover {
-  background-color: #059669;
-}
-
-.btn-print-report {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--glass);
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 8px 14px;
   border-radius: 6px;
-  cursor: pointer;
+  padding: 8px 16px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
   font-weight: 600;
+  cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.btn-print-report-middle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 .finish-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.btn-print-report:hover {
-  background: var(--border);
-  border-color: var(--accent);
 }
 
 .new-movement-form {
