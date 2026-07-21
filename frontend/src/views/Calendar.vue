@@ -278,53 +278,127 @@
       </div>
     </Transition>
 
-    <!-- Modal 2: Detalhes do Evento -->
+    <!-- Modal 2: Detalhes do Evento (Rico & Completo) -->
     <Transition name="modal-fade">
       <div v-if="selectedEvent" class="modal-overlay" @click="selectedEvent = null">
-        <div class="modal-content small-modal" @click.stop>
-          <div class="modal-header" :style="{ borderLeft: `6px solid ${selectedEvent.color || '#3b82f6'}` }">
-            <div>
-              <h2>{{ selectedEvent.title }}</h2>
-              <span class="event-source-badge" :style="{ backgroundColor: selectedEvent.color || '#3b82f6' }">
+        <div class="modal-content medium-modal event-detail-modal" @click.stop>
+          <!-- Banner Superior com Cor de Destaque -->
+          <div class="modal-event-banner" :style="{ background: selectedEvent.color || '#3b82f6' }">
+            <div class="banner-badge-group">
+              <span class="badge-pill source-pill">
+                <RssIcon v-if="selectedEvent.source === 'webcal'" :size="13" />
+                <CalendarIcon v-else :size="13" />
                 {{ selectedEvent.source === 'pendency' ? 'Pendência WDesk' : (selectedEvent.feed_name || 'WebCAL') }}
               </span>
+              <span v-if="selectedEvent.status_label" class="badge-pill status-pill">
+                {{ selectedEvent.status_label }}
+              </span>
+              <span v-if="selectedEvent.priority_label" class="badge-pill priority-pill">
+                Prioridade: {{ selectedEvent.priority_label }}
+              </span>
             </div>
-            <button @click="selectedEvent = null" class="close-btn-round"><XIcon :size="20" /></button>
+            <button @click="selectedEvent = null" class="banner-close-btn" title="Fechar">
+              <XIcon :size="18" />
+            </button>
           </div>
 
-          <div class="modal-body event-details-body">
-            <div class="detail-row" v-if="selectedEvent.start">
-              <ClockIcon :size="18" class="detail-icon" />
-              <div>
-                <strong>Data e Horário:</strong>
-                <p>{{ formatEventDateTime(selectedEvent.start, selectedEvent.end, selectedEvent.allDay) }}</p>
+          <div class="modal-body-wrapper">
+            <!-- Título do Compromisso -->
+            <div class="event-title-header">
+              <h2>{{ selectedEvent.title }}</h2>
+            </div>
+
+            <!-- Grade de Detalhes -->
+            <div class="details-grid">
+              <!-- Data e Horário -->
+              <div class="detail-card">
+                <div class="detail-card-icon">
+                  <ClockIcon :size="18" />
+                </div>
+                <div class="detail-card-content">
+                  <label>Data & Horário</label>
+                  <p>{{ formatEventDateTime(selectedEvent.start, selectedEvent.end, selectedEvent.allDay) }}</p>
+                </div>
+              </div>
+
+              <!-- Cliente / Local -->
+              <div class="detail-card" v-if="selectedEvent.customer_name || selectedEvent.location">
+                <div class="detail-card-icon">
+                  <UserIcon v-if="selectedEvent.customer_name" :size="18" />
+                  <MapPinIcon v-else :size="18" />
+                </div>
+                <div class="detail-card-content">
+                  <label>{{ selectedEvent.customer_name ? 'Cliente' : 'Localização' }}</label>
+                  <p>{{ selectedEvent.customer_name || selectedEvent.location }}</p>
+                  <span v-if="selectedEvent.customer_phone" class="sub-detail-text">
+                    <PhoneIcon :size="12" /> {{ selectedEvent.customer_phone }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Responsável (Pendência) -->
+              <div class="detail-card" v-if="selectedEvent.assigned_user">
+                <div class="detail-card-icon">
+                  <UserCheckIcon :size="18" />
+                </div>
+                <div class="detail-card-content">
+                  <label>Responsável</label>
+                  <p>{{ selectedEvent.assigned_user }}</p>
+                </div>
+              </div>
+
+              <!-- Operação / Categoria (Pendência) -->
+              <div class="detail-card" v-if="selectedEvent.operation_name">
+                <div class="detail-card-icon">
+                  <TagIcon :size="18" />
+                </div>
+                <div class="detail-card-content">
+                  <label>Operação / Setor</label>
+                  <p>{{ selectedEvent.operation_name }}</p>
+                </div>
+              </div>
+
+              <!-- Previsão / Registro -->
+              <div class="detail-card" v-if="selectedEvent.forecast_date || selectedEvent.opening_date">
+                <div class="detail-card-icon">
+                  <CalendarIcon :size="18" />
+                </div>
+                <div class="detail-card-content">
+                  <label>Data Prevista / Registro</label>
+                  <p v-if="selectedEvent.forecast_date">Previsão: {{ formatDateOnly(selectedEvent.forecast_date) }}</p>
+                  <p v-else-if="selectedEvent.opening_date">Abertura: {{ formatDateOnly(selectedEvent.opening_date) }}</p>
+                </div>
               </div>
             </div>
 
-            <div class="detail-row" v-if="selectedEvent.location">
-              <MapPinIcon :size="18" class="detail-icon" />
-              <div>
-                <strong>Local / Cliente:</strong>
-                <p>{{ selectedEvent.location }}</p>
+            <!-- Caixa de Descrição / Observações -->
+            <div class="description-box-container" v-if="selectedEvent.description">
+              <div class="description-box-header">
+                <FileTextIcon :size="15" />
+                <span>Descrição e Observações</span>
+              </div>
+              <div class="description-text-content">
+                {{ selectedEvent.description }}
               </div>
             </div>
 
-            <div class="detail-row" v-if="selectedEvent.description">
-              <FileTextIcon :size="18" class="detail-icon" />
-              <div>
-                <strong>Descrição / Detalhes:</strong>
-                <p class="description-text">{{ selectedEvent.description }}</p>
-              </div>
-            </div>
-
-            <div class="modal-actions" style="margin-top: 20px;">
+            <!-- Rodapé de Ações do Modal -->
+            <div class="modal-footer-actions">
               <button 
                 v-if="selectedEvent.source === 'pendency'" 
                 @click="goToPendency(selectedEvent.pendency_id)" 
                 class="btn-primary-v2"
               >
-                Abrir em Pendências
+                <ExternalLinkIcon :size="16" />
+                <span>Ver em Pendências</span>
               </button>
+
+              <button @click="copyEventDetails(selectedEvent)" class="btn-secondary-v2">
+                <CheckIcon v-if="copiedEvent" :size="16" style="color: #10b981;" />
+                <CopyIcon v-else :size="16" />
+                <span>{{ copiedEvent ? 'Copiado!' : 'Copiar Detalhes' }}</span>
+              </button>
+
               <button @click="selectedEvent = null" class="btn-secondary-v2">
                 Fechar
               </button>
@@ -350,7 +424,14 @@ import {
   MapPin as MapPinIcon,
   FileText as FileTextIcon,
   X as XIcon,
-  Trash2 as TrashIcon
+  Trash2 as TrashIcon,
+  User as UserIcon,
+  UserCheck as UserCheckIcon,
+  Tag as TagIcon,
+  ExternalLink as ExternalLinkIcon,
+  Copy as CopyIcon,
+  Check as CheckIcon,
+  Phone as PhoneIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -528,7 +609,38 @@ const getEventsForDate = (dateStr) => {
   })
 }
 
-// Formatadores
+const copiedEvent = ref(false)
+
+const copyEventDetails = (evt) => {
+  if (!evt) return
+  let text = `📌 *${evt.title}*\n`
+  text += `⏰ *Data:* ${formatEventDateTime(evt.start, evt.end, evt.allDay)}\n`
+  if (evt.customer_name || evt.location) {
+    text += `👤 *Cliente/Local:* ${evt.customer_name || evt.location}\n`
+  }
+  if (evt.assigned_user) {
+    text += `👨‍💼 *Responsável:* ${evt.assigned_user}\n`
+  }
+  if (evt.operation_name) {
+    text += `🏷️ *Operação:* ${evt.operation_name}\n`
+  }
+  if (evt.description) {
+    text += `\n📝 *Descrição:*\n${evt.description}`
+  }
+  
+  navigator.clipboard.writeText(text)
+  copiedEvent.value = true
+  setTimeout(() => {
+    copiedEvent.value = false
+  }, 2500)
+}
+
+const formatDateOnly = (isoStr) => {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 const formatEventTime = (isoStart) => {
   if (!isoStart || !isoStart.includes('T')) return ''
   const parts = isoStart.split('T')[1].split(':')
@@ -1335,12 +1447,189 @@ onMounted(() => {
   border: 1px solid var(--border);
   max-height: 150px;
   overflow-y: auto;
+}
+
+.event-detail-modal {
+  padding: 0 !important;
+  overflow: hidden;
+  max-width: 580px !important;
+  width: 92% !important;
+}
+
+.modal-event-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  color: #ffffff;
+}
+
+.banner-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #ffffff;
+  backdrop-filter: blur(4px);
+}
+
+.banner-close-btn {
+  background: rgba(0, 0, 0, 0.25);
+  border: none;
+  color: #ffffff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.banner-close-btn:hover {
+  background: rgba(0, 0, 0, 0.45);
+  transform: scale(1.05);
+}
+
+.modal-body-wrapper {
+  padding: 22px;
+}
+
+.event-title-header h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 0 0 18px 0;
   color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.detail-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.detail-card-icon {
+  color: var(--accent);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.detail-card-content label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+  letter-spacing: 0.5px;
+}
+
+.detail-card-content p {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.sub-detail-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.description-box-container {
+  margin-bottom: 20px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.description-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.description-text-content {
+  padding: 14px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.modal-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 /* ==========================================
    SUPORTE ESPECÍFICO PARA TEMA CLARO (LIGHT)
    ========================================== */
+:deep([data-theme='light']) .detail-card,
+:deep([data-theme='light']) .description-box-container,
+[data-theme='light'] .detail-card,
+[data-theme='light'] .description-box-container {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+:deep([data-theme='light']) .description-box-header,
+[data-theme='light'] .description-box-header {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+:deep([data-theme='light']) .detail-card-content p,
+:deep([data-theme='light']) .description-text-content,
+:deep([data-theme='light']) .event-title-header h2,
+[data-theme='light'] .detail-card-content p,
+[data-theme='light'] .description-text-content,
+[data-theme='light'] .event-title-header h2 {
+  color: #0f172a !important;
+}
 :deep([data-theme='light']) .calendar-container,
 [data-theme='light'] .calendar-container {
   background: #f4f4f5 !important;

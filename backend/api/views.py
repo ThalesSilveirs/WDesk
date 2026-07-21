@@ -1920,28 +1920,49 @@ class WebcalFeedViewSet(viewsets.ModelViewSet):
                 all_events.append(evt)
 
         # 2. Buscar Pendências do WDesk
-        pendencies = Pendency.objects.filter(company=user.company)
+        pendencies = Pendency.objects.select_related('customer', 'user', 'operation').filter(company=user.company)
         for p in pendencies:
             date_val = p.forecast_date or p.opening_date
             if not date_val:
                 continue
             date_iso = date_val.isoformat() if hasattr(date_val, 'isoformat') else str(date_val)
             
-            cust_name = p.customer.name if p.customer else 'Sem cliente'
-            user_name = f"{p.user.first_name or ''} {p.user.last_name or ''}".strip() or p.user.username if p.user else 'Sem responsável'
+            cust_name = p.customer.name if p.customer else None
+            cust_phone = p.customer.phone if (p.customer and getattr(p.customer, 'phone', None)) else None
+            user_name = f"{p.user.first_name or ''} {p.user.last_name or ''}".strip() or p.user.username if p.user else None
+            op_name = p.operation.name if (hasattr(p, 'operation') and p.operation) else None
             
-            status_label = 'Aberta' if p.status == 'open' else 'Finalizada'
-            color = '#10b981' if p.status == 'open' else '#6b7280'
-            if p.priority == 'high' and p.status == 'open':
-                color = '#ef4444'
-            elif p.priority == 'medium' and p.status == 'open':
+            if p.status == 'open':
+                status_label = 'Aberta'
+                color = '#3b82f6'
+            elif p.status == 'pending':
+                status_label = 'Em Andamento'
                 color = '#f59e0b'
+            else:
+                status_label = 'Finalizada'
+                color = '#10b981'
+
+            if p.priority == 'high' and p.status != 'closed':
+                color = '#ef4444'
+                priority_label = 'Alta'
+            elif p.priority == 'medium' and p.status != 'closed':
+                color = '#f59e0b'
+                priority_label = 'Média'
+            else:
+                priority_label = 'Baixa' if p.priority == 'low' else ('Média' if p.priority == 'medium' else 'Alta')
 
             all_events.append({
                 'id': f"pendency_{p.id}",
-                'title': f"[Pendência] {p.title}",
-                'description': f"Cliente: {cust_name}\nResponsável: {user_name}\nStatus: {status_label}\n\n{p.description or ''}",
-                'location': cust_name,
+                'title': f"[Pendência #{p.id}] {p.title}",
+                'description': p.description or '',
+                'location': cust_name or '',
+                'customer_name': cust_name,
+                'customer_phone': cust_phone,
+                'assigned_user': user_name,
+                'operation_name': op_name,
+                'opening_date': p.opening_date.isoformat() if p.opening_date else None,
+                'forecast_date': p.forecast_date.isoformat() if p.forecast_date else None,
+                'closing_date': p.closing_date.isoformat() if p.closing_date else None,
                 'start': date_iso,
                 'end': date_iso,
                 'allDay': False,
@@ -1949,7 +1970,9 @@ class WebcalFeedViewSet(viewsets.ModelViewSet):
                 'source': 'pendency',
                 'pendency_id': p.id,
                 'priority': p.priority,
-                'status': p.status
+                'priority_label': priority_label,
+                'status': p.status,
+                'status_label': status_label
             })
 
         return Response(all_events, status=status.HTTP_200_OK)
