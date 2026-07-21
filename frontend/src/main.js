@@ -33,6 +33,11 @@ axios.interceptors.response.use(
   }
 )
 
+// Aplicar Modo de Alto Desempenho se ativado no localStorage
+if (localStorage.getItem('performanceMode') === 'true') {
+  document.documentElement.classList.add('performance-mode')
+}
+
 const app = createApp(App)
 
 app.use(createPinia())

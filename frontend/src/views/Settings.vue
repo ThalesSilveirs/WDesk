@@ -6,6 +6,30 @@
       <div class="settings-grid">
         <!-- Coluna Esquerda (Configurações) -->
         <div class="settings-col-left">
+          <!-- Seção Modo de Desempenho / GPU -->
+          <section class="settings-section glass-effect">
+            <div class="section-header">
+              <ZapIcon :size="24" style="color: #f59e0b;" />
+              <h2>Desempenho da Interface</h2>
+            </div>
+            <p class="section-desc">Otimizações de renderização para computadores antigos ou com placas de vídeo limitadas.</p>
+
+            <div class="form-container">
+              <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; gap: 20px;">
+                <div>
+                  <label style="font-weight: 600; font-size: 1rem;">⚡ Modo de Alto Desempenho (Recomendado para PCs antigos / Core i5 1ª Ger)</label>
+                  <small style="display: block; margin-top: 4px;">Desativa efeitos visuais pesados (glassmorphism/blur e animações) para deixar o navegador ultra rápido.</small>
+                </div>
+                <input 
+                  type="checkbox" 
+                  v-model="performanceMode" 
+                  @change="togglePerformanceMode"
+                  style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--accent);"
+                />
+              </div>
+            </div>
+          </section>
+
           <!-- Seção Evolution API -->
           <section class="settings-section glass-effect">
             <div class="section-header">
@@ -388,6 +412,17 @@ const saveSuccess = ref(false)
 const showKey = ref(false)
 const confirmReset = ref(false)
 const resetTextConfirm = ref('')
+
+const performanceMode = ref(localStorage.getItem('performanceMode') === 'true')
+
+const togglePerformanceMode = () => {
+  localStorage.setItem('performanceMode', performanceMode.value ? 'true' : 'false')
+  if (performanceMode.value) {
+    document.documentElement.classList.add('performance-mode')
+  } else {
+    document.documentElement.classList.remove('performance-mode')
+  }
+}
 
 const triggerResetModal = () => {
   resetTextConfirm.value = ''

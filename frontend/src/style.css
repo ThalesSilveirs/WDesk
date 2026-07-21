@@ -218,3 +218,31 @@ h1, h2, h3, .brand {
   opacity: 0;
   transform: scale(0.95) translateY(10px);
 }
+
+/* ==========================================================================
+   MODO DE ALTO DESEMPENHO (Para PCs Antigos / GPU Limitada)
+   ========================================================================== */
+.performance-mode *,
+.performance-mode *::before,
+.performance-mode *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+.performance-mode .glass-effect,
+.performance-mode .modal-overlay,
+.performance-mode .modal-content {
+  background: var(--bg-card) !important;
+}
+
+.performance-mode .messages-wrapper::before {
+  display: none !important;
+}
+
+.performance-mode img {
+  content-visibility: auto;
+}
