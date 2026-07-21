@@ -118,6 +118,6 @@ EVOLUTION_API_KEY = env('EVOLUTION_API_TOKEN', default='your-token-here')
 CELERY_BEAT_SCHEDULE = {
     'send-daily-pendencies-reports': {
         'task': 'tickets.tasks.send_daily_pendencies_reports',
-        'schedule': crontab(minute='*/10'), # Executa a cada 10 minutos
+        'schedule': crontab(hour=8, minute=0), # Executa uma vez ao dia às 08:00
     },
 }

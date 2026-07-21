@@ -47,15 +47,15 @@ services:
       - WEBHOOK_URL_MESSAGE=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
       - WEBHOOK_URL_MESSAGES_UPSERT=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
       - WEBHOOK_URL_CONNECTION_UPDATE=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=WARN
       - REDIS_ENABLED=false
       - REDIS_URI=redis://redis:6379
       - CLIENT_NAME=evolution
       - AUTHENTICATION_TYPE=apikey
       - WEBHOOK_BASE64=true
-      - DATABASE_SAVE_MESSAGES=true
+      - DATABASE_SAVE_MESSAGES=false
       - DATABASE_CONNECTION_URI=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/evogo_users?sslmode=disable
-      - WADEBUG=DEBUG
+      - WADEBUG=
       - LOGTYPE=console
     # ports:
     #   - "8080:8080"
@@ -72,13 +72,13 @@ services:
     restart: unless-stopped
     command: >
       sh -c "python manage.py migrate &&
-             gunicorn core.wsgi:application --bind 0.0.0.0:8000"
+             gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 4 --worker-class gthread --threads 2 --timeout 60"
     volumes:
       - ./backend:/app
     env_file:
       - .env
     environment:
-      - DEBUG=1
+      - DEBUG=0
       - DB_HOST=db
       - REDIS_HOST=redis
       - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-go:8080}

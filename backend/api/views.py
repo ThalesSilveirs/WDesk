@@ -297,7 +297,7 @@ class TicketViewSet(TenantModelViewSet):
         event_payload = {
             "company_id": str(ticket.company.id),
             "type": "ticket_updated",
-            "payload": TicketSerializer(ticket).data
+            "payload": TicketListSerializer(ticket).data
         }
         from django.core.serializers.json import DjangoJSONEncoder
         redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))

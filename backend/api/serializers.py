@@ -74,6 +74,11 @@ class ConnectionSerializer(serializers.ModelSerializer):
         model = Connection
         fields = '__all__'
 
+class ConnectionListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Connection
+        exclude = ('qrcode',)
+
 class CitySerializer(serializers.ModelSerializer):
     class Meta:
         model = City
@@ -181,8 +186,8 @@ class TicketSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_last_messages(self, obj):
-        # Limita para as últimas 100 mensagens para evitar sobrecarga
-        messages = obj.messages.order_by('-timestamp')[:100]
+        # Limita para as últimas 10 mensagens para evitar sobrecarga na listagem/detalhes
+        messages = obj.messages.order_by('-timestamp')[:10]
         return MessageSerializer(reversed(messages), many=True, context=self.context).data
 
 class TicketListSerializer(serializers.ModelSerializer):

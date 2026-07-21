@@ -7,8 +7,14 @@ from api.serializers import MessageSerializer
 
 redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
 
-@shared_task
-def process_webhook_event(connection_id, payload):
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=60
+)
+def process_webhook_event(self, connection_id, payload):
     import re
     import time
     import json

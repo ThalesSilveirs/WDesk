@@ -209,6 +209,13 @@ class Ticket(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['company', 'status']),
+            models.Index(fields=['company', 'updated_at']),
+            models.Index(fields=['contact', 'status']),
+        ]
+
 class Message(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
@@ -228,6 +235,9 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['timestamp', 'id']
+        indexes = [
+            models.Index(fields=['ticket', 'timestamp']),
+        ]
 
 class MessageReaction(models.Model):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='reactions')
