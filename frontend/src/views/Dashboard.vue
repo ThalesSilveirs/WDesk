@@ -375,7 +375,7 @@ const handleVisibilityChange = () => {
 
 onMounted(() => {
   fetchDashboardStats()
-  intervalId = setInterval(fetchStatsIfVisible, 30000)
+  intervalId = setInterval(fetchStatsIfVisible, 10000)
   window.addEventListener('user-status-changed', handleStatusChange)
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })

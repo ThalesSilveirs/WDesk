@@ -781,7 +781,7 @@ class TicketViewSet(TenantModelViewSet):
         company = request.user.company
         cache_key = f"company_stats_{company.id}"
         
-        # Tenta buscar do Redis
+        # Tenta buscar do Redis (Cache curto de apenas 3 segundos para tempo real)
         try:
             cached_data = redis_client.get(cache_key)
             if cached_data:
@@ -789,10 +789,10 @@ class TicketViewSet(TenantModelViewSet):
         except Exception as e:
             print(f"[STATS CACHE] Erro ao ler Redis: {e}")
         
-        # 1. Active Chats
+        # 1. Atendimentos Ativos (Abertos + Pendentes)
         active_chats = Ticket.objects.filter(company=company, status__in=['open', 'pending']).count()
         
-        # 2. Avg Response Time (Otimizado com Subqueries)
+        # 2. Tempo Médio de Resposta (Entre 1a msg do cliente e 1a resposta do agente)
         from django.db.models import OuterRef, Subquery
         
         first_client_msg_ts = Message.objects.filter(
@@ -819,17 +819,20 @@ class TicketViewSet(TenantModelViewSet):
                 total_seconds += diff
                 counted_tickets += 1
                     
-        avg_response_seconds = int(total_seconds / counted_tickets) if counted_tickets > 0 else 252
-        minutes = avg_response_seconds // 60
-        seconds = avg_response_seconds % 60
-        avg_response_str = f"{minutes}m {seconds}s"
+        avg_response_seconds = int(total_seconds / counted_tickets) if counted_tickets > 0 else 0
+        if avg_response_seconds > 0:
+            minutes = avg_response_seconds // 60
+            seconds = avg_response_seconds % 60
+            avg_response_str = f"{minutes}m {seconds}s" if minutes > 0 else f"{seconds}s"
+        else:
+            avg_response_str = "0s"
         
-        # 3. Resolution Rate
+        # 3. Taxa de Resolução Real (Closed / Total)
         total_tickets = Ticket.objects.filter(company=company).count()
         closed_tickets = Ticket.objects.filter(company=company, status='closed').count()
-        resolution_rate = round((closed_tickets / total_tickets * 100), 1) if total_tickets > 0 else 92.4
+        resolution_rate = round((closed_tickets / total_tickets * 100), 1) if total_tickets > 0 else 0.0
         
-        # 4. Messages Sent Today
+        # 4. Mensagens Enviadas Hoje
         from django.utils import timezone
         today = timezone.localtime(timezone.now()).date()
         messages_sent_today = Message.objects.filter(
@@ -842,23 +845,13 @@ class TicketViewSet(TenantModelViewSet):
         connection = Connection.objects.filter(company=company).first()
         connection_data = None
         if connection:
-            latency_cache_key = f"evo_latency_{connection.id}"
-            latency_bytes = redis_client.get(latency_cache_key)
-            if latency_bytes:
-                latency_str = latency_bytes.decode('utf-8')
-            else:
-                latency_str = "Instável"
-                # Dispara a verificação assíncrona da latência
-                from tickets.tasks import measure_evo_latency_task
-                measure_evo_latency_task.delay(connection.id)
-
             connection_data = {
                 "id": connection.id,
                 "name": connection.name,
                 "instance_name": connection.instance_name,
                 "status": connection.status.upper(),
-                "latency": latency_str,
-                "protocol": "Websocket-Secure"
+                "latency": "Online" if connection.status == "connected" else "0ms",
+                "protocol": "HTTP REST"
             }
             
         # 6. Conversation Trends (Otimizado em 1 query com TruncDay e Count)
@@ -932,7 +925,7 @@ class TicketViewSet(TenantModelViewSet):
             
             for idx, user in enumerate(users):
                 status_bytes = status_values[idx]
-                status_str = "Offline"
+                status_str = "Online" if user.is_active else "Offline"
                 if status_bytes:
                     status = status_bytes.decode('utf-8')
                     if status == 'away':
@@ -969,9 +962,9 @@ class TicketViewSet(TenantModelViewSet):
             "team_activity": team_activity
         }
         
-        # Salva no Redis por 60 segundos
+        # Salva no Redis por apenas 3 segundos para permitir atualização em tempo real
         try:
-            redis_client.setex(cache_key, 60, json.dumps(response_data))
+            redis_client.setex(cache_key, 3, json.dumps(response_data))
         except Exception as e:
             print(f"[STATS CACHE] Erro ao salvar Redis: {e}")
             
