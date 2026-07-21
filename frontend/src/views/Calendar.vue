@@ -1323,5 +1323,156 @@ onMounted(() => {
   overflow-y: auto;
   color: var(--text-primary);
 }
+
+/* ==========================================
+   SUPORTE ESPECÍFICO PARA TEMA CLARO (LIGHT)
+   ========================================== */
+:deep([data-theme='light']) .calendar-container,
+[data-theme='light'] .calendar-container {
+  background: #f4f4f5 !important;
+  color: #09090b !important;
+}
+
+:deep([data-theme='light']) .calendar-header,
+[data-theme='light'] .calendar-header {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+:deep([data-theme='light']) .icon-btn-glass,
+:deep([data-theme='light']) .btn-today,
+:deep([data-theme='light']) .btn-sync,
+:deep([data-theme='light']) .btn-secondary-v2,
+:deep([data-theme='light']) .close-btn-round,
+[data-theme='light'] .icon-btn-glass,
+[data-theme='light'] .btn-today,
+[data-theme='light'] .btn-sync,
+[data-theme='light'] .btn-secondary-v2,
+[data-theme='light'] .close-btn-round {
+  background: #f4f4f5 !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #18181b !important;
+}
+
+:deep([data-theme='light']) .icon-btn-glass:hover,
+:deep([data-theme='light']) .btn-today:hover,
+:deep([data-theme='light']) .btn-sync:hover,
+:deep([data-theme='light']) .btn-secondary-v2:hover,
+:deep([data-theme='light']) .close-btn-round:hover,
+[data-theme='light'] .icon-btn-glass:hover,
+[data-theme='light'] .btn-today:hover,
+[data-theme='light'] .btn-sync:hover,
+[data-theme='light'] .btn-secondary-v2:hover,
+[data-theme='light'] .close-btn-round:hover {
+  background: #e4e4e7 !important;
+  border-color: #a1a1aa !important;
+}
+
+:deep([data-theme='light']) .view-mode-tabs,
+[data-theme='light'] .view-mode-tabs {
+  background: #e4e4e7 !important;
+  border-color: #d4d4d8 !important;
+}
+
+:deep([data-theme='light']) .tab-btn,
+[data-theme='light'] .tab-btn {
+  color: #52525b !important;
+}
+
+:deep([data-theme='light']) .tab-btn.active,
+[data-theme='light'] .tab-btn.active {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(34, 181, 95, 0.3) !important;
+}
+
+:deep([data-theme='light']) .day-cell,
+[data-theme='light'] .day-cell {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+}
+
+:deep([data-theme='light']) .day-cell.is-today,
+[data-theme='light'] .day-cell.is-today {
+  border: 2px solid var(--accent) !important;
+  background: #f0fdf4 !important;
+}
+
+:deep([data-theme='light']) .day-number,
+[data-theme='light'] .day-number {
+  color: #09090b !important;
+}
+
+:deep([data-theme='light']) .event-count-badge,
+[data-theme='light'] .event-count-badge {
+  background: #f4f4f5 !important;
+  border: 1px solid #e4e4e7 !important;
+  color: #71717a !important;
+}
+
+:deep([data-theme='light']) .week-column,
+:deep([data-theme='light']) .day-view-wrapper,
+[data-theme='light'] .week-column,
+[data-theme='light'] .day-view-wrapper {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+}
+
+:deep([data-theme='light']) .week-day-num,
+:deep([data-theme='light']) .day-view-header h3,
+:deep([data-theme='light']) .event-info-main h4,
+[data-theme='light'] .week-day-num,
+[data-theme='light'] .day-view-header h3,
+[data-theme='light'] .event-info-main h4 {
+  color: #09090b !important;
+}
+
+:deep([data-theme='light']) .week-event-card,
+:deep([data-theme='light']) .day-full-event-card,
+:deep([data-theme='light']) .feed-item-card,
+:deep([data-theme='light']) .feed-form,
+:deep([data-theme='light']) .description-text,
+[data-theme='light'] .week-event-card,
+[data-theme='light'] .day-full-event-card,
+[data-theme='light'] .feed-item-card,
+[data-theme='light'] .feed-form,
+[data-theme='light'] .description-text {
+  background: #f4f4f5 !important;
+  border-color: #e4e4e7 !important;
+}
+
+:deep([data-theme='light']) .week-event-card:hover,
+[data-theme='light'] .week-event-card:hover {
+  background: #e4e4e7 !important;
+}
+
+:deep([data-theme='light']) .evt-card-title,
+:deep([data-theme='light']) .feed-item-info strong,
+[data-theme='light'] .evt-card-title,
+[data-theme='light'] .feed-item-info strong {
+  color: #09090b !important;
+}
+
+:deep([data-theme='light']) .medium-modal,
+:deep([data-theme='light']) .small-modal,
+[data-theme='light'] .medium-modal,
+[data-theme='light'] .small-modal {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  color: #09090b !important;
+}
+
+:deep([data-theme='light']) .input-glass,
+[data-theme='light'] .input-glass {
+  background: #ffffff !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #09090b !important;
+}
+
+:deep([data-theme='light']) .input-glass::placeholder,
+[data-theme='light'] .input-glass::placeholder {
+  color: #a1a1aa !important;
+}
 </style>
 
