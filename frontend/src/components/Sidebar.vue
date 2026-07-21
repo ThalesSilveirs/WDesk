@@ -12,40 +12,49 @@
 
       <!-- Navigation Links -->
       <nav class="nav-links">
-        <router-link to="/" class="nav-link-item" exact-active-class="active" data-tooltip="Dashboard">
+        <router-link to="/" class="nav-link-item" exact-active-class="active" data-tooltip="Dashboard" @click="closeMobileMenu">
           <LayoutGridIcon :size="20" />
+          <span class="nav-label-mobile">Dashboard</span>
         </router-link>
 
-        <router-link to="/conversations" class="nav-link-item" active-class="active" data-tooltip="Conversas">
+        <router-link to="/conversations" class="nav-link-item" active-class="active" data-tooltip="Conversas" @click="closeMobileMenu">
           <MessageSquareIcon :size="20" />
+          <span class="nav-label-mobile">Conversas</span>
         </router-link>
 
-        <router-link to="/pendencies" class="nav-link-item" active-class="active" data-tooltip="Pendências">
+        <router-link to="/pendencies" class="nav-link-item" active-class="active" data-tooltip="Pendências" @click="closeMobileMenu">
           <ClipboardListIcon :size="20" />
+          <span class="nav-label-mobile">Pendências</span>
         </router-link>
 
-        <router-link to="/calendar" class="nav-link-item" active-class="active" data-tooltip="Calendário">
+        <router-link to="/calendar" class="nav-link-item" active-class="active" data-tooltip="Calendário" @click="closeMobileMenu">
           <CalendarIcon :size="20" />
+          <span class="nav-label-mobile">Calendário</span>
         </router-link>
 
-        <router-link to="/customers" class="nav-link-item" active-class="active" data-tooltip="Clientes">
+        <router-link to="/customers" class="nav-link-item" active-class="active" data-tooltip="Clientes" @click="closeMobileMenu">
           <ContactIcon :size="20" />
+          <span class="nav-label-mobile">Clientes</span>
         </router-link>
 
-        <router-link to="/cities" class="nav-link-item" active-class="active" data-tooltip="Cidades">
+        <router-link to="/cities" class="nav-link-item" active-class="active" data-tooltip="Cidades" @click="closeMobileMenu">
           <MapPinIcon :size="20" />
+          <span class="nav-label-mobile">Cidades</span>
         </router-link>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active" data-tooltip="Equipes">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/users" class="nav-link-item" active-class="active" data-tooltip="Equipes" @click="closeMobileMenu">
           <UsersIcon :size="20" />
+          <span class="nav-label-mobile">Equipes</span>
         </router-link>
 
-        <router-link to="/analytics" class="nav-link-item" active-class="active" data-tooltip="Métricas">
+        <router-link to="/analytics" class="nav-link-item" active-class="active" data-tooltip="Métricas" @click="closeMobileMenu">
           <BarChartIcon :size="20" />
+          <span class="nav-label-mobile">Métricas</span>
         </router-link>
 
-        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active" data-tooltip="Configurações">
+        <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active" data-tooltip="Configurações" @click="closeMobileMenu">
           <SettingsIcon :size="20" />
+          <span class="nav-label-mobile">Configurações</span>
         </router-link>
       </nav>
 
@@ -246,6 +255,10 @@ import {
 const router = useRouter()
 const route = useRoute()
 const chatStore = useChatStore()
+
+const closeMobileMenu = () => {
+  document.documentElement.classList.remove('mobile-menu-open')
+}
 
 const showHelpModal = ref(false)
 const showLogoutModal = ref(false)
@@ -1004,44 +1017,78 @@ onUnmounted(() => {
 }
 
 /* Responsiveness */
+.nav-label-mobile {
+  display: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-left: 12px;
+}
+
+/* Responsiveness: Sidebar Lateral Retrátil no Mobile */
 @media (max-width: 768px) {
   .sidebar-container {
-    width: 100%;
-    height: 60px;
     position: fixed;
-    bottom: 0;
+    top: 0;
     left: 0;
-    right: 0;
-    z-index: 1000;
+    bottom: 0;
+    width: 260px;
+    height: 100dvh;
+    z-index: 2000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+  }
+
+  html.mobile-menu-open .sidebar-container {
+    transform: translateX(0);
   }
 
   .sidebar {
-    flex-direction: row;
-    padding: 0 10px;
-    align-items: center;
-    justify-content: space-around;
-    border-right: none;
-    border-top: 1px solid var(--border);
+    height: 100%;
+    flex-direction: column;
+    padding: 20px 15px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    border-right: 1px solid var(--border);
+    border-top: none;
+    background: var(--bg-sidebar);
   }
 
   .logo-section,
   .bottom-section,
   .profile-container,
   .sidebar-popover-container {
-    display: none !important;
+    display: flex !important;
+  }
+
+  .logo-section {
+    margin-bottom: 20px;
+    width: 100%;
   }
 
   .nav-links {
-    flex-direction: row;
-    gap: 0;
-    height: 100%;
-    align-items: center;
-    justify-content: space-around;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    align-items: stretch;
+    overflow-y: auto;
   }
 
   .nav-link-item {
-    width: 50px;
-    height: 50px;
+    width: 100%;
+    height: 48px;
+    padding: 0 16px;
+    justify-content: flex-start;
+    border-radius: 10px;
+  }
+
+  .nav-label-mobile {
+    display: inline-block;
+  }
+
+  .bottom-section {
+    width: 100%;
+    margin-top: auto;
   }
 }
 </style>

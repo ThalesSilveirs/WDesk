@@ -273,4 +273,13 @@ h1, h2, h3, .brand {
     min-height: 44px;
     touch-action: manipulation;
   }
+
+  /* Overlay escuro quando o menu mobile lateral estiver aberto */
+  html.mobile-menu-open::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1999;
+  }
 }

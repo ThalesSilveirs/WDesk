@@ -2,6 +2,9 @@
   <!-- Unified Global Header Bar -->
   <header class="global-header glass-effect">
     <div class="header-left">
+      <button @click="toggleMobileMenu" class="mobile-menu-toggle-btn" title="Menu principal">
+        <MenuIcon :size="22" />
+      </button>
       <h1>{{ pageTitle }}</h1>
       
       <!-- User Status Dropdown -->
@@ -184,12 +187,17 @@ import {
   Sun as SunIcon,
   Moon as MoonIcon,
   HelpCircle as HelpCircleIcon,
-  LogOut as LogOutIcon
+  LogOut as LogOutIcon,
+  Menu as MenuIcon
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const chatStore = useChatStore()
+
+const toggleMobileMenu = () => {
+  document.documentElement.classList.toggle('mobile-menu-open')
+}
 
 const showProfileMenu = ref(false)
 const showLogoutModal = ref(false)
@@ -918,10 +926,33 @@ onUnmounted(() => {
     display: none;
   }
 
-  .mobile-only-items {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 4px;
+.mobile-menu-toggle-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-menu-toggle-btn:hover {
+  background: var(--glass);
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-toggle-btn {
+    display: flex !important;
+  }
+}
+
+.mobile-only-items {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
     margin-bottom: 4px;
   }
 }
