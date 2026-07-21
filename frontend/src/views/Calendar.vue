@@ -685,44 +685,51 @@ onMounted(() => {
 }
 
 .icon-btn-glass {
-  background: var(--glass);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  width: 34px;
-  height: 34px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+}
+
+.icon-btn-glass svg {
+  stroke: currentColor !important;
+  color: currentColor !important;
+  fill: none;
 }
 
 .icon-btn-glass:hover {
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
 
 .btn-today {
-  background: var(--glass);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  padding: 8px 16px;
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn-today:hover {
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .view-mode-tabs {
   display: flex;
   padding: 4px;
   border-radius: 12px;
-  background: var(--glass);
+  background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border);
 }
 
@@ -748,18 +755,25 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
   padding: 8px 16px;
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-sync svg {
+  stroke: currentColor !important;
+  color: currentColor !important;
+  fill: none;
 }
 
 .btn-sync:hover {
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .btn-primary-v2 {
@@ -1350,9 +1364,21 @@ onMounted(() => {
 [data-theme='light'] .btn-sync,
 [data-theme='light'] .btn-secondary-v2,
 [data-theme='light'] .close-btn-round {
-  background: #f4f4f5 !important;
-  border: 1px solid #d4d4d8 !important;
-  color: #18181b !important;
+  background: #e2e8f0 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+:deep([data-theme='light']) .icon-btn-glass svg,
+:deep([data-theme='light']) .btn-sync svg,
+:deep([data-theme='light']) .close-btn-round svg,
+[data-theme='light'] .icon-btn-glass svg,
+[data-theme='light'] .btn-sync svg,
+[data-theme='light'] .close-btn-round svg {
+  stroke: #0f172a !important;
+  color: #0f172a !important;
+  fill: none;
 }
 
 :deep([data-theme='light']) .icon-btn-glass:hover,
@@ -1365,8 +1391,9 @@ onMounted(() => {
 [data-theme='light'] .btn-sync:hover,
 [data-theme='light'] .btn-secondary-v2:hover,
 [data-theme='light'] .close-btn-round:hover {
-  background: #e4e4e7 !important;
-  border-color: #a1a1aa !important;
+  background: #cbd5e1 !important;
+  border-color: #94a3b8 !important;
+  color: #020617 !important;
 }
 
 :deep([data-theme='light']) .view-mode-tabs,
