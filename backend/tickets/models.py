@@ -332,5 +332,20 @@ class PendencyMovement(models.Model):
         return f"Movimentação {self.id} - Pendência {self.pendency.title}"
 
 
+class WebcalFeed(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='webcal_feeds')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='webcal_feeds')
+    name = models.CharField(max_length=150)
+    url = models.CharField(max_length=1000)
+    color = models.CharField(max_length=30, default='#3b82f6')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.company.name})"
+
+
+
 
 

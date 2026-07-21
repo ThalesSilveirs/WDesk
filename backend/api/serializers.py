@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement
+from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement, WebcalFeed
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -281,6 +281,17 @@ class PendencySerializer(serializers.ModelSerializer):
         for img_base64 in uploaded_images:
             PendencyImage.objects.create(pendency=pendency, image=img_base64)
         return pendency
+
+
+class WebcalFeedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebcalFeed
+        fields = '__all__'
+        extra_kwargs = {
+            'company': {'read_only': True},
+            'user': {'read_only': True}
+        }
+
 
 
 

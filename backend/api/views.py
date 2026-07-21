@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.response import Response
 from django.db import transaction
 from rest_framework.decorators import action
-from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement
+from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement, WebcalFeed
 from .serializers import (
     TicketSerializer, 
     TicketListSerializer,
@@ -18,8 +18,10 @@ from .serializers import (
     AbsenceScheduleSerializer,
     CitySerializer,
     PendencySerializer,
-    PendencyMovementSerializer
+    PendencyMovementSerializer,
+    WebcalFeedSerializer
 )
+from tickets.utils import fetch_and_parse_webcal
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -1888,6 +1890,78 @@ class PendencyMovementViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class WebcalFeedViewSet(viewsets.ModelViewSet):
+    queryset = WebcalFeed.objects.all()
+    serializer_class = WebcalFeedSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(company=self.request.user.company)
+
+    def perform_create(self, serializer):
+        serializer.save(company=self.request.user.company, user=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='events')
+    def get_calendar_events(self, request):
+        user = request.user
+        all_events = []
+
+        # 1. Buscar feeds WebCAL ativos
+        feeds = WebcalFeed.objects.filter(company=user.company, is_active=True)
+        for feed in feeds:
+            feed_events = fetch_and_parse_webcal(feed.url)
+            for evt in feed_events:
+                evt['feed_id'] = feed.id
+                evt['feed_name'] = feed.name
+                evt['color'] = feed.color
+                evt['source'] = 'webcal'
+                all_events.append(evt)
+
+        # 2. Buscar Pendências do WDesk
+        pendencies = Pendency.objects.filter(company=user.company)
+        for p in pendencies:
+            date_val = p.forecast_date or p.opening_date
+            if not date_val:
+                continue
+            date_iso = date_val.isoformat() if hasattr(date_val, 'isoformat') else str(date_val)
+            
+            cust_name = p.customer.name if p.customer else 'Sem cliente'
+            user_name = f"{p.user.first_name or ''} {p.user.last_name or ''}".strip() or p.user.username if p.user else 'Sem responsável'
+            
+            status_label = 'Aberta' if p.status == 'open' else 'Finalizada'
+            color = '#10b981' if p.status == 'open' else '#6b7280'
+            if p.priority == 'high' and p.status == 'open':
+                color = '#ef4444'
+            elif p.priority == 'medium' and p.status == 'open':
+                color = '#f59e0b'
+
+            all_events.append({
+                'id': f"pendency_{p.id}",
+                'title': f"[Pendência] {p.title}",
+                'description': f"Cliente: {cust_name}\nResponsável: {user_name}\nStatus: {status_label}\n\n{p.description or ''}",
+                'location': cust_name,
+                'start': date_iso,
+                'end': date_iso,
+                'allDay': False,
+                'color': color,
+                'source': 'pendency',
+                'pendency_id': p.id,
+                'priority': p.priority,
+                'status': p.status
+            })
+
+        return Response(all_events, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='preview')
+    def preview_feed(self, request):
+        url = request.data.get('url')
+        if not url:
+            return Response({"error": "URL do feed não informada."}, status=status.HTTP_400_BAD_REQUEST)
+        events = fetch_and_parse_webcal(url)
+        return Response({"count": len(events), "events": events[:20]}, status=status.HTTP_200_OK)
+
 
 
 

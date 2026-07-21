@@ -24,6 +24,10 @@
           <ClipboardListIcon :size="20" />
         </router-link>
 
+        <router-link to="/calendar" class="nav-link-item" active-class="active" data-tooltip="Calendário">
+          <CalendarIcon :size="20" />
+        </router-link>
+
         <router-link to="/customers" class="nav-link-item" active-class="active" data-tooltip="Clientes">
           <ContactIcon :size="20" />
         </router-link>
@@ -235,7 +239,8 @@ import {
   ClipboardList as ClipboardListIcon,
   LogOut as LogOutIcon,
   Search as SearchIcon,
-  Bell as BellIcon
+  Bell as BellIcon,
+  Calendar as CalendarIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()

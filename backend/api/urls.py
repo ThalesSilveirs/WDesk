@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TicketViewSet, ConnectionViewSet, WebhookView, UserViewSet, CustomerViewSet, 
     CustomerContactViewSet, ContactViewSet, CompanyViewSet, QuickReplyViewSet, 
-    AbsenceScheduleViewSet, CityViewSet, PendencyViewSet, PendencyMovementViewSet
+    AbsenceScheduleViewSet, CityViewSet, PendencyViewSet, PendencyMovementViewSet,
+    WebcalFeedViewSet
 )
 
 router = DefaultRouter()
@@ -19,6 +20,7 @@ router.register(r'absence-schedules', AbsenceScheduleViewSet, basename='absence-
 router.register(r'cities', CityViewSet, basename='city')
 router.register(r'pendencies', PendencyViewSet, basename='pendency')
 router.register(r'pendency-movements', PendencyMovementViewSet, basename='pendency-movement')
+router.register(r'webcal-feeds', WebcalFeedViewSet, basename='webcal-feed')
 
 urlpatterns = [
     path('', include(router.urls)),
