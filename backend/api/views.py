@@ -112,6 +112,9 @@ class CustomerContactViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(company=self.request.user.company)
 
+    def perform_update(self, serializer):
+        serializer.save(company=self.request.user.company)
+
 class ContactViewSet(TenantModelViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer

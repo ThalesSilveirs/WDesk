@@ -102,6 +102,18 @@ class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
         fields = '__all__'
+        extra_kwargs = {
+            'company': {'read_only': True}
+        }
+
+    def to_internal_value(self, data):
+        if hasattr(data, 'copy'):
+            data = data.copy()
+        elif isinstance(data, dict):
+            data = dict(data)
+        if data.get('birth_date') == '':
+            data['birth_date'] = None
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         # Auto-gerar remote_jid se estiver ausente mas houver whatsapp/cellphone/phone

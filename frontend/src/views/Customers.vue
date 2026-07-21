@@ -1315,12 +1315,16 @@ const manageContacts = (customer) => {
 const addContact = async () => {
   if (!newContact.value.name) return
   loadingContact.value = true
+  const payload = {
+    ...newContact.value,
+    birth_date: newContact.value.birth_date || null
+  }
   try {
     if (editingContactId.value) {
-      await axios.put(`/api/v1/customer-contacts/${editingContactId.value}/`, newContact.value)
+      await axios.put(`/api/v1/customer-contacts/${editingContactId.value}/`, payload)
       editingContactId.value = null
     } else {
-      await axios.post(`/api/v1/customer-contacts/`, newContact.value)
+      await axios.post(`/api/v1/customer-contacts/`, payload)
     }
     newContact.value = {
       name: '',
