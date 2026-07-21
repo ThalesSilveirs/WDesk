@@ -78,18 +78,30 @@ class CustomerViewSet(TenantModelViewSet):
         
         contact = None
         if remote_jid:
+            from tickets.utils import get_br_jid_variant
             contact = Contact.objects.filter(
                 company=request.user.company,
                 remote_jid=remote_jid
             ).first()
 
             if not contact:
-                old_jid = remote_jid[2:] if remote_jid.startswith('55') else remote_jid
-                contact = Contact.objects.filter(company=request.user.company, remote_jid=old_jid).first()
-                if contact:
-                    if not Contact.objects.filter(company=request.user.company, remote_jid=remote_jid).exists():
-                        contact.remote_jid = remote_jid
-                        contact.save()
+                variant_jid = get_br_jid_variant(remote_jid)
+                if variant_jid:
+                    contact = Contact.objects.filter(company=request.user.company, remote_jid=variant_jid).first()
+
+            if not contact and len(phone_digits) >= 8:
+                from django.db.models import Q
+                contact = Contact.objects.filter(
+                    Q(whatsapp__icontains=phone_digits[-8:]) |
+                    Q(cellphone__icontains=phone_digits[-8:]) |
+                    Q(phone__icontains=phone_digits[-8:]),
+                    company=request.user.company
+                ).first()
+
+            if contact and contact.remote_jid != remote_jid:
+                if not Contact.objects.filter(company=request.user.company, remote_jid=remote_jid).exists():
+                    contact.remote_jid = remote_jid
+                    contact.save()
 
         if not contact:
             contact = Contact.objects.create(
@@ -105,13 +117,24 @@ class CustomerViewSet(TenantModelViewSet):
             contact.customer = customer
             contact.save()
 
-        # Abre o ticket
-        ticket = Ticket.objects.create(
+        # Reutiliza ticket aberto existente se houver para não duplicar
+        ticket = Ticket.objects.filter(
             company=request.user.company,
             contact=contact,
-            user=request.user, # Atribui ao usuário que abriu
-            status='open'
-        )
+            status__in=['open', 'pending']
+        ).order_by('-id').first()
+
+        if not ticket:
+            ticket = Ticket.objects.create(
+                company=request.user.company,
+                contact=contact,
+                user=request.user,
+                status='open'
+            )
+        else:
+            if not ticket.user:
+                ticket.user = request.user
+                ticket.save()
         
         return Response(TicketSerializer(ticket).data)
 

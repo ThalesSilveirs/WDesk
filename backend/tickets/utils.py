@@ -49,3 +49,18 @@ def get_evolution_token(instance_name):
         evo_token = getattr(settings, 'EVOLUTION_API_KEY', 'your-token-here')
 
     return evo_token
+
+def get_br_jid_variant(jid):
+    """
+    Retorna a variação do nono dígito para JIDs do WhatsApp no Brasil (+55).
+    Se tiver 13 dígitos (55 + DDD + 9 + 8 dig), retorna a versão de 12 dígitos sem o 9.
+    Se tiver 12 dígitos (55 + DDD + 8 dig), retorna a versão de 13 dígitos com o 9.
+    """
+    if not jid or '@s.whatsapp.net' not in str(jid):
+        return None
+    num = str(jid).split('@')[0]
+    if len(num) == 13 and num.startswith('55') and num[4] == '9':
+        return f"{num[:4]}{num[5:]}@s.whatsapp.net"
+    elif len(num) == 12 and num.startswith('55'):
+        return f"{num[:4]}9{num[4:]}@s.whatsapp.net"
+    return None

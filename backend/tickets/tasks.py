@@ -491,8 +491,13 @@ def process_webhook_event(connection_id, payload):
                 continue
             
             # Preserve manually linked customer and custom contact name
+            from tickets.utils import get_br_jid_variant
             existing_contact = Contact.objects.filter(remote_jid=remote_jid, company=connection.company).first()
             if not existing_contact:
+                variant_jid = get_br_jid_variant(remote_jid)
+                if variant_jid:
+                    existing_contact = Contact.objects.filter(remote_jid=variant_jid, company=connection.company).first()
+            if not existing_contact and len(phone_digits) >= 8:
                 from django.db.models import Q
                 existing_contact = Contact.objects.filter(
                     Q(whatsapp__icontains=phone_digits[-8:]) |
@@ -500,11 +505,12 @@ def process_webhook_event(connection_id, payload):
                     Q(phone__icontains=phone_digits[-8:]),
                     company=connection.company
                 ).first()
-                if existing_contact:
-                    existing_contact.remote_jid = remote_jid
-                    existing_contact.save()
 
             if existing_contact:
+                if existing_contact.remote_jid != remote_jid:
+                    if not Contact.objects.filter(remote_jid=remote_jid, company=connection.company).exists():
+                        existing_contact.remote_jid = remote_jid
+                        existing_contact.save()
                 if existing_contact.customer:
                     customer = existing_contact.customer
                 if existing_contact.name:
