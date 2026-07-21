@@ -66,14 +66,39 @@ class CustomerViewSet(TenantModelViewSet):
             contact_name = customer.name
             
         import re
-        phone_digits = re.sub(r'\D', '', str(contact_phone))
-        remote_jid = f"{phone_digits}@s.whatsapp.net"
+        phone_digits = re.sub(r'\D', '', str(contact_phone or ''))
+        if phone_digits:
+            if len(phone_digits) in [10, 11] and not phone_digits.startswith('55'):
+                phone_digits = '55' + phone_digits
+            elif not phone_digits.startswith('55') and len(phone_digits) < 12:
+                phone_digits = '55' + phone_digits
+            remote_jid = f"{phone_digits}@s.whatsapp.net"
+        else:
+            remote_jid = None
         
-        contact, _ = Contact.objects.get_or_create(
-            company=request.user.company,
-            remote_jid=remote_jid,
-            defaults={'name': contact_name, 'customer': customer}
-        )
+        contact = None
+        if remote_jid:
+            contact = Contact.objects.filter(
+                company=request.user.company,
+                remote_jid=remote_jid
+            ).first()
+
+            if not contact:
+                old_jid = remote_jid[2:] if remote_jid.startswith('55') else remote_jid
+                contact = Contact.objects.filter(company=request.user.company, remote_jid=old_jid).first()
+                if contact:
+                    if not Contact.objects.filter(company=request.user.company, remote_jid=remote_jid).exists():
+                        contact.remote_jid = remote_jid
+                        contact.save()
+
+        if not contact:
+            contact = Contact.objects.create(
+                company=request.user.company,
+                remote_jid=remote_jid,
+                name=contact_name,
+                customer=customer,
+                phone=contact_phone
+            )
         
         # Se o contato não tinha cliente vinculado, vincula agora
         if not contact.customer:

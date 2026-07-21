@@ -123,6 +123,14 @@ class ContactSerializer(serializers.ModelSerializer):
         if not company and 'request' in self.context:
             company = self.context['request'].user.company
             attrs['company'] = company
+
+        if remote_jid and '@s.whatsapp.net' in str(remote_jid):
+            num = str(remote_jid).split('@')[0]
+            import re
+            num_digits = re.sub(r'\D', '', num)
+            if len(num_digits) in [10, 11] and not num_digits.startswith('55'):
+                remote_jid = f"55{num_digits}@s.whatsapp.net"
+                attrs['remote_jid'] = remote_jid
             
         if not remote_jid and company:
             raw_phone = attrs.get('whatsapp') or attrs.get('cellphone') or attrs.get('phone')
