@@ -1002,16 +1002,28 @@ onMounted(() => {
 
 .btn-ghost:hover { background: rgba(255, 255, 255, 0.05); }
 
-.settings-col-left {
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
+.settings-page-container {
+  padding: 30px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-.settings-col-right {
+.settings-content {
+  width: 100%;
+}
+
+.tab-pane {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 25px;
+  width: 100%;
+}
+
+.settings-section {
+  width: 100%;
+  padding: 25px;
+  border-radius: 16px;
 }
 
 /* Sub Form */
