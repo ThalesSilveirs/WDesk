@@ -66,9 +66,41 @@
           </div>
         </Transition>
 
+        <!-- Loading State -->
+        <div v-if="loadingList" class="loading-state glass-effect animate-in">
+          <div class="spinner"></div>
+          <p>Carregando clientes...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="filteredCustomers.length === 0" class="empty-state glass-effect animate-in">
+          <div class="empty-icon">
+            <SearchIcon v-if="hasActiveFilters || search.trim()" :size="40" />
+            <UsersIcon v-else :size="40" />
+          </div>
+          <template v-if="hasActiveFilters || search.trim()">
+            <h2>Nenhum resultado encontrado</h2>
+            <p>Nenhum cliente corresponde aos filtros ou termos de busca aplicados.</p>
+            <div class="empty-actions" style="margin-top: 15px;">
+              <button @click="clearFiltersAndSearch" class="btn-primary">
+                Limpar Filtros e Busca
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <h2>Nenhum cliente cadastrado</h2>
+            <p>Sua base de clientes está vazia. Comece adicionando seu primeiro cliente!</p>
+            <div class="empty-actions" style="margin-top: 15px;">
+              <button @click="openCreateModal" class="btn-primary">
+                <PlusIcon :size="18" /> Novo Cliente
+              </button>
+            </div>
+          </template>
+        </div>
+
         <!-- Visualização em Grade (Cards) -->
-        <div class="customers-grid" v-if="filteredCustomers.length > 0 && viewMode === 'grid'">
-          <div v-for="customer in filteredCustomers" :key="customer.id" class="customer-card glass-effect animate-in" :class="{ 'blocked-card': customer.is_blocked }">
+        <div class="customers-grid" v-else-if="viewMode === 'grid'">
+          <div v-for="customer in displayedCustomers" :key="customer.id" class="customer-card glass-effect animate-in" :class="{ 'blocked-card': customer.is_blocked }">
             <div class="card-header">
               <div class="avatar" :class="{ 'blocked-avatar': customer.is_blocked }">
                 {{ customer.name.charAt(0).toUpperCase() }}
@@ -118,7 +150,7 @@
         </div>
 
         <!-- Visualização em Tabela (List Table) -->
-        <div class="customers-list-view glass-effect animate-in" v-else-if="filteredCustomers.length > 0 && viewMode === 'list'">
+        <div class="customers-list-view glass-effect animate-in" v-else-if="viewMode === 'list'">
           <table class="customers-table">
             <thead>
               <tr>
@@ -133,7 +165,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="customer in filteredCustomers" :key="customer.id" :class="{ 'blocked-row': customer.is_blocked }">
+              <tr v-for="customer in displayedCustomers" :key="customer.id" :class="{ 'blocked-row': customer.is_blocked }">
                 <td>
                   <div class="table-name-cell">
                     <div class="table-avatar" :class="{ 'blocked-avatar': customer.is_blocked }">
@@ -177,14 +209,6 @@
               </tr>
             </tbody>
           </table>
-        </div>
-
-        <div v-else class="empty-state animate-in">
-          <div class="empty-icon">
-            <UsersIcon :size="64" />
-          </div>
-          <h2>Nenhum cliente encontrado</h2>
-          <p>Comece adicionando seu primeiro cliente no botão acima.</p>
         </div>
       </div>
     </main>
@@ -1133,6 +1157,9 @@ const formatDate = (dateStr) => {
   return dateStr
 }
 
+const loadingList = ref(true)
+const displayLimit = ref(30)
+
 const filteredCustomers = computed(() => {
   return customers.value.filter(c => {
     // 1. Filtro por texto de busca
@@ -1166,12 +1193,41 @@ const filteredCustomers = computed(() => {
   })
 })
 
+const displayedCustomers = computed(() => {
+  return filteredCustomers.value.slice(0, displayLimit.value)
+})
+
+const handleScroll = (e) => {
+  const el = e ? e.target : document.documentElement
+  if (!el) return
+  const scrollTop = el.scrollTop || window.scrollY
+  const scrollHeight = el.scrollHeight || document.documentElement.scrollHeight
+  const clientHeight = el.clientHeight || window.innerHeight
+
+  if (scrollTop + clientHeight >= scrollHeight - 300) {
+    if (displayLimit.value < filteredCustomers.value.length) {
+      displayLimit.value += 20
+    }
+  }
+}
+
+const clearFiltersAndSearch = () => {
+  search.value = ''
+  filterStatus.value = 'all'
+  filterType.value = 'all'
+  filterState.value = 'all'
+}
+
 const fetchCustomers = async () => {
+  loadingList.value = true
   try {
     const response = await axios.get(`/api/v1/customers/`)
     customers.value = response.data
+    displayLimit.value = 30
   } catch (e) {
     console.error("Erro ao buscar clientes", e)
+  } finally {
+    loadingList.value = false
   }
 }
 
@@ -1408,11 +1464,13 @@ const handleDocumentClick = (e) => {
 
 onMounted(() => {
   fetchCustomers()
-  window.addEventListener('click', handleDocumentClick)
+  document.addEventListener('click', handleDocumentClick)
+  window.addEventListener('scroll', handleScroll, { passive: true })
 })
 
 onUnmounted(() => {
-  window.removeEventListener('click', handleDocumentClick)
+  document.removeEventListener('click', handleDocumentClick)
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
