@@ -206,13 +206,55 @@
           </div>
         </div>
 
-        <!-- Ações de Pendência -->
+        <!-- Ações e Lista de Pendências em Aberto -->
         <div class="crm-section-card">
-          <h4 class="section-title">Pendências</h4>
-          <div class="crm-actions" style="margin-top: 5px;">
-            <button @click="emit('openCreatePendency')" class="btn-block-outline" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border-color: var(--accent); color: var(--accent);">
+          <div class="section-title-header">
+            <h4 class="section-title">Pendências em Aberto</h4>
+            <span v-if="openPendencies.length > 0" class="count-pill">{{ openPendencies.length }}</span>
+          </div>
+
+          <!-- Spinner/Loading -->
+          <div v-if="loadingPendencies" class="pendency-loading-state">
+            <span class="loading-spinner-sm"></span>
+            <span>Buscando pendências...</span>
+          </div>
+
+          <!-- Lista de Pendências -->
+          <div v-else-if="openPendencies.length > 0" class="customer-pendencies-list">
+            <div 
+              v-for="p in openPendencies" 
+              :key="p.id" 
+              class="pendency-item-card"
+              @click="goToPendenciesModule(p.id)"
+              title="Clique para ir ao módulo de pendências"
+            >
+              <div class="pendency-item-top">
+                <span class="pendency-code">#{{ p.id }}</span>
+                <span class="pendency-prio-badge" :class="p.priority">
+                  {{ p.priority === 'high' ? 'Alta' : (p.priority === 'medium' ? 'Média' : 'Baixa') }}
+                </span>
+              </div>
+              <h5 class="pendency-item-title">{{ p.title }}</h5>
+              <div class="pendency-item-footer" v-if="p.forecast_date || p.opening_date">
+                <ClockIcon :size="12" />
+                <span>Prev: {{ formatDateShort(p.forecast_date || p.opening_date) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensagem Vazia -->
+          <div v-else-if="chatStore.activeTicket?.customer_details" class="empty-pendencies-info">
+            Nenhuma pendência em aberto para este cliente.
+          </div>
+          <div v-else class="empty-pendencies-info">
+            Vincule um cliente para consultar pendências.
+          </div>
+
+          <!-- Botão para Criar Nova Pendência -->
+          <div class="crm-actions" style="margin-top: 10px;">
+            <button @click="emit('openCreatePendency')" class="btn-block-outline create-pendency-btn">
               <ClipboardListIcon :size="16" />
-              Criar Pendência do Chat
+              Criar Nova Pendência
             </button>
           </div>
         </div>
@@ -327,6 +369,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import { useChatStore } from '../../store/chat'
 import { 
   X as XIcon, 
@@ -337,7 +380,8 @@ import {
   FileText as FileTextIcon,
   MessageSquare as MessageSquareIcon,
   Languages as LanguagesIcon,
-  ClipboardList as ClipboardListIcon
+  ClipboardList as ClipboardListIcon,
+  Clock as ClockIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -353,6 +397,50 @@ const emit = defineEmits(['update:showCRM', 'openHistory', 'openCreatePendency']
 const router = useRouter()
 const chatStore = useChatStore()
 const loadingCRM = ref(false)
+
+// Estados de Pendências do Cliente
+const openPendencies = ref([])
+const loadingPendencies = ref(false)
+
+const fetchCustomerPendencies = async () => {
+  const customerId = chatStore.activeTicket?.customer_details?.id || chatStore.activeTicket?.customer
+  if (!customerId) {
+    openPendencies.value = []
+    return
+  }
+  
+  loadingPendencies.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const res = await axios.get(`/api/v1/pendencies/?customer=${customerId}&status=open`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    openPendencies.value = res.data.results || res.data || []
+  } catch (err) {
+    console.error('Erro ao buscar pendências do cliente:', err)
+    openPendencies.value = []
+  } finally {
+    loadingPendencies.value = false
+  }
+}
+
+watch(
+  () => [chatStore.activeTicket?.id, chatStore.activeTicket?.customer_details?.id],
+  () => {
+    fetchCustomerPendencies()
+  },
+  { immediate: true }
+)
+
+const formatDateShort = (isoStr) => {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
+const goToPendenciesModule = (pendencyId) => {
+  router.push('/pendencies')
+}
 
 // Estados de Edição do Contato
 const contactName = ref('')
@@ -1381,6 +1469,162 @@ const askCopilot = async () => {
   background: var(--border);
   color: var(--text-secondary);
   cursor: not-allowed;
+}
+
+.section-title-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.count-pill {
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.pendency-loading-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 10px 0;
+}
+
+.loading-spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin-loader 0.8s linear infinite;
+}
+
+@keyframes spin-loader {
+  to { transform: rotate(360deg); }
+}
+
+.customer-pendencies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.pendency-item-card {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pendency-item-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.pendency-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.pendency-code {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.pendency-prio-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.pendency-prio-badge.high {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.pendency-prio-badge.medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.pendency-prio-badge.low {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.pendency-item-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.pendency-item-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.empty-pendencies-info {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 10px 0;
+  text-align: center;
+  font-style: italic;
+}
+
+.create-pendency-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.create-pendency-btn:hover {
+  background: rgba(34, 181, 95, 0.1) !important;
+}
+
+/* Light Mode Overrides */
+:deep([data-theme='light']) .pendency-item-card,
+[data-theme='light'] .pendency-item-card {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+:deep([data-theme='light']) .pendency-item-card:hover,
+[data-theme='light'] .pendency-item-card:hover {
+  background: #f1f5f9 !important;
+  border-color: var(--accent) !important;
+}
+
+:deep([data-theme='light']) .pendency-item-title,
+[data-theme='light'] .pendency-item-title {
+  color: #0f172a !important;
 }
 
 /* Animations */
