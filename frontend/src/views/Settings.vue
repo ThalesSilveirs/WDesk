@@ -1,57 +1,124 @@
 <template>
   <div class="settings-page-container animate-fade-in">
+    <!-- Cabeçalho Principal -->
+    <header class="settings-header glass-effect">
+      <div class="header-info">
+        <h1>Configurações do Sistema</h1>
+        <p>Gerencie integrações, atalhos, horários de ausência e preferências de desempenho</p>
+      </div>
+
+      <!-- Barra de Abas de Navegação -->
+      <nav class="settings-tabs">
+        <button 
+          @click="activeSettingsTab = 'general'" 
+          :class="{ active: activeSettingsTab === 'general' }" 
+          class="tab-btn"
+        >
+          <ZapIcon :size="18" />
+          <span>Geral & Desempenho</span>
+        </button>
+
+        <button 
+          @click="activeSettingsTab = 'gateway'" 
+          :class="{ active: activeSettingsTab === 'gateway' }" 
+          class="tab-btn"
+        >
+          <ServerIcon :size="18" />
+          <span>Gateway WhatsApp</span>
+        </button>
+
+        <button 
+          @click="activeSettingsTab = 'replies'" 
+          :class="{ active: activeSettingsTab === 'replies' }" 
+          class="tab-btn"
+        >
+          <MessageIcon :size="18" />
+          <span>Respostas Rápidas</span>
+        </button>
+
+        <button 
+          @click="activeSettingsTab = 'schedule'" 
+          :class="{ active: activeSettingsTab === 'schedule' }" 
+          class="tab-btn"
+        >
+          <ClockIcon :size="18" />
+          <span>Horário de Atendimento</span>
+        </button>
+
+        <button 
+          @click="activeSettingsTab = 'webcal'" 
+          :class="{ active: activeSettingsTab === 'webcal' }" 
+          class="tab-btn"
+        >
+          <CalendarIcon :size="18" />
+          <span>Calendários iCal</span>
+        </button>
+
+        <button 
+          v-if="chatStore.userRole === 'admin'" 
+          @click="activeSettingsTab = 'danger'" 
+          :class="{ active: activeSettingsTab === 'danger' }" 
+          class="tab-btn danger-tab"
+        >
+          <AlertIcon :size="18" />
+          <span>Avançado & Sistema</span>
+        </button>
+      </nav>
+    </header>
 
     <main class="settings-content">
-
-      <div class="settings-grid">
-        <!-- Coluna Esquerda (Configurações) -->
-        <div class="settings-col-left">
-          <!-- Seção Modo de Desempenho / GPU -->
-          <section class="settings-section glass-effect">
-            <div class="section-header">
-              <ZapIcon :size="24" style="color: #f59e0b;" />
+      <!-- ABA 1: GERAL & DESEMPENHO -->
+      <div v-if="activeSettingsTab === 'general'" class="tab-pane animate-fade-in">
+        <section class="settings-section glass-effect">
+          <div class="section-header">
+            <ZapIcon :size="24" style="color: #f59e0b;" />
+            <div>
               <h2>Desempenho da Interface</h2>
+              <p class="section-desc">Otimizações visuais recomendadas para máquinas antigas ou celulares.</p>
             </div>
-            <p class="section-desc">Otimizações de renderização para computadores antigos ou com placas de vídeo limitadas.</p>
+          </div>
 
-            <div class="form-container">
-              <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; gap: 20px;">
-                <div>
-                  <label style="font-weight: 600; font-size: 1rem;">⚡ Modo de Alto Desempenho (Recomendado para PCs antigos / Core i5 1ª Ger)</label>
-                  <small style="display: block; margin-top: 4px;">Desativa efeitos visuais pesados (glassmorphism/blur e animações) para deixar o navegador ultra rápido.</small>
-                </div>
-                <input 
-                  type="checkbox" 
-                  v-model="performanceMode" 
-                  @change="togglePerformanceMode"
-                  style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--accent);"
-                />
+          <div class="form-container">
+            <div class="setting-row-card glass-effect">
+              <div class="setting-info">
+                <label class="setting-title">⚡ Modo de Alto Desempenho (Leve / PCs Antigos)</label>
+                <span class="setting-desc">Desativa efeitos visuais pesados (glassmorphism/blur e animações) deixando a navegação instantânea em processadores Core i5 de 1ª Ger ou RAM limitada.</span>
               </div>
+              <label class="switch-container">
+                <input type="checkbox" v-model="performanceMode" @change="togglePerformanceMode" />
+                <span class="switch-slider"></span>
+              </label>
             </div>
-          </section>
+          </div>
+        </section>
+      </div>
 
-          <!-- Seção Evolution API -->
-          <section class="settings-section glass-effect">
-            <div class="section-header">
-              <ZapIcon :size="24" class="icon-warning" />
+      <!-- ABA 2: GATEWAY WHATSAPP -->
+      <div v-if="activeSettingsTab === 'gateway'" class="tab-pane animate-fade-in">
+        <section class="settings-section glass-effect">
+          <div class="section-header">
+            <ServerIcon :size="24" style="color: #10b981;" />
+            <div>
               <h2>Evolution API (Evolution GO)</h2>
+              <p class="section-desc">Parâmetros globais de conexão com o servidor da Evolution API.</p>
             </div>
-            <p class="section-desc">Configure os parâmetros de conexão com o gateway do WhatsApp.</p>
+          </div>
 
-            <div class="form-container">
+          <div class="form-container">
+            <div class="grid-2">
               <div class="form-group">
-                <label>URL da API</label>
+                <label>URL Base da API *</label>
                 <input 
                   v-model="settings.evolution_api_url" 
                   type="text" 
-                  placeholder="Ex: http://seu-servidor:8080"
+                  placeholder="Ex: http://evolution-go:8080"
                   class="input-glass premium-input"
                 />
-                <small>Endereço base onde a Evolution API está rodando.</small>
+                <small>Endereço do container/servidor onde a Evolution API está operando.</small>
               </div>
 
               <div class="form-group">
-                <label>Chave de API (Global)</label>
+                <label>Chave Global de API (API Key) *</label>
                 <div class="input-with-icon">
                   <input 
                     :type="showKey ? 'text' : 'password'" 
@@ -59,138 +126,152 @@
                     placeholder="Sua Global API Key"
                     class="input-glass premium-input"
                   />
-                  <button @click="showKey = !showKey" class="icon-toggle">
+                  <button type="button" @click="showKey = !showKey" class="icon-toggle">
                     <EyeIcon v-if="!showKey" :size="18" />
                     <EyeOffIcon v-else :size="18" />
                   </button>
                 </div>
-                <small>Chave mestre para autenticação nas instâncias.</small>
+                <small>Chave mestre global informada no docker-compose.</small>
               </div>
+            </div>
 
-              <div class="form-group">
-                <label>Webhook Global (Somente Leitura)</label>
-                <div class="readonly-box">
-                  <code>{{ webhookUrl }}</code>
-                  <button @click="copyWebhook" class="copy-btn">
-                    <CopyIcon :size="16" />
-                  </button>
-                </div>
-                <small>Configure este endereço na Evolution API para receber eventos em tempo real.</small>
-              </div>
-
-              <div class="action-bar">
-                <button @click="saveSettings" class="btn-primary" :disabled="saving">
-                  <SaveIcon :size="20" />
-                  {{ saving ? 'Salvando...' : 'Salvar Configurações' }}
+            <div class="form-group" style="margin-top: 15px;">
+              <label>Webhook Global de Eventos</label>
+              <div class="readonly-box">
+                <code>{{ webhookUrl }}</code>
+                <button type="button" @click="copyWebhook" class="copy-btn" title="Copiar URL do Webhook">
+                  <CopyIcon :size="16" />
                 </button>
-                <span v-if="saveSuccess" class="success-msg animate-pop">Configurações salvas com sucesso!</span>
               </div>
+              <small>Cadastre este endereço na Evolution API para receber mensagens em tempo real.</small>
             </div>
-          </section>
 
-          <!-- Seção Respostas Rápidas -->
-          <section class="settings-section glass-effect">
-            <div class="section-header" style="justify-content: space-between; display: flex; align-items: center; width: 100%;">
-              <div style="display: flex; align-items: center; gap: 15px;">
-                <MessageIcon :size="24" style="color: #3b82f6;" />
-                <h2>Respostas Rápidas</h2>
-              </div>
-              <button v-if="!showReplyForm" @click="openNewReplyForm" class="btn-secondary-sm">
-                <PlusIcon :size="16" /> Nova Resposta
+            <div class="action-bar" style="margin-top: 25px;">
+              <button @click="saveSettings" class="btn-primary" :disabled="saving">
+                <SaveIcon :size="20" />
+                {{ saving ? 'Salvando...' : 'Salvar Alterações' }}
               </button>
+              <span v-if="saveSuccess" class="success-msg animate-pop">Configurações salvas com sucesso!</span>
             </div>
-            <p class="section-desc">Crie atalhos para responder mensagens comuns rapidamente.</p>
+          </div>
+        </section>
+      </div>
 
-            <!-- Form para Criar/Editar -->
-            <div v-if="showReplyForm" class="form-container sub-form glass-effect">
-              <h3>{{ editingReplyId ? 'Editar Resposta Rápida' : 'Nova Resposta Rápida' }}</h3>
-              <div class="form-group" style="margin-top: 15px;">
-                <label>Atalho (Sem a barra "/")</label>
+      <!-- ABA 3: RESPOSTAS RÁPIDAS -->
+      <div v-if="activeSettingsTab === 'replies'" class="tab-pane animate-fade-in">
+        <section class="settings-section glass-effect">
+          <div class="section-header" style="justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <MessageIcon :size="24" style="color: #3b82f6;" />
+              <div>
+                <h2>Respostas Rápidas</h2>
+                <p class="section-desc">Crie atalhos `/` para enviar textos pré-formatados durante o atendimento.</p>
+              </div>
+            </div>
+            <button v-if="!showReplyForm" @click="openNewReplyForm" class="btn-primary">
+              <PlusIcon :size="18" /> Nova Resposta
+            </button>
+          </div>
+
+          <!-- Formulário Criar/Editar -->
+          <div v-if="showReplyForm" class="form-container sub-form glass-effect" style="margin-top: 20px;">
+            <h3>{{ editingReplyId ? 'Editar Resposta Rápida' : 'Nova Resposta Rápida' }}</h3>
+            <div class="grid-2" style="margin-top: 15px;">
+              <div class="form-group">
+                <label>Atalho (Sem a barra "/") *</label>
                 <input 
                   v-model="replyForm.title" 
                   type="text" 
                   placeholder="Ex: bomdia"
                   class="input-glass premium-input"
                 />
-                <small>Digite a palavra-chave que acionará esta resposta (ex: /bomdia).</small>
+                <small>Acionador no chat (Exemplo: /bomdia).</small>
               </div>
               <div class="form-group">
-                <label>Conteúdo da Mensagem</label>
+                <label>Conteúdo da Mensagem *</label>
                 <textarea 
                   v-model="replyForm.body" 
-                  rows="4"
-                  placeholder="Ex: Olá, tudo bem? Como posso te ajudar hoje?"
+                  rows="3"
+                  placeholder="Ex: Olá! Como posso te ajudar hoje?"
                   class="input-glass premium-input"
                 />
               </div>
-              <div class="action-bar-sm">
-                <button @click="saveReply" class="btn-primary-sm" :disabled="savingReply">
-                  <CheckIcon :size="16" /> {{ savingReply ? 'Salvando...' : 'Salvar' }}
-                </button>
-                <button @click="closeReplyForm" class="btn-ghost-sm" :disabled="savingReply">
-                  Cancelar
-                </button>
-              </div>
             </div>
-
-            <!-- Tabela de Respostas Rápidas -->
-            <div v-else class="replies-table-container">
-              <div v-if="quickReplies.length === 0" class="empty-state">
-                Nenhuma resposta rápida cadastrada. Comece adicionando uma!
-              </div>
-              <table v-else class="premium-table">
-                <thead>
-                  <tr>
-                    <th>Atalho</th>
-                    <th>Mensagem</th>
-                    <th style="text-align: right;">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="reply in quickReplies" :key="reply.id">
-                    <td><span class="shortcut-badge">/{{ reply.title }}</span></td>
-                    <td class="reply-text-col" :title="reply.body">{{ reply.body }}</td>
-                    <td style="text-align: right;">
-                      <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                        <button @click="editReply(reply)" class="action-icon-btn edit" title="Editar">
-                          <EditIcon :size="16" />
-                        </button>
-                        <button @click="deleteReply(reply.id)" class="action-icon-btn delete" title="Apagar">
-                          <TrashIcon :size="16" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="action-bar-sm" style="margin-top: 15px; display: flex; gap: 10px;">
+              <button @click="saveReply" class="btn-primary" :disabled="savingReply">
+                <CheckIcon :size="18" /> {{ savingReply ? 'Salvando...' : 'Salvar Atalho' }}
+              </button>
+              <button @click="closeReplyForm" class="btn-secondary" :disabled="savingReply">
+                Cancelar
+              </button>
             </div>
-          </section>
+          </div>
 
-          <!-- Seção Horário de Ausência -->
-          <section class="settings-section glass-effect">
-            <div class="section-header">
-              <ClockIcon :size="24" style="color: #ef4444;" />
+          <!-- Tabela de Respostas -->
+          <div v-else class="replies-table-container" style="margin-top: 20px;">
+            <div v-if="quickReplies.length === 0" class="empty-state glass-effect">
+              Nenhuma resposta rápida cadastrada. Clique em "+ Nova Resposta" para criar.
+            </div>
+            <table v-else class="premium-table">
+              <thead>
+                <tr>
+                  <th>Atalho</th>
+                  <th>Conteúdo da Mensagem</th>
+                  <th style="text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="reply in quickReplies" :key="reply.id">
+                  <td><span class="shortcut-badge">/{{ reply.title }}</span></td>
+                  <td class="reply-text-col" :title="reply.body">{{ reply.body }}</td>
+                  <td style="text-align: right;">
+                    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                      <button @click="editReply(reply)" class="action-icon-btn edit" title="Editar">
+                        <EditIcon :size="16" />
+                      </button>
+                      <button @click="deleteReply(reply.id)" class="action-icon-btn delete" title="Apagar">
+                        <TrashIcon :size="16" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ABA 4: HORÁRIO DE ATENDIMENTO -->
+      <div v-if="activeSettingsTab === 'schedule'" class="tab-pane animate-fade-in">
+        <section class="settings-section glass-effect">
+          <div class="section-header">
+            <ClockIcon :size="24" style="color: #ef4444;" />
+            <div>
               <h2>Horário de Atendimento & Ausência</h2>
+              <p class="section-desc">Defina o expediente da equipe e ative a resposta automática fora do horário.</p>
             </div>
-            <p class="section-desc">Defina os horários de expediente e a mensagem automática de ausência da sua empresa.</p>
+          </div>
 
-            <div class="form-container">
-              <div class="form-group flex-row">
-                <label class="switch-container">
-                  <input type="checkbox" v-model="absence.enabled" />
-                  <span class="switch-slider"></span>
-                  <span class="switch-label">Enviar mensagem de ausência fora do expediente</span>
-                </label>
+          <div class="form-container">
+            <div class="setting-row-card glass-effect" style="margin-bottom: 20px;">
+              <div class="setting-info">
+                <label class="setting-title">Enviar Mensagem de Ausência Fora do Expediente</label>
+                <span class="setting-desc">Dispara uma mensagem automática quando um cliente entra em contato fora dos horários configurados abaixo.</span>
               </div>
+              <label class="switch-container">
+                <input type="checkbox" v-model="absence.enabled" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
 
+            <div class="grid-2">
               <div class="form-group">
-                <label>Fuso Horário</label>
-                <select v-model="absence.timezone" class="input-glass premium-input">
+                <label>Fuso Horário *</label>
+                <select v-model="absence.timezone" class="select-glass">
                   <option value="America/Sao_Paulo">Brasília (America/Sao_Paulo)</option>
                   <option value="America/Manaus">Manaus (America/Manaus)</option>
                   <option value="America/Fortaleza">Fortaleza (America/Fortaleza)</option>
                   <option value="America/New_York">New York (America/New_York)</option>
-                  <option value="Europe/London">London (Europe/London)</option>
                 </select>
               </div>
 
@@ -199,147 +280,167 @@
                 <textarea 
                   v-model="absence.message" 
                   rows="3"
-                  placeholder="Ex: Olá! No momento estamos fora do nosso horário de expediente..."
+                  placeholder="Ex: Olá! No momento estamos fora do nosso horário de atendimento..."
                   class="input-glass premium-input"
                 />
               </div>
+            </div>
 
-              <!-- Grade da Agenda Semanal -->
-              <div class="form-group">
-                <label>Horário de Expediente por Dia</label>
-                <div class="schedule-grid">
-                  <div 
-                    v-for="(day, index) in weekDays" 
-                    :key="index" 
-                    class="schedule-day-row"
-                    :class="{ inactive: !getDaySchedule(index).active }"
-                  >
-                    <div class="day-checkbox-label">
-                      <input 
-                        type="checkbox" 
-                        v-model="getDaySchedule(index).active"
-                      />
-                      <span>{{ day }}</span>
-                    </div>
-                    
-                    <div v-if="getDaySchedule(index).active" class="time-pickers">
-                      <input 
-                        type="time" 
-                        v-model="getDaySchedule(index).start"
-                        class="time-input"
-                      />
-                      <span class="time-separator">até</span>
-                      <input 
-                        type="time" 
-                        v-model="getDaySchedule(index).end"
-                        class="time-input"
-                      />
-                    </div>
-                    <div v-else class="day-closed-text">
-                      Fechado o dia todo
-                    </div>
+            <!-- Grade Semanal -->
+            <div class="form-group" style="margin-top: 20px;">
+              <label style="font-weight: 700; margin-bottom: 12px; display: block;">Horário de Expediente por Dia da Semana</label>
+              <div class="schedule-grid">
+                <div 
+                  v-for="(day, index) in weekDays" 
+                  :key="index" 
+                  class="schedule-day-row glass-effect"
+                  :class="{ inactive: !getDaySchedule(index).active }"
+                >
+                  <div class="day-checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      v-model="getDaySchedule(index).active"
+                      style="width: 18px; height: 18px; accent-color: var(--accent);"
+                    />
+                    <span style="font-weight: 600;">{{ day }}</span>
+                  </div>
+                  
+                  <div v-if="getDaySchedule(index).active" class="time-pickers">
+                    <input 
+                      type="time" 
+                      v-model="getDaySchedule(index).start"
+                      class="time-input input-glass"
+                    />
+                    <span class="time-separator">até</span>
+                    <input 
+                      type="time" 
+                      v-model="getDaySchedule(index).end"
+                      class="time-input input-glass"
+                    />
+                  </div>
+                  <div v-else class="day-closed-text">
+                    Fechado o dia todo
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div class="action-bar">
-                <button @click="saveAbsenceSettings" class="btn-primary" :disabled="savingAbsence">
-                  <SaveIcon :size="20" />
-                  {{ savingAbsence ? 'Salvando...' : 'Salvar Agenda e Mensagem' }}
-                </button>
-                <span v-if="saveAbsenceSuccess" class="success-msg animate-pop">Configurações salvas com sucesso!</span>
+            <div class="action-bar" style="margin-top: 25px;">
+              <button @click="saveAbsenceSettings" class="btn-primary" :disabled="savingAbsence">
+                <SaveIcon :size="20" />
+                {{ savingAbsence ? 'Salvando...' : 'Salvar Agenda e Ausência' }}
+              </button>
+              <span v-if="saveAbsenceSuccess" class="success-msg animate-pop">Agenda atualizada com sucesso!</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ABA 5: CALENDÁRIOS iCAL -->
+      <div v-if="activeSettingsTab === 'webcal'" class="tab-pane animate-fade-in">
+        <section class="settings-section glass-effect">
+          <div class="section-header" style="justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <CalendarIcon :size="24" style="color: #8b5cf6;" />
+              <div>
+                <h2>Feeds de Calendários (Webcal / iCal)</h2>
+                <p class="section-desc">Sincronize agendas do Google Calendar, Outlook ou Apple Calendar.</p>
               </div>
             </div>
-          </section>
+            <button v-if="!showFeedForm" @click="openNewFeedForm" class="btn-primary">
+              <PlusIcon :size="18" /> Novo Calendário
+            </button>
+          </div>
 
-          <!-- Seção Relatório de Pendências -->
-          <section class="settings-section glass-effect">
-            <div class="section-header">
-              <ClipboardIcon :size="24" style="color: var(--accent);" />
-              <h2>Relatório Diário de Pendências</h2>
-            </div>
-            <p class="section-desc">Defina o horário de envio automático e filtros de notificação para o WhatsApp dos atendentes.</p>
-
-            <div class="form-container">
+          <div v-if="showFeedForm" class="form-container sub-form glass-effect" style="margin-top: 20px;">
+            <h3>{{ editingFeedId ? 'Editar Calendário' : 'Novo Calendário Webcal' }}</h3>
+            <div class="grid-2" style="margin-top: 15px;">
               <div class="form-group">
-                <label>Horário de Envio Automático</label>
-                <input 
-                  v-model="settings.pendency_report_time" 
-                  type="time" 
-                  class="input-glass premium-input"
-                  style="max-width: 150px; font-family: monospace;"
-                />
-                <small>Horário em que a mensagem de relatório de pendências do dia será disparada automaticamente.</small>
+                <label>Nome do Calendário *</label>
+                <input v-model="feedForm.name" type="text" placeholder="Ex: Agenda de Reuniões" class="input-glass" />
               </div>
-
-              <div class="form-group flex-row">
-                <label class="switch-container">
-                  <input type="checkbox" v-model="settings.pendency_report_only_support" />
-                  <span class="switch-slider"></span>
-                  <span class="switch-label">Enviar apenas pendências com tipo de operação "Suporte"</span>
-                </label>
-              </div>
-
-              <div class="action-bar" style="margin-top: 30px;">
-                <button @click="saveSettings" class="btn-primary" :disabled="saving">
-                  <SaveIcon :size="20" />
-                  {{ saving ? 'Salvando...' : 'Salvar Relatório e Filtros' }}
-                </button>
+              <div class="form-group">
+                <label>URL do Feed (webcal:// ou https://...ics) *</label>
+                <input v-model="feedForm.url" type="text" placeholder="https://calendar.google.com/.../basic.ics" class="input-glass" />
               </div>
             </div>
-          </section>
+            <div class="action-bar-sm" style="margin-top: 15px; display: flex; gap: 10px;">
+              <button @click="saveFeed" class="btn-primary" :disabled="savingFeed">
+                <CheckIcon :size="18" /> {{ savingFeed ? 'Salvando...' : 'Salvar Feed' }}
+              </button>
+              <button @click="closeFeedForm" class="btn-secondary">Cancelar</button>
+            </div>
+          </div>
 
-        </div>
-
-        <!-- Coluna Direita (Status / Perigo) -->
-        <div class="settings-col-right">
-          <!-- Informações Adicionais -->
-          <section class="settings-section glass-effect info-card">
-            <div class="section-header">
-              <InfoIcon :size="24" class="icon-info" />
-              <h2>Status do Sistema</h2>
+          <div v-else class="feeds-list" style="margin-top: 20px;">
+            <div v-if="webcalFeeds.length === 0" class="empty-state glass-effect">
+              Nenhum feed de calendário adicionado.
             </div>
-            <div class="status-list">
-              <div class="status-item">
-                <span>Backend</span>
-                <span class="status-tag online">Online</span>
-              </div>
-              <div class="status-item">
-                <span>Realtime (Socket)</span>
-                <span class="status-tag online">Conectado</span>
-              </div>
-              <div class="status-item">
-                <span>Versão</span>
-                <span class="version-label">v1.2.0-stable</span>
-              </div>
-            </div>
-            <div class="help-box">
-              <p>Precisa de ajuda com a configuração? Consulte a documentação oficial da Evolution API ou contate o suporte.</p>
-            </div>
-          </section>
-
-          <!-- Zona de Perigo -->
-          <section v-if="chatStore.userRole === 'admin'" class="settings-section glass-effect danger-zone">
-            <div class="section-header">
-              <AlertIcon :size="24" class="icon-danger" />
-              <h2>Zona de Perigo</h2>
-            </div>
-            <p class="section-desc">Ações irreversíveis que afetam os dados da sua empresa.</p>
-            
-            <div class="danger-actions">
-              <div class="danger-item">
-                <div class="danger-text">
-                  <h3>Zerar Banco de Conversas</h3>
-                  <p>Apaga permanentemente todos os tickets e mensagens de todos os atendentes.</p>
+            <div v-else class="feeds-grid">
+              <div v-for="feed in webcalFeeds" :key="feed.id" class="feed-card glass-effect">
+                <div class="feed-info">
+                  <span class="feed-color-dot" :style="{ background: feed.color || '#3b82f6' }"></span>
+                  <strong>{{ feed.name }}</strong>
                 </div>
-                <button @click="triggerResetModal" class="btn-danger" :disabled="reseting">
-                  <TrashIcon :size="18" />
-                  {{ reseting ? 'Limpando...' : 'Zerar Agora' }}
-                </button>
+                <div class="feed-actions">
+                  <button @click="editFeed(feed)" class="action-icon-btn edit"><EditIcon :size="16" /></button>
+                  <button @click="deleteFeed(feed.id)" class="action-icon-btn delete"><TrashIcon :size="16" /></button>
+                </div>
               </div>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ABA 6: AVANÇADO & SISTEMA -->
+      <div v-if="activeSettingsTab === 'danger' && chatStore.userRole === 'admin'" class="tab-pane animate-fade-in">
+        <section class="settings-section glass-effect">
+          <div class="section-header">
+            <ServerIcon :size="24" style="color: #3b82f6;" />
+            <div>
+              <h2>Status e Diagnóstico do Sistema</h2>
+              <p class="section-desc">Conexão interna com microsserviços.</p>
+            </div>
+          </div>
+          <div class="status-grid-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div class="status-card glass-effect">
+              <span>Backend Django</span>
+              <strong class="status-tag online">ONLINE</strong>
+            </div>
+            <div class="status-card glass-effect">
+              <span>Servidor Realtime (Redis)</span>
+              <strong class="status-tag online">CONECTADO</strong>
+            </div>
+            <div class="status-card glass-effect">
+              <span>Versão do Sistema</span>
+              <strong>v1.2.0-stable</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- Zona de Perigo -->
+        <section class="settings-section glass-effect danger-zone" style="margin-top: 25px;">
+          <div class="section-header">
+            <AlertIcon :size="24" class="icon-danger" />
+            <div>
+              <h2>Zona de Perigo</h2>
+              <p class="section-desc">Ações de limpeza permanentes. Proceda com cautela.</p>
+            </div>
+          </div>
+
+          <div class="danger-actions" style="margin-top: 15px;">
+            <div class="danger-item glass-effect">
+              <div class="danger-text">
+                <h3>Zerar Histórico de Conversas</h3>
+                <p>Apaga permanentemente todos os tickets e mensagens enviadas de todos os atendentes.</p>
+              </div>
+              <button @click="triggerResetModal" class="btn-danger" :disabled="reseting">
+                <TrashIcon :size="18" />
+                {{ reseting ? 'Limpando...' : 'Zerar Banco de Conversas' }}
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
 
@@ -401,11 +502,14 @@ import {
   Check as CheckIcon,
   Pencil as EditIcon,
   Plus as PlusIcon,
-  ClipboardList as ClipboardIcon
+  ClipboardList as ClipboardIcon,
+  Server as ServerIcon,
+  Calendar as CalendarIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
 const chatStore = useChatStore()
+const activeSettingsTab = ref('general')
 const saving = ref(false)
 const reseting = ref(false)
 const saveSuccess = ref(false)
@@ -1256,5 +1360,113 @@ onMounted(() => {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* Estilos das Abas e Cards da UI de Configurações */
+.settings-header {
+  padding: 24px 30px;
+  border-radius: 16px;
+  margin-bottom: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.settings-header p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+  scrollbar-width: thin;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.tab-btn.danger-tab.active {
+  background: #ef4444;
+  border-color: #ef4444;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.setting-row-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.setting-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  display: block;
+}
+
+.setting-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: block;
+  line-height: 1.4;
+}
+
+.status-card {
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+}
+
+.status-card span {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.status-card strong {
+  font-size: 1rem;
+  color: var(--text-primary);
 }
 </style>
