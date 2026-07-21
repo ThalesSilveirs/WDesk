@@ -814,13 +814,31 @@ const handleScroll = () => {
 // Funções utilitárias
 const formatPhone = (phone) => {
   if (!phone) return ''
-  const clean = phone.replace(/\D/g, '')
-  if (clean.length === 11) {
-    return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7)}`
-  } else if (clean.length === 10) {
-    return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`
+  let nums = String(phone).replace(/\D/g, '')
+  if (nums.startsWith('55') && nums.length >= 12) {
+    nums = nums.substring(2)
   }
-  return phone
+  if (nums.length === 0) return ''
+  
+  if (nums.length <= 10) {
+    let formatted = '(' + nums.substring(0, 2)
+    if (nums.length > 2) {
+      formatted += ') ' + nums.substring(2, 6)
+    }
+    if (nums.length > 6) {
+      formatted += '-' + nums.substring(6, 10)
+    }
+    return formatted
+  } else {
+    let formatted = '(' + nums.substring(0, 2)
+    if (nums.length > 2) {
+      formatted += ') ' + nums.substring(2, 7)
+    }
+    if (nums.length > 7) {
+      formatted += '-' + nums.substring(7, 11)
+    }
+    return formatted
+  }
 }
 
 const formatDateTime = (isoString) => {

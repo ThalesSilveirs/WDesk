@@ -700,14 +700,14 @@
               
               <div class="contact-meta-details">
                 <span v-if="contact.phone" class="meta-item" title="Telefone Fixo">
-                  <PhoneIcon :size="12" /> {{ contact.phone }}
+                  <PhoneIcon :size="12" /> {{ formatPhone(contact.phone) }}
                 </span>
                 <span v-if="contact.cellphone" class="meta-item" title="Celular">
-                  <SmartphoneIcon :size="12" /> {{ contact.cellphone }}
+                  <SmartphoneIcon :size="12" /> {{ formatPhone(contact.cellphone) }}
                 </span>
                 <span v-if="contact.whatsapp" class="meta-item whatsapp" title="WhatsApp">
                   <svg class="whatsapp-icon-mini" viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 001.37 5.054L2 22l5.177-1.354a9.97 9.97 0 004.822 1.254h.008c5.502 0 9.985-4.477 9.986-9.984A10.002 10.002 0 0012.012 2zm5.835 14.16c-.25.706-1.443 1.293-1.99 1.347-.497.05-1.147.25-3.327-.655-2.79-1.157-4.59-4.004-4.73-4.188-.137-.184-1.116-1.48-1.116-2.825 0-1.344.706-2.003.955-2.27.25-.267.548-.334.73-.334.183 0 .365.003.523.01.162.008.38-.063.593.453.22.53.75 1.83.816 1.964.066.134.11.29.02.47-.09.18-.135.29-.27.447-.135.156-.285.348-.407.467-.136.133-.28.277-.12.553.16.276.71.1.2.98.67 1.05.6 1.486.9 1.286.3-.2.628-.26.928-.1.3.16 1.9.896 2.083.986.183.09.305.134.35.213.046.08.046.463-.204 1.17z"/></svg>
-                  {{ contact.whatsapp }}
+                  {{ formatPhone(contact.whatsapp) }}
                 </span>
                 <span v-if="contact.email" class="meta-item" title="E-mail">
                   <MailIcon :size="12" /> {{ contact.email }}
@@ -803,7 +803,7 @@
               </div>
               <div class="contact-details-mini">
                 <strong>{{ selectedCustomerForTicket?.name }} <span class="tag-main">Principal</span></strong>
-                <span>{{ selectedCustomerForTicket?.phone }}</span>
+                <span>{{ formatPhone(selectedCustomerForTicket?.phone) }}</span>
               </div>
             </div>
 
@@ -811,7 +811,7 @@
             <div 
               v-for="contact in selectedCustomerForTicket?.additional_contacts" 
               :key="contact.id" 
-              @click="confirmOpenTicket({ name: contact.name, phone: contact.phone })"
+              @click="confirmOpenTicket({ name: contact.name, phone: contact.phone || contact.whatsapp || contact.cellphone })"
               class="contact-select-item"
             >
               <div class="contact-avatar">
@@ -819,7 +819,7 @@
               </div>
               <div class="contact-details-mini">
                 <strong>{{ contact.name }}</strong>
-                <span>{{ contact.phone }}</span>
+                <span>{{ formatPhone(contact.phone || contact.whatsapp || contact.cellphone) }}</span>
               </div>
             </div>
           </div>
@@ -913,24 +913,31 @@ const formatCNPJ = (val) => {
 
 const formatPhone = (val) => {
   if (!val) return ''
-  const nums = val.replace(/\D/g, '')
-  let formatted = ''
-  if (nums.length > 0) {
-    formatted += '(' + nums.substring(0, 2)
+  let nums = String(val).replace(/\D/g, '')
+  if (nums.startsWith('55') && nums.length >= 12) {
+    nums = nums.substring(2)
   }
-  if (nums.length > 2) {
-    formatted += ') '
-    if (nums.length <= 10) {
-      formatted += nums.substring(2, 6)
-      if (nums.length > 6) {
-        formatted += '-' + nums.substring(6, 10)
-      }
-    } else {
-      formatted += nums.substring(2, 7)
+  if (nums.length === 0) return ''
+  
+  if (nums.length <= 10) {
+    let formatted = '(' + nums.substring(0, 2)
+    if (nums.length > 2) {
+      formatted += ') ' + nums.substring(2, 6)
+    }
+    if (nums.length > 6) {
+      formatted += '-' + nums.substring(6, 10)
+    }
+    return formatted
+  } else {
+    let formatted = '(' + nums.substring(0, 2)
+    if (nums.length > 2) {
+      formatted += ') ' + nums.substring(2, 7)
+    }
+    if (nums.length > 7) {
       formatted += '-' + nums.substring(7, 11)
     }
+    return formatted
   }
-  return formatted
 }
 
 // Busca e Auto-complete de Cidades

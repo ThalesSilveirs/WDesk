@@ -55,7 +55,7 @@
               </div>
               <div class="customer-info-mini">
                 <span class="name">{{ customer.name }}</span>
-                <span class="phone">{{ customer.phone }}</span>
+                <span class="phone">{{ formatPhone(customer.phone) }}</span>
               </div>
             </div>
             <div v-if="filteredCustomers.length === 0" class="no-customers">
@@ -101,6 +101,35 @@ import {
 } from 'lucide-vue-next'
 import axios from 'axios'
 
+const formatPhone = (val) => {
+  if (!val) return ''
+  let nums = String(val).replace(/\D/g, '')
+  if (nums.startsWith('55') && nums.length >= 12) {
+    nums = nums.substring(2)
+  }
+  if (nums.length === 0) return ''
+  
+  if (nums.length <= 10) {
+    let formatted = '(' + nums.substring(0, 2)
+    if (nums.length > 2) {
+      formatted += ') ' + nums.substring(2, 6)
+    }
+    if (nums.length > 6) {
+      formatted += '-' + nums.substring(6, 10)
+    }
+    return formatted
+  } else {
+    let formatted = '(' + nums.substring(0, 2)
+    if (nums.length > 2) {
+      formatted += ') ' + nums.substring(2, 7)
+    }
+    if (nums.length > 7) {
+      formatted += '-' + nums.substring(7, 11)
+    }
+    return formatted
+  }
+}
+
 const chatStore = useChatStore()
 const message = ref('')
 const search = ref('')
@@ -129,7 +158,7 @@ const filteredCustomers = computed(() => {
   const s = search.value.toLowerCase()
   return customers.value.filter(c => 
     c.name.toLowerCase().includes(s) || 
-    c.phone.includes(s)
+    (c.phone || '').includes(s)
   )
 })
 

@@ -442,24 +442,31 @@ const formatDocument = (customer) => {
 
 const formatPhone = (val) => {
   if (!val) return ''
-  const nums = val.replace(/\D/g, '')
-  let formatted = ''
-  if (nums.length > 0) {
-    formatted += '(' + nums.substring(0, 2)
+  let nums = String(val).replace(/\D/g, '')
+  if (nums.startsWith('55') && nums.length >= 12) {
+    nums = nums.substring(2)
   }
-  if (nums.length > 2) {
-    formatted += ') '
-    if (nums.length <= 10) {
-      formatted += nums.substring(2, 6)
-      if (nums.length > 6) {
-        formatted += '-' + nums.substring(6, 10)
-      }
-    } else {
-      formatted += nums.substring(2, 7)
+  if (nums.length === 0) return ''
+  
+  if (nums.length <= 10) {
+    let formatted = '(' + nums.substring(0, 2)
+    if (nums.length > 2) {
+      formatted += ') ' + nums.substring(2, 6)
+    }
+    if (nums.length > 6) {
+      formatted += '-' + nums.substring(6, 10)
+    }
+    return formatted
+  } else {
+    let formatted = '(' + nums.substring(0, 2)
+    if (nums.length > 2) {
+      formatted += ') ' + nums.substring(2, 7)
+    }
+    if (nums.length > 7) {
       formatted += '-' + nums.substring(7, 11)
     }
+    return formatted
   }
-  return formatted
 }
 
 const formatDateTime = (dateStr) => {
