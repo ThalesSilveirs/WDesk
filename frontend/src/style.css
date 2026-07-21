@@ -246,3 +246,31 @@ h1, h2, h3, .brand {
 .performance-mode img {
   content-visibility: auto;
 }
+
+/* ==========================================================================
+   OTIMIZAÇÕES PARA DISPOSITIVOS MÓVEIS (MOBILE)
+   ========================================================================== */
+@media (max-width: 768px) {
+  html, body, #app {
+    height: 100dvh !important;
+    overflow: hidden;
+  }
+
+  /* Previne zoom automático do Safari/iOS ao focar inputs */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Desativa blurs pesados automaticamente no mobile para preservar bateria/GPU */
+  .glass-effect,
+  .modal-overlay {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Ajuste de toque fácil para botões em telas sensíveis */
+  button, .btn-primary, .btn-secondary, .action-icon-btn {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+}
