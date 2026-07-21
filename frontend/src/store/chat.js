@@ -21,10 +21,19 @@ export const useChatStore = defineStore('chat', {
     quickReplies: [],
     notifyAll: localStorage.getItem('notifyAll') === 'true',
     hasMoreMessages: false,
-    loadingMore: false
+    loadingMore: false,
+    mobileMenuOpen: false
   }),
 
   actions: {
+    toggleMobileMenu() {
+      this.mobileMenuOpen = !this.mobileMenuOpen
+    },
+
+    closeMobileMenu() {
+      this.mobileMenuOpen = false
+    },
+
     toggleTheme() {
       this.theme = this.theme === 'dark' ? 'light' : 'dark'
       localStorage.setItem('theme', this.theme)

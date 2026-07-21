@@ -1,9 +1,18 @@
 <template>
-  <div class="sidebar-container">
+  <div class="sidebar-container" :class="{ 'mobile-open': chatStore.mobileMenuOpen }">
+    <!-- Overlay Escuro ao Abrir o Menu no Mobile -->
+    <Transition name="fade">
+      <div 
+        v-if="chatStore.mobileMenuOpen" 
+        class="sidebar-mobile-overlay" 
+        @click="chatStore.closeMobileMenu()"
+      ></div>
+    </Transition>
+
     <aside class="sidebar glass-effect">
       <!-- Brand Logo Header -->
       <div class="logo-section">
-        <router-link to="/">
+        <router-link to="/" @click="closeMobileMenu">
           <div class="logo-circle">
             <span class="logo-letter">W</span>
           </div>
@@ -257,7 +266,7 @@ const route = useRoute()
 const chatStore = useChatStore()
 
 const closeMobileMenu = () => {
-  document.documentElement.classList.remove('mobile-menu-open')
+  chatStore.closeMobileMenu()
 }
 
 const showHelpModal = ref(false)
@@ -1024,6 +1033,13 @@ onUnmounted(() => {
   margin-left: 12px;
 }
 
+.sidebar-mobile-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1999;
+}
+
 /* Responsiveness: Sidebar Lateral Retrátil no Mobile */
 @media (max-width: 768px) {
   .sidebar-container {
@@ -1039,8 +1055,8 @@ onUnmounted(() => {
     box-shadow: 10px 0 30px rgba(0,0,0,0.5);
   }
 
-  html.mobile-menu-open .sidebar-container {
-    transform: translateX(0);
+  .sidebar-container.mobile-open {
+    transform: translateX(0) !important;
   }
 
   .sidebar {

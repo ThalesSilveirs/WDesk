@@ -60,11 +60,10 @@ onMounted(() => {
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .app-layout {
-    flex-direction: column-reverse;
+    flex-direction: column;
   }
   .main-content-wrapper {
-    height: calc(100vh - 60px);
-    height: calc(100dvh - 60px);
+    height: 100dvh;
   }
 }
 </style>

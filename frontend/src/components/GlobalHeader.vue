@@ -196,7 +196,7 @@ const router = useRouter()
 const chatStore = useChatStore()
 
 const toggleMobileMenu = () => {
-  document.documentElement.classList.toggle('mobile-menu-open')
+  chatStore.toggleMobileMenu()
 }
 
 const showProfileMenu = ref(false)
