@@ -308,19 +308,20 @@ const fetchDashboardStats = async () => {
 }
 
 const verifyInstance = async () => {
-  if (!stats.value.connection?.id) {
-    alert("Nenhuma conexão WhatsApp cadastrada para verificar.")
-    return
-  }
   verifying.value = true
   try {
-    const response = await axios.post(`/api/v1/connections/${stats.value.connection.id}/sync_status/`, {})
-    alert(`Status atualizado: Instância ${response.data.status}`)
+    const response = await axios.get('/api/v1/connections/')
+    if (response.data && response.data.length > 0) {
+      const conn = response.data[0]
+      alert(`Instância "${conn.name}" (${conn.instance_name}) está com status: ${conn.status.toUpperCase()}`)
+    } else {
+      alert("Nenhuma conexão WhatsApp cadastrada.")
+    }
     await fetchDashboardStats()
   } catch (e) {
-    alert("Erro ao sincronizar status da instância.")
+    alert("Erro ao verificar o status da instância WhatsApp.")
   } finally {
-    verifying.value = null
+    verifying.value = false
   }
 }
 

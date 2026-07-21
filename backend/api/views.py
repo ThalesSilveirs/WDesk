@@ -1218,6 +1218,57 @@ class TicketViewSet(TenantModelViewSet):
             
         return Response(response_data)
 
+    @action(detail=False, methods=['get'])
+    def generate_report(self, request):
+        import csv
+        from django.http import HttpResponse
+        
+        company = request.user.company
+        tickets = Ticket.objects.filter(company=company).select_related('contact', 'contact__customer', 'user').order_by('-created_at')
+        
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="relatorio_atendimentos.csv"'
+        
+        writer = csv.writer(response, delimiter=';')
+        writer.writerow([
+            'ID Ticket', 
+            'Cliente / Razão Social', 
+            'Contato', 
+            'Telefone', 
+            'Status', 
+            'Prioridade', 
+            'Atendente Responsável', 
+            'Data de Abertura', 
+            'Última Atualização',
+            'Resolução'
+        ])
+        
+        status_map = {'open': 'Aberta', 'pending': 'Pendente', 'closed': 'Finalizada'}
+        priority_map = {'low': 'Baixa', 'medium': 'Média', 'high': 'Alta'}
+        
+        for ticket in tickets:
+          customer_name = ticket.contact.customer.name if (ticket.contact and ticket.contact.customer) else ''
+          contact_name = ticket.contact.name if ticket.contact else 'Sem Nome'
+          phone = ticket.contact.remote_jid.split('@')[0] if (ticket.contact and ticket.contact.remote_jid) else ''
+          attendant_name = (ticket.user.first_name or ticket.user.username) if ticket.user else 'Não atribuído'
+          created_str = ticket.created_at.strftime('%d/%m/%Y %H:%M') if ticket.created_at else ''
+          updated_str = ticket.updated_at.strftime('%d/%m/%Y %H:%M') if ticket.updated_at else ''
+          
+          writer.writerow([
+              ticket.id,
+              customer_name,
+              contact_name,
+              phone,
+              status_map.get(ticket.status, ticket.status),
+              priority_map.get(ticket.priority, ticket.priority),
+              attendant_name,
+              created_str,
+              updated_str,
+              ticket.resolution or ''
+          ])
+          
+        return response
+
     @action(detail=False, methods=['post'])
     def broadcast(self, request):
         message = request.data.get('message')
