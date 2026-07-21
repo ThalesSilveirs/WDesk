@@ -642,6 +642,7 @@ onMounted(() => {
   padding: 20px;
   gap: 16px;
   background: var(--bg-dark);
+  color: var(--text-primary);
 }
 
 .calendar-header {
@@ -673,7 +674,7 @@ onMounted(() => {
 .header-title-box h2 {
   font-size: 1.25rem;
   font-weight: 800;
-  color: white;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -684,9 +685,9 @@ onMounted(() => {
 }
 
 .icon-btn-glass {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--border);
-  color: white;
+  color: var(--text-primary);
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -698,14 +699,14 @@ onMounted(() => {
 }
 
 .icon-btn-glass:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border);
   transform: translateY(-1px);
 }
 
 .btn-today {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--border);
-  color: white;
+  color: var(--text-primary);
   padding: 6px 14px;
   border-radius: 10px;
   font-weight: 600;
@@ -721,7 +722,7 @@ onMounted(() => {
   display: flex;
   padding: 4px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--glass);
   border: 1px solid var(--border);
 }
 
@@ -739,7 +740,7 @@ onMounted(() => {
 
 .tab-btn.active {
   background: var(--accent);
-  color: white;
+  color: #ffffff;
   box-shadow: 0 2px 8px rgba(34, 181, 95, 0.3);
 }
 
@@ -747,9 +748,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--border);
-  color: white;
+  color: var(--text-primary);
   padding: 8px 16px;
   border-radius: 10px;
   font-weight: 600;
@@ -758,7 +759,7 @@ onMounted(() => {
 }
 
 .btn-sync:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border);
 }
 
 .btn-primary-v2 {
@@ -767,7 +768,7 @@ onMounted(() => {
   gap: 8px;
   background: var(--accent);
   border: none;
-  color: white;
+  color: #ffffff;
   padding: 8px 18px;
   border-radius: 10px;
   font-weight: 700;
@@ -779,6 +780,22 @@ onMounted(() => {
 .btn-primary-v2:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(34, 181, 95, 0.3);
+}
+
+.btn-secondary-v2 {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary-v2:hover {
+  background: var(--border);
 }
 
 /* Body Area */
@@ -839,7 +856,7 @@ onMounted(() => {
 
 .day-cell.is-today {
   border: 2px solid var(--accent);
-  background: rgba(34, 181, 95, 0.05);
+  background: rgba(34, 181, 95, 0.08);
 }
 
 .day-cell-header {
@@ -852,13 +869,14 @@ onMounted(() => {
 .day-number {
   font-weight: 700;
   font-size: 0.9rem;
-  color: white;
+  color: var(--text-primary);
 }
 
 .event-count-badge {
   font-size: 0.7rem;
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--glass);
+  border: 1px solid var(--border);
   padding: 2px 6px;
   border-radius: 10px;
   color: var(--text-secondary);
@@ -874,7 +892,7 @@ onMounted(() => {
 .event-chip {
   padding: 3px 8px;
   border-radius: 6px;
-  color: white;
+  color: #ffffff;
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
@@ -913,7 +931,7 @@ onMounted(() => {
 
 .week-column.is-today {
   border-color: var(--accent);
-  background: rgba(34, 181, 95, 0.05);
+  background: rgba(34, 181, 95, 0.08);
 }
 
 .week-column-header {
@@ -935,7 +953,7 @@ onMounted(() => {
 .week-day-num {
   font-size: 1.4rem;
   font-weight: 800;
-  color: white;
+  color: var(--text-primary);
 }
 
 .week-events-list {
@@ -946,7 +964,7 @@ onMounted(() => {
 }
 
 .week-event-card {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--glass);
   border: 1px solid var(--border);
   border-left-width: 4px;
   padding: 8px 10px;
@@ -956,7 +974,7 @@ onMounted(() => {
 }
 
 .week-event-card:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--border);
 }
 
 .evt-time {
@@ -968,7 +986,7 @@ onMounted(() => {
 .evt-card-title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin-top: 2px;
 }
 
@@ -1002,7 +1020,7 @@ onMounted(() => {
 .day-view-header h3 {
   font-size: 1.2rem;
   font-weight: 800;
-  color: white;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -1016,7 +1034,7 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 15px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--glass);
   border: 1px solid var(--border);
   border-left-width: 6px;
   padding: 16px;
@@ -1030,7 +1048,7 @@ onMounted(() => {
   gap: 6px;
   padding: 6px 12px;
   border-radius: 8px;
-  color: white;
+  color: #ffffff;
   font-size: 0.8rem;
   font-weight: 700;
   flex-shrink: 0;
@@ -1039,7 +1057,7 @@ onMounted(() => {
 .event-info-main h4 {
   font-size: 1rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin: 0 0 4px 0;
 }
 
@@ -1067,7 +1085,7 @@ onMounted(() => {
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -1082,6 +1100,7 @@ onMounted(() => {
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 24px;
+  color: var(--text-primary);
 }
 
 .small-modal {
@@ -1091,6 +1110,7 @@ onMounted(() => {
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 24px;
+  color: var(--text-primary);
 }
 
 .modal-header {
@@ -1100,10 +1120,14 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.modal-header h2 {
+  color: var(--text-primary);
+}
+
 .close-btn-round {
-  background: rgba(255, 255, 255, 0.05);
-  border: none;
-  color: white;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -1113,19 +1137,41 @@ onMounted(() => {
   justify-content: center;
 }
 
+.close-btn-round:hover {
+  background: var(--border);
+}
+
 .feed-form {
   padding: 16px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--glass);
   margin-bottom: 20px;
 }
 
 .feed-form h4 {
   font-size: 0.95rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin: 0 0 14px 0;
+}
+
+.form-group label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-group {
+  margin-bottom: 12px;
 }
 
 .color-picker-row {
@@ -1137,7 +1183,7 @@ onMounted(() => {
 .color-input {
   width: 36px;
   height: 36px;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
   background: transparent;
@@ -1182,7 +1228,7 @@ onMounted(() => {
   gap: 12px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--glass);
   border: 1px solid var(--border);
 }
 
@@ -1201,7 +1247,7 @@ onMounted(() => {
 
 .feed-item-info strong {
   font-size: 0.9rem;
-  color: white;
+  color: var(--text-primary);
 }
 
 .feed-url-text {
@@ -1223,14 +1269,14 @@ onMounted(() => {
 }
 
 .icon-btn-danger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(239, 68, 68, 0.15);
 }
 
 /* Details Modal */
 .event-source-badge {
   font-size: 0.75rem;
   font-weight: 700;
-  color: white;
+  color: #ffffff;
   padding: 3px 8px;
   border-radius: 6px;
   display: inline-block;
@@ -1247,7 +1293,7 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  color: white;
+  color: var(--text-primary);
 }
 
 .detail-icon {
@@ -1263,16 +1309,19 @@ onMounted(() => {
 
 .detail-row p {
   font-size: 0.95rem;
+  color: var(--text-primary);
   margin: 2px 0 0 0;
 }
 
 .description-text {
   white-space: pre-wrap;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--glass);
   padding: 10px;
   border-radius: 8px;
   border: 1px solid var(--border);
   max-height: 150px;
   overflow-y: auto;
+  color: var(--text-primary);
 }
 </style>
+
