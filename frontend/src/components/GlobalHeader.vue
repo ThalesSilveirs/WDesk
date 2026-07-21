@@ -863,18 +863,34 @@ onUnmounted(() => {
     padding: 12px 15px;
     height: auto;
     display: grid;
-    grid-template-columns: auto auto 1fr auto;
+    grid-template-columns: auto 1fr auto auto;
     grid-template-rows: auto auto;
-    gap: 12px;
+    gap: 8px 12px;
+    align-items: center;
   }
   
   .header-left, .header-right {
     display: contents;
   }
   
+  .mobile-menu-toggle-btn {
+    display: flex !important;
+    grid-row: 1;
+    grid-column: 1;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+
   .global-header h1 {
     grid-row: 1;
-    grid-column: 1 / span 3;
+    grid-column: 2 / span 2;
     font-size: 1.25rem;
     white-space: nowrap;
     overflow: hidden;
@@ -895,19 +911,19 @@ onUnmounted(() => {
 
   .status-dropdown {
     grid-row: 2;
-    grid-column: 1;
+    grid-column: 1 / span 2;
     align-self: center;
   }
 
   .notification-container {
     grid-row: 2;
-    grid-column: 2;
+    grid-column: 3;
     align-self: center;
   }
 
   .header-search {
     grid-row: 2;
-    grid-column: 3 / span 2;
+    grid-column: 4;
     display: flex !important;
     width: 100% !important;
     max-width: none !important;
@@ -926,33 +942,10 @@ onUnmounted(() => {
     display: none;
   }
 
-.mobile-menu-toggle-btn {
-  display: none;
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  align-items: center;
-  justify-content: center;
-}
-
-.mobile-menu-toggle-btn:hover {
-  background: var(--glass);
-}
-
-@media (max-width: 768px) {
-  .mobile-menu-toggle-btn {
-    display: flex !important;
-  }
-}
-
-.mobile-only-items {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 4px;
-}
+  .mobile-only-items {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
     margin-bottom: 4px;
   }
 }
