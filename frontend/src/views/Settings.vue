@@ -742,47 +742,26 @@ onMounted(() => {
 .settings-page-container {
   flex: 1;
   display: flex;
-  overflow: hidden;
+  flex-direction: column;
   height: 100%;
+  overflow-y: auto;
+  padding: 30px;
 }
 
-.danger-modal {
-  border-color: rgba(239, 68, 68, 0.3);
-  text-align: center;
-}
-
-.danger-modal h2 {
-  font-size: 1.4rem;
-  color: #ef4444;
-  margin-top: 15px;
-  margin-bottom: 10px;
-}
-
-.danger-modal p {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
+.settings-header {
+  padding: 24px 30px;
+  border-radius: 20px;
   margin-bottom: 25px;
-}
-
-.modal-actions-vertical {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
+  border: 1px solid var(--border);
 }
 
 .settings-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  padding: 40px;
-}
-
-.settings-header {
-  padding: 30px;
-  border-radius: 20px;
-  margin-bottom: 30px;
 }
 
 .header-title {
@@ -974,56 +953,20 @@ onMounted(() => {
 
 .btn-danger.block { width: 100%; justify-content: center; padding: 16px; }
 
+/* Modal de Perigo */
 .danger-modal {
-  max-width: 400px;
+  max-width: 440px;
   text-align: center;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-.danger-modal h2 { margin-bottom: 15px; }
-.danger-modal p { color: var(--text-secondary); margin-bottom: 30px; line-height: 1.6; }
+.danger-modal h2 { margin-bottom: 15px; font-size: 1.4rem; color: #ef4444; }
+.danger-modal p { color: var(--text-secondary); margin-bottom: 25px; line-height: 1.6; font-size: 0.9rem; }
 
 .modal-actions-vertical {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.btn-ghost {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-ghost:hover { background: rgba(255, 255, 255, 0.05); }
-
-.btn-ghost:hover { background: rgba(255, 255, 255, 0.05); }
-
-.settings-page-container {
-  padding: 30px;
-  max-width: 1100px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.settings-content {
-  width: 100%;
-}
-
-.tab-pane {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-  width: 100%;
-}
-
-.settings-section {
-  width: 100%;
-  padding: 25px;
-  border-radius: 16px;
 }
 
 /* Sub Form */
