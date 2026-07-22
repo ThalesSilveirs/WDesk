@@ -299,6 +299,7 @@ class Pendency(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='pendencies')
     contact = models.ForeignKey(Contact, on_delete=models.SET_NULL, null=True, blank=True, related_name='pendencies')
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_pendencies')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_pendencies')
     
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)

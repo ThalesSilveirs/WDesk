@@ -265,12 +265,14 @@ class PendencySerializer(serializers.ModelSerializer):
     customer_details = CustomerLightSerializer(source='customer', read_only=True)
     user_details = UserLightSerializer(source='user', read_only=True)
     contact_details = ContactLightSerializer(source='contact', read_only=True)
+    created_by_details = UserLightSerializer(source='created_by', read_only=True)
 
     class Meta:
         model = Pendency
         fields = '__all__'
         extra_kwargs = {
-            'company': {'read_only': True}
+            'company': {'read_only': True},
+            'created_by': {'read_only': True}
         }
 
     def create(self, validated_data):

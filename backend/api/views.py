@@ -1854,10 +1854,16 @@ class PendencyViewSet(TenantModelViewSet):
     queryset = Pendency.objects.all()
     serializer_class = PendencySerializer
 
+    def perform_create(self, serializer):
+        from tickets.tasks import send_pendency_created_whatsapp_notification
+        pendency = serializer.save(company=self.request.user.company, created_by=self.request.user)
+        if pendency.user and pendency.user != self.request.user:
+            send_pendency_created_whatsapp_notification.delay(pendency.id)
+
     def get_queryset(self):
         from django.db.models import Case, When, Value, IntegerField, Prefetch
         from tickets.models import PendencyMovement
-        qs = super().get_queryset().select_related('customer', 'contact', 'user')
+        qs = super().get_queryset().select_related('customer', 'contact', 'user', 'created_by')
 
         # Filtros
         customer_id = self.request.query_params.get('customer')

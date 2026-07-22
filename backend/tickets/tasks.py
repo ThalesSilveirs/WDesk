@@ -1156,4 +1156,88 @@ def send_daily_pendencies_reports(company_id=None):
                 print(f"[DAILY REPORT] Erro ao enviar relatório para {user.username}: {e}")
 
 
+@shared_task
+def send_pendency_created_whatsapp_notification(pendency_id):
+    from tickets.models import Pendency, Connection
+    from tickets.utils import get_evolution_token
+    from django.utils import timezone
+    from django.conf import settings
+    import requests
+    import re
+
+    try:
+        pendency = Pendency.objects.select_related('company', 'user', 'created_by', 'customer').get(id=pendency_id)
+    except Pendency.DoesNotExist:
+        print(f"[PENDENCY NOTIFICATION] Pendência {pendency_id} não encontrada.")
+        return
+
+    user = pendency.user
+    if not user or not user.whatsapp:
+        print(f"[PENDENCY NOTIFICATION] Usuário responsável não possui WhatsApp cadastrado.")
+        return
+
+    clean_number = re.sub(r'\D', '', user.whatsapp)
+    if not clean_number:
+        return
+
+    company = pendency.company
+    connection = Connection.objects.filter(company=company, status='connected').first()
+    if not connection:
+        connection = Connection.objects.filter(company=company).first()
+
+    if not connection:
+        print(f"[PENDENCY NOTIFICATION] Sem conexão WhatsApp para a empresa {company.name}")
+        return
+
+    creator_name = (pendency.created_by.first_name or pendency.created_by.username) if pendency.created_by else "Um usuário"
+    user_name = user.first_name or user.username
+    customer_name = pendency.customer.name if pendency.customer else "Não informado"
+    
+    priority_map = {
+        'high': 'Alta 🔴',
+        'medium': 'Média 🟡',
+        'low': 'Baixa 🔵'
+    }
+    priority_label = priority_map.get(pendency.priority, 'Média 🟡')
+
+    if pendency.forecast_date:
+        forecast_str = timezone.localtime(pendency.forecast_date).strftime('%d/%m/%Y às %H:%M')
+    else:
+        forecast_str = "Não informada"
+
+    msg = f"📌 *Nova Pendência Atribuída - WDesk*\n\n"
+    msg += f"Olá, *{user_name}*! Uma nova pendência foi atribuída a você por *{creator_name}*:\n\n"
+    msg += f"🔹 *Título:* {pendency.title}\n"
+    msg += f"🏢 *Cliente:* {customer_name}\n"
+    msg += f"🏷️ *Tipo:* {pendency.get_operation_type_display()}\n"
+    msg += f"⚡ *Prioridade:* {priority_label}\n"
+    msg += f"📅 *Previsão:* {forecast_str}\n"
+    if pendency.description:
+        msg += f"📝 *Descrição:* {pendency.description}\n"
+
+    try:
+        evo_token = get_evolution_token(connection.instance_name)
+        evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+
+        url = f"{evo_url}/send/text?apikey={evo_token}&instance={connection.instance_name}"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_token,
+            "Authorization": f"Bearer {evo_token}"
+        }
+        payload = {
+            "instance": connection.instance_name,
+            "number": clean_number,
+            "text": msg
+        }
+
+        res = requests.post(url, json=payload, headers=headers, timeout=10)
+        if res.status_code in [200, 201]:
+            print(f"[PENDENCY NOTIFICATION] Notificação enviada para {user.username} ({clean_number})")
+        else:
+            print(f"[PENDENCY NOTIFICATION] Falha ao enviar para {user.username}: {res.status_code} - {res.text}")
+    except Exception as e:
+        print(f"[PENDENCY NOTIFICATION] Erro ao enviar notificação para {user.username}: {e}")
+
+
 
