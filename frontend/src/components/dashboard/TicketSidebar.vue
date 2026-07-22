@@ -474,32 +474,28 @@ const formatTime = (dateStr) => {
 /* Filters Pills Row */
 .filters-pills-row {
   display: flex;
-  gap: 8px;
-  padding: 0 20px 16px 20px;
+  gap: 5px;
+  padding: 0 14px 14px 14px;
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none; /* Firefox */
-}
-
-.filters-pills-row::-webkit-scrollbar {
-  display: none; /* Safari and Chrome */
 }
 
 .pill-btn {
+  flex: 1;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
   color: var(--text-secondary);
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 0.82rem;
+  padding: 6px 4px;
+  border-radius: 12px;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  justify-content: center;
+  gap: 4px;
 }
 
 .pill-btn:hover {
@@ -516,9 +512,10 @@ const formatTime = (dateStr) => {
 .pill-badge {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text-secondary);
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 10px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
+  flex-shrink: 0;
 }
 
 .pill-badge.active {
