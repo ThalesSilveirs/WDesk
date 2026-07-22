@@ -81,7 +81,12 @@
           >
             <div class="day-cell-header">
               <span class="day-number">{{ dayObj.dayNumber }}</span>
-              <span v-if="dayObj.events.length > 0" class="event-count-badge">
+              <span 
+                v-if="dayObj.events.length > 0" 
+                class="event-count-badge"
+                @click.stop="openDayEventsModal(dayObj)"
+                title="Ver eventos do dia"
+              >
                 {{ dayObj.events.length }}
               </span>
             </div>
@@ -96,7 +101,12 @@
               >
                 <span class="evt-title">{{ evt.title }}</span>
               </div>
-              <div v-if="dayObj.events.length > 3" class="more-events-link">
+              <div 
+                v-if="dayObj.events.length > 3" 
+                class="more-events-link"
+                @click.stop="openDayEventsModal(dayObj)"
+                title="Ver todos os eventos deste dia"
+              >
                 +{{ dayObj.events.length - 3 }} mais
               </div>
             </div>
@@ -407,6 +417,61 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Modal 3: Lista de Eventos do Dia (para quando há vários eventos "+X mais") -->
+    <Transition name="modal-fade">
+      <div v-if="showDayEventsModal && selectedDayObj" class="modal-overlay" @click="showDayEventsModal = false">
+        <div class="modal-content medium-modal day-events-modal" @click.stop>
+          <div class="modal-header">
+            <div class="header-title-with-icon">
+              <CalendarIcon :size="22" />
+              <div>
+                <h2 style="margin: 0; font-size: 1.2rem;">Eventos do Dia</h2>
+                <p class="modal-subtitle">{{ formatDateTitle(selectedDayObj.date) }}</p>
+              </div>
+            </div>
+            <button @click="showDayEventsModal = false" class="close-btn-round" title="Fechar">
+              <XIcon :size="20" />
+            </button>
+          </div>
+
+          <div class="modal-body-wrapper" style="padding: 20px;">
+            <div class="modal-day-events-list">
+              <div 
+                v-for="evt in selectedDayObj.events" 
+                :key="evt.id || evt.uid" 
+                class="modal-event-item glass-effect"
+                :style="{ borderLeft: '4px solid ' + (evt.color || '#3b82f6') }"
+                @click="openEventDetailsFromDayModal(evt)"
+              >
+                <div class="modal-evt-header">
+                  <span class="modal-evt-time" :style="{ backgroundColor: evt.color || '#3b82f6' }">
+                    {{ evt.allDay ? 'Dia Inteiro' : formatEventTime(evt.start) }}
+                  </span>
+                  <span class="modal-evt-source">
+                    {{ evt.source === 'pendency' ? 'Pendência WDesk' : (evt.feed_name || 'WebCAL') }}
+                  </span>
+                </div>
+                <h4 class="modal-evt-title">{{ evt.title }}</h4>
+                <p v-if="evt.description" class="modal-evt-desc">{{ evt.description }}</p>
+                <p v-if="evt.location" class="modal-evt-location">
+                  <MapPinIcon :size="13" /> {{ evt.location }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer-actions" style="justify-content: space-between; padding: 15px 20px; border-top: 1px solid var(--border);">
+            <button @click="switchToDayView(selectedDayObj.date)" class="btn-secondary-v2">
+              <CalendarIcon :size="16" /> Ver na Visão Diária
+            </button>
+            <button @click="showDayEventsModal = false" class="btn-primary-v2">
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -447,6 +512,35 @@ const savingFeed = ref(false)
 
 const showFeedsModal = ref(false)
 const selectedEvent = ref(null)
+const showDayEventsModal = ref(false)
+const selectedDayObj = ref(null)
+
+const openDayEventsModal = (dayObj) => {
+  selectedDayObj.value = dayObj
+  showDayEventsModal.value = true
+}
+
+const openEventDetailsFromDayModal = (evt) => {
+  showDayEventsModal.value = false
+  openEventDetails(evt)
+}
+
+const switchToDayView = (date) => {
+  showDayEventsModal.value = false
+  currentDate.value = new Date(date)
+  viewMode.value = 'day'
+}
+
+const formatDateTitle = (date) => {
+  if (!date) return ''
+  const d = new Date(date)
+  return d.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
 
 const feedForm = ref({
   name: '',
@@ -1026,11 +1120,123 @@ onMounted(() => {
   text-overflow: ellipsis;
 }
 
+.event-count-badge {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.event-count-badge:hover {
+  transform: scale(1.15);
+}
+
 .more-events-link {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  color: #3b82f6;
+  font-weight: 700;
+  margin-top: 4px;
+  padding: 3px 8px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.more-events-link:hover {
+  background: rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+  transform: translateY(-1px);
+}
+
+.day-events-modal {
+  max-width: 550px;
+  width: 90%;
+}
+
+.modal-subtitle {
+  font-size: 0.85rem;
   color: var(--text-secondary);
-  font-weight: 600;
   margin-top: 2px;
+  text-transform: capitalize;
+}
+
+.header-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-day-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.modal-event-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-event-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateX(4px);
+}
+
+.modal-evt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-evt-time {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.modal-evt-source {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.modal-evt-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-evt-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.modal-evt-location {
+  font-size: 0.8rem;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
 }
 
 /* 2. Week View */
