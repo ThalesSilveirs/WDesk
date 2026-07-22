@@ -30,7 +30,7 @@
         </div>
       </header>
 
-      <div class="content-wrapper">
+      <div class="content-wrapper" ref="contentWrapperRef" @scroll="handleScroll">
         <!-- Barra de Filtros (CRM) - Expansível -->
         <Transition name="slide-fade">
           <div class="filters-container glass-effect" v-if="showFilters">
@@ -209,6 +209,20 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Footer de Paginação / Carregar Mais -->
+        <div v-if="filteredCustomers.length > 0" class="pagination-footer">
+          <p class="pagination-info">
+            Exibindo {{ displayedCustomers.length }} de {{ filteredCustomers.length }} clientes
+          </p>
+          <button 
+            v-if="displayLimit < filteredCustomers.length" 
+            @click="displayLimit += 30" 
+            class="btn-secondary btn-load-more"
+          >
+            Carregar mais clientes
+          </button>
         </div>
       </div>
     </main>
@@ -862,7 +876,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { 
@@ -889,6 +903,7 @@ import { useChatStore } from '../store/chat'
 
 const chatStore = useChatStore()
 const router = useRouter()
+const contentWrapperRef = ref(null)
 const customers = ref([])
 const search = ref('')
 const showModal = ref(false)
@@ -1198,18 +1213,22 @@ const displayedCustomers = computed(() => {
 })
 
 const handleScroll = (e) => {
-  const el = e ? e.target : document.documentElement
+  const el = e?.target || contentWrapperRef.value || document.documentElement
   if (!el) return
-  const scrollTop = el.scrollTop || window.scrollY
-  const scrollHeight = el.scrollHeight || document.documentElement.scrollHeight
-  const clientHeight = el.clientHeight || window.innerHeight
+  const scrollTop = el.scrollTop
+  const clientHeight = el.clientHeight
+  const scrollHeight = el.scrollHeight
 
-  if (scrollTop + clientHeight >= scrollHeight - 300) {
+  if (scrollHeight - (scrollTop + clientHeight) < 350) {
     if (displayLimit.value < filteredCustomers.value.length) {
-      displayLimit.value += 20
+      displayLimit.value += 30
     }
   }
 }
+
+watch([search, filterStatus, filterType, filterState], () => {
+  displayLimit.value = 30
+})
 
 const clearFiltersAndSearch = () => {
   search.value = ''
@@ -1465,12 +1484,16 @@ const handleDocumentClick = (e) => {
 onMounted(() => {
   fetchCustomers()
   document.addEventListener('click', handleDocumentClick)
-  window.addEventListener('scroll', handleScroll, { passive: true })
+  if (contentWrapperRef.value) {
+    contentWrapperRef.value.addEventListener('scroll', handleScroll, { passive: true })
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick)
-  window.removeEventListener('scroll', handleScroll)
+  if (contentWrapperRef.value) {
+    contentWrapperRef.value.removeEventListener('scroll', handleScroll)
+  }
 })
 </script>
 
@@ -2640,5 +2663,35 @@ onUnmounted(() => {
   .tabs-nav {
     padding-bottom: 5px;
   }
+}
+
+.pagination-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 0 10px 0;
+  width: 100%;
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.btn-load-more {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-load-more:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
 }
 </style>
