@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tickets', '0018_pendency_pendencyimage'),
+        ('tickets', '0026_message_tickets_mes_ticket__810624_idx_and_more'),
     ]
 
     operations = [
