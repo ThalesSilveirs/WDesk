@@ -3,6 +3,8 @@
     <Sidebar />
     
     <div class="main-content-wrapper">
+      <GlobalHeader />
+      
       <!-- Main Router View with Page Transitions -->
       <div class="page-content-wrapper">
         <router-view v-slot="{ Component }">
@@ -22,6 +24,7 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useChatStore } from '../store/chat'
 import Sidebar from './Sidebar.vue'
+import GlobalHeader from './GlobalHeader.vue'
 import BroadcastModal from './dashboard/BroadcastModal.vue'
 
 const chatStore = useChatStore()

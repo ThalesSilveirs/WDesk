@@ -376,6 +376,10 @@ onUnmounted(() => {
   z-index: 999; /* Ensure notifications dropdown is above content */
 }
 
+.mobile-menu-toggle-btn {
+  display: none;
+}
+
 .header-left {
   display: flex;
   align-items: center;
