@@ -2,7 +2,7 @@
   <!-- Unified Global Header Bar -->
   <header class="global-header glass-effect">
     <div class="header-left">
-      <button @click="toggleMobileMenu" class="mobile-menu-toggle-btn" title="Menu principal">
+      <button @click.stop="toggleMobileMenu" class="mobile-menu-toggle-btn" title="Menu principal">
         <MenuIcon :size="22" />
       </button>
       <h1>{{ pageTitle }}</h1>
@@ -864,74 +864,74 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .global-header {
-    padding: 12px 15px;
+    padding: 10px 14px;
     height: auto;
-    display: grid;
-    grid-template-columns: auto 1fr auto auto;
-    grid-template-rows: auto auto;
-    gap: 8px 12px;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    z-index: 1000;
   }
   
-  .header-left, .header-right {
-    display: contents;
+  .header-left {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .header-right {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
   }
   
   .mobile-menu-toggle-btn {
     display: flex !important;
-    grid-row: 1;
-    grid-column: 1;
-    background: none;
-    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
     color: var(--text-primary);
     cursor: pointer;
-    padding: 6px;
-    border-radius: 8px;
+    padding: 8px;
+    border-radius: 10px;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 100;
+    pointer-events: auto;
+    touch-action: manipulation;
   }
 
-  .global-header h1 {
-    grid-row: 1;
-    grid-column: 2 / span 2;
+  .header-left h1 {
     font-size: 1.25rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%;
-    align-self: center;
     margin: 0;
+    flex: 1;
+    min-width: 0;
   }
 
   .profile-dropdown-container {
-    grid-row: 1;
-    grid-column: 4;
-    justify-self: end;
-    align-self: center;
+    margin-left: auto;
     border-left: none !important;
     padding-left: 0 !important;
   }
 
   .status-dropdown {
-    grid-row: 2;
-    grid-column: 1 / span 2;
-    align-self: center;
+    flex-shrink: 0;
   }
 
   .notification-container {
-    grid-row: 2;
-    grid-column: 3;
-    align-self: center;
+    flex-shrink: 0;
   }
 
   .header-search {
-    grid-row: 2;
-    grid-column: 4;
     display: flex !important;
-    width: 100% !important;
+    flex: 1 !important;
     max-width: none !important;
-    align-self: center;
   }
 
   .status-btn span.status-text-label {

@@ -1,5 +1,5 @@
 <template>
-  <div class="sidebar-container" :class="{ 'mobile-open': chatStore.mobileMenuOpen }">
+  <div class="sidebar-wrapper">
     <!-- Overlay Escuro ao Abrir o Menu no Mobile -->
     <Transition name="fade">
       <div 
@@ -9,7 +9,8 @@
       ></div>
     </Transition>
 
-    <aside class="sidebar glass-effect">
+    <div class="sidebar-container" :class="{ 'mobile-open': chatStore.mobileMenuOpen }">
+      <aside class="sidebar glass-effect">
       <!-- Brand Logo Header -->
       <div class="logo-section">
         <router-link to="/" @click="closeMobileMenu">
@@ -236,6 +237,7 @@
         </div>
       </div>
     </Transition>
+    </div>
   </div>
 </template>
 
@@ -1036,7 +1038,12 @@ onUnmounted(() => {
 .sidebar-mobile-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 1999;
 }
 
