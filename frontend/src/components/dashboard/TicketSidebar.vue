@@ -99,19 +99,19 @@
         </span>
       </button>
       <button 
-        class="pill-btn" 
-        :class="{ active: chatStore.currentFilter === 'closed' }"
-        @click="selectFilter('closed')"
-      >
-        Fechados
-      </button>
-      <button 
         v-if="chatStore.userRole === 'admin'"
         class="pill-btn" 
         :class="{ active: chatStore.currentFilter === 'all' }"
         @click="selectFilter('all')"
       >
         Abertos
+      </button>
+      <button 
+        class="pill-btn" 
+        :class="{ active: chatStore.currentFilter === 'closed' }"
+        @click="selectFilter('closed')"
+      >
+        Fechados
       </button>
     </div>
 
@@ -499,6 +499,7 @@ const formatTime = (dateStr) => {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .pill-btn:hover {
