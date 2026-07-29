@@ -62,6 +62,11 @@
           <span class="nav-label-mobile">Métricas</span>
         </router-link>
 
+        <router-link to="/connections" class="nav-link-item" active-class="active" data-tooltip="Conexões WhatsApp" @click="closeMobileMenu">
+          <WifiIcon :size="20" />
+          <span class="nav-label-mobile">Conexões</span>
+        </router-link>
+
         <router-link v-if="chatStore.userRole === 'admin'" to="/settings" class="nav-link-item" active-class="active" data-tooltip="Configurações" @click="closeMobileMenu">
           <SettingsIcon :size="20" />
           <span class="nav-label-mobile">Configurações</span>
@@ -260,7 +265,8 @@ import {
   LogOut as LogOutIcon,
   Search as SearchIcon,
   Bell as BellIcon,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Wifi as WifiIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()

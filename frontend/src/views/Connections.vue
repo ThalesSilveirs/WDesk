@@ -39,10 +39,16 @@
               <QrCodeIcon :size="18" />
               {{ loadingQR === conn.id ? 'Gerando...' : 'Gerar QR Code' }}
             </button>
-            <button v-else @click="disconnect(conn.id)" class="btn-action danger">
-              <LogOutIcon :size="18" />
-              Desconectar
-            </button>
+            <div v-else class="connected-actions">
+              <button @click="getQRCode(conn)" class="btn-action secondary" :disabled="loadingQR === conn.id" title="Reconectar ou Gerar QR Code">
+                <QrCodeIcon :size="18" />
+                {{ loadingQR === conn.id ? 'Gerando...' : 'Gerar QR Code' }}
+              </button>
+              <button @click="disconnect(conn.id)" class="btn-action danger">
+                <LogOutIcon :size="18" />
+                Desconectar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -152,7 +158,9 @@ import {
   X as XIcon,
   Loader as LoaderIcon,
   RefreshCw as RefreshIcon,
-  Zap as ZapIcon
+  Zap as ZapIcon,
+  LogOut as LogOutIcon,
+  MessageCircle as MessageCircleIcon
 } from 'lucide-vue-next'
 import axios from 'axios'
 
@@ -350,6 +358,12 @@ onUnmounted(() => {
   text-align: center;
 }
 
+.connected-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
 .btn-action {
   width: 100%;
   padding: 12px;
@@ -365,6 +379,7 @@ onUnmounted(() => {
 }
 
 .btn-action.primary { background: var(--accent); color: white; }
+.btn-action.secondary { background: rgba(255, 255, 255, 0.08); color: var(--text-primary, #fff); border: 1px solid var(--border, rgba(255, 255, 255, 0.15)); }
 .btn-action.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
 .btn-action:hover { transform: translateY(-2px); }
 

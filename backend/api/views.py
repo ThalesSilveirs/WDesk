@@ -1339,46 +1339,72 @@ class ConnectionViewSet(TenantModelViewSet):
     def connect(self, request, pk=None):
         connection = self.get_object()
         creds = self.get_evo_creds(connection.company)
-        # Envia de todas as formas possíveis para garantir autenticação na Evolution GO
+        from tickets.utils import get_evolution_token, redis_client
+        evo_token = get_evolution_token(connection.instance_name, force_refresh=True) or creds['key']
+
         headers = {
-            "apikey": creds['key'],
-            "ApiKey": creds['key'],
-            "api-key": creds['key'],
-            "Authorization": f"Bearer {creds['key']}",
+            "apikey": evo_token,
+            "ApiKey": evo_token,
+            "api-key": evo_token,
+            "Authorization": f"Bearer {evo_token}",
             "Content-Type": "application/json"
         }
         
-        # 1. Inicia a conexão (POST /instance/connect?apikey=...)
-        url_connect = f"{creds['url']}/instance/connect?apikey={creds['key']}"
-        payload = {"name": connection.instance_name}
-        
+        def fetch_qr(token_to_use):
+            url_qr = f"{creds['url']}/instance/qr?instanceName={connection.instance_name}"
+            for attempt in range(8):
+                time.sleep(1.5)
+                try:
+                    res = requests.get(url_qr, headers={"apikey": token_to_use})
+                    print(f"DEBUG QR TRY attempt {attempt+1}: {res.status_code}")
+                    if res.status_code == 200:
+                        return res
+                except Exception as e:
+                    print(f"DEBUG QR TRY ERR: {e}")
+            return None
+
         try:
-            # Tenta iniciar a conexão
+            # 1. Inicia a conexão (POST /instance/connect)
+            url_connect = f"{creds['url']}/instance/connect"
+            payload = {"name": connection.instance_name}
             res_connect = requests.post(url_connect, json=payload, headers=headers)
             print(f"DEBUG CONNECT: {url_connect} -> {res_connect.status_code} {res_connect.text}")
             
-            # Tenta múltiplos formatos de URL para o QR Code (Query params e Path)
-            urls_to_try = [
-                f"{creds['url']}/instance/qr?instanceName={connection.instance_name}&apikey={creds['key']}",
-                f"{creds['url']}/instance/qr?instance={connection.instance_name}&apikey={creds['key']}",
-                f"{creds['url']}/instance/qr/{connection.instance_name}"
-            ]
-            
-            response = None
-            for url_qr in urls_to_try:
+            response = fetch_qr(evo_token)
+
+            # Se não obteve QR Code (instância em estado travado), recria a instância na Evolution API
+            if not response or response.status_code != 200:
+                print(f"[CONNECT] QR Code não gerado. Recriando instância '{connection.instance_name}' na Evolution API...")
+                headers_global = {"apikey": creds['key'], "Content-Type": "application/json"}
                 try:
-                    res = requests.get(url_qr, headers=headers)
-                    print(f"DEBUG QR TRY: {url_qr} -> {res.status_code}")
-                    if res.status_code == 200:
-                        response = res
-                        break
-                except:
-                    continue
+                    res_all = requests.get(f"{creds['url']}/instance/all", headers=headers_global, timeout=5)
+                    if res_all.status_code == 200:
+                        instances = res_all.json().get('data', [])
+                        target = next((i for i in instances if i.get('name') == connection.instance_name), None)
+                        if target and target.get('id'):
+                            requests.delete(f"{creds['url']}/instance/delete/{target['id']}", headers=headers_global, timeout=5)
+                except Exception as ex_del:
+                    print(f"[CONNECT] Erro ao deletar instância antiga: {ex_del}")
+
+                # Criar com novo token
+                new_token = str(uuid.uuid4())
+                res_create = requests.post(
+                    f"{creds['url']}/instance/create",
+                    json={"name": connection.instance_name, "token": new_token},
+                    headers=headers_global,
+                    timeout=10
+                )
+                if res_create.status_code in [200, 201]:
+                    evo_token = new_token
+                    redis_client.delete(f"evo_token_{connection.instance_name}")
+                    headers_inst = {"apikey": new_token, "Content-Type": "application/json"}
+                    requests.post(url_connect, json=payload, headers=headers_inst, timeout=5)
+                    response = fetch_qr(new_token)
 
             if response and response.status_code == 200:
                 data = response.json()
-                qrcode = data.get('base64') or \
-                         data.get('code') or \
+                qrcode = data.get('code') or \
+                         data.get('base64') or \
                          data.get('qrcode') or \
                          data.get('qrcode', {}).get('base64')
                 
