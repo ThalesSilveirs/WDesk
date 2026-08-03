@@ -89,6 +89,12 @@ class ContactNestedSerializer(serializers.ModelSerializer):
         model = Contact
         fields = '__all__'
 
+class CustomerLightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['id', 'name']
+
+
 class CustomerSerializer(serializers.ModelSerializer):
     additional_contacts = serializers.SerializerMethodField()
     city_relationship_details = CitySerializer(source='city_relationship', read_only=True)
@@ -110,14 +116,6 @@ class ContactSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'company': {'read_only': True}
         }
-
-
-class ContactListSerializer(serializers.ModelSerializer):
-    customer_details = CustomerLightSerializer(source='customer', read_only=True)
-    class Meta:
-        model = Contact
-        fields = ['id', 'name', 'remote_jid', 'cellphone', 'email', 'profile_pic', 'customer', 'customer_details']
-
 
     def to_internal_value(self, data):
         if hasattr(data, 'copy'):
@@ -164,6 +162,13 @@ class ContactListSerializer(serializers.ModelSerializer):
                             })
                     attrs['remote_jid'] = generated_jid
         return attrs
+
+
+class ContactListSerializer(serializers.ModelSerializer):
+    customer_details = CustomerLightSerializer(source='customer', read_only=True)
+    class Meta:
+        model = Contact
+        fields = ['id', 'name', 'remote_jid', 'cellphone', 'email', 'profile_pic', 'customer', 'customer_details']
 
 class CustomerContactSerializer(ContactSerializer):
     pass
@@ -225,12 +230,6 @@ class AbsenceScheduleSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'company': {'read_only': True}
         }
-
-
-class CustomerLightSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Customer
-        fields = ['id', 'name']
 
 
 class UserLightSerializer(serializers.ModelSerializer):
