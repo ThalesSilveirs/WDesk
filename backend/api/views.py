@@ -24,6 +24,7 @@ from .serializers import (
     AbsenceScheduleSerializer,
     CitySerializer,
     PendencySerializer,
+    PendencyListSerializer,
     PendencyMovementSerializer,
     WebcalFeedSerializer
 )
@@ -414,7 +415,7 @@ class TicketViewSet(TenantModelViewSet):
         before_id = request.query_params.get('before')
         limit = int(request.query_params.get('limit', 50))
         
-        queryset = Message.objects.filter(ticket=ticket).order_by('-timestamp')
+        queryset = Message.objects.filter(ticket=ticket).select_related('user', 'ticket', 'ticket__contact').prefetch_related('reactions').order_by('-timestamp')
         
         if before_id:
             try:
@@ -1896,6 +1897,11 @@ class PendencyViewSet(TenantModelViewSet):
     queryset = Pendency.objects.all()
     serializer_class = PendencySerializer
 
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return PendencyListSerializer
+        return PendencySerializer
+
     def perform_create(self, serializer):
         from tickets.tasks import send_pendency_created_whatsapp_notification
         pendency = serializer.save(company=self.request.user.company, created_by=self.request.user)
@@ -1903,9 +1909,19 @@ class PendencyViewSet(TenantModelViewSet):
             send_pendency_created_whatsapp_notification.delay(pendency.id)
 
     def get_queryset(self):
-        from django.db.models import Case, When, Value, IntegerField, Prefetch
+        from django.db.models import Case, When, Value, IntegerField, Prefetch, Q
         from tickets.models import PendencyMovement
         qs = super().get_queryset().select_related('customer', 'contact', 'user', 'created_by')
+
+        # Filtro de Busca textual
+        search_query = self.request.query_params.get('search')
+        if search_query:
+            qs = qs.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(customer__name__icontains=search_query) |
+                Q(contact__name__icontains=search_query)
+            )
 
         # Filtros
         customer_id = self.request.query_params.get('customer')

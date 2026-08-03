@@ -186,8 +186,8 @@ class TicketSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_last_messages(self, obj):
-        # Limita para as últimas 10 mensagens para evitar sobrecarga na listagem/detalhes
-        messages = obj.messages.order_by('-timestamp')[:10]
+        # Limita para as últimas 10 mensagens otimizando consultas SQL (select_related / prefetch_related)
+        messages = obj.messages.select_related('user', 'ticket', 'ticket__contact').prefetch_related('reactions').order_by('-timestamp')[:10]
         return MessageSerializer(reversed(messages), many=True, context=self.context).data
 
 class TicketListSerializer(serializers.ModelSerializer):
@@ -243,6 +243,12 @@ class PendencyImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'image', 'created_at']
 
 
+class PendencyImageListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PendencyImage
+        fields = ['id', 'created_at']
+
+
 class PendencyMovementSerializer(serializers.ModelSerializer):
     user_details = UserLightSerializer(source='user', read_only=True)
 
@@ -274,6 +280,24 @@ class PendencySerializer(serializers.ModelSerializer):
             'company': {'read_only': True},
             'created_by': {'read_only': True}
         }
+
+
+class PendencyListSerializer(serializers.ModelSerializer):
+    images = PendencyImageListSerializer(many=True, read_only=True)
+    movements = PendencyMovementSerializer(many=True, read_only=True)
+    customer_details = CustomerLightSerializer(source='customer', read_only=True)
+    user_details = UserLightSerializer(source='user', read_only=True)
+    contact_details = ContactLightSerializer(source='contact', read_only=True)
+    created_by_details = UserLightSerializer(source='created_by', read_only=True)
+
+    class Meta:
+        model = Pendency
+        fields = '__all__'
+        extra_kwargs = {
+            'company': {'read_only': True},
+            'created_by': {'read_only': True}
+        }
+
 
     def create(self, validated_data):
         uploaded_images = validated_data.pop('uploaded_images', [])
