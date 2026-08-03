@@ -114,7 +114,7 @@ class CustomerListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'fantasy_name', 'cpf_cnpj', 'phone', 'email', 'client_type', 'city_relationship_details']
+        fields = ['id', 'name', 'fantasy_name', 'cnpj', 'cpf', 'phone', 'email', 'city_relationship_details']
         extra_kwargs = {
             'company': {'read_only': True}
         }
