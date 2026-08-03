@@ -16,6 +16,7 @@ from .serializers import (
     MessageSerializer,
     MyTokenObtainPairSerializer,
     CustomerSerializer,
+    CustomerListSerializer,
     CustomerContactSerializer,
     ContactSerializer,
     ContactListSerializer,
@@ -62,6 +63,14 @@ class TenantModelViewSet(viewsets.ModelViewSet):
 class CustomerViewSet(TenantModelViewSet):
     queryset = Customer.objects.all().order_by('name')
     serializer_class = CustomerSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return CustomerListSerializer
+        return CustomerSerializer
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('city_relationship')
 
     @action(detail=True, methods=['post'])
     def open_ticket(self, request, pk=None):

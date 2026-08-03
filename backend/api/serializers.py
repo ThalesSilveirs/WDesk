@@ -108,6 +108,18 @@ class CustomerSerializer(serializers.ModelSerializer):
     def get_additional_contacts(self, obj):
         return ContactNestedSerializer(obj.contacts.all(), many=True, context=self.context).data
 
+
+class CustomerListSerializer(serializers.ModelSerializer):
+    city_relationship_details = CitySerializer(source='city_relationship', read_only=True)
+
+    class Meta:
+        model = Customer
+        fields = ['id', 'name', 'fantasy_name', 'cpf_cnpj', 'phone', 'email', 'client_type', 'city_relationship_details']
+        extra_kwargs = {
+            'company': {'read_only': True}
+        }
+
+
 class ContactSerializer(serializers.ModelSerializer):
     customer_details = CustomerSerializer(source='customer', read_only=True)
     class Meta:
