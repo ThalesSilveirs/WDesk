@@ -23,8 +23,13 @@ axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      const chatStore = useChatStore()
-      chatStore.logout()
+      try {
+        const chatStore = useChatStore(pinia)
+        chatStore.logout()
+      } catch (e) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('role')
+      }
       if (router.currentRoute.value.path !== '/login') {
         router.push('/login')
       }
@@ -45,7 +50,7 @@ app.use(pinia)
 app.use(router)
 
 // Inicializar data-theme a partir do store
-const chatStore = useChatStore()
-document.documentElement.setAttribute('data-theme', chatStore.theme)
+const chatStore = useChatStore(pinia)
+document.documentElement.setAttribute('data-theme', chatStore.theme || 'dark')
 
 app.mount('#app')

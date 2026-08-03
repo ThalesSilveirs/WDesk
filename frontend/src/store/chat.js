@@ -1,3 +1,5 @@
+import { defineStore } from 'pinia'
+
 let globalAudioCtx = null
 
 export const useChatStore = defineStore('chat', {
