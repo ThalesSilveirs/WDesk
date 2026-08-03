@@ -245,13 +245,7 @@ def process_webhook_event(self, connection_id, payload):
                     redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
                 continue
             
-            # Salva em arquivo para diagnóstico
-            try:
-                log_dir = "/home/thalessilveirs/WDesk/backend"
-                with open(os.path.join(log_dir, 'webhook_structure.json'), 'w') as f:
-                    json.dump({'full_data': dict(data), 'msg_item': msg_item}, f, indent=2, default=str)
-            except Exception as e:
-                pass
+
             
             # Busca exaustiva pelo corpo da mensagem
             body = message_content.get('conversation') or \

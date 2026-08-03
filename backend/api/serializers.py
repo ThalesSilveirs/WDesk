@@ -64,10 +64,30 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status', 'whatsapp', 'avatar')
+        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status', 'whatsapp', 'avatar', 'password')
+        extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
     def get_status(self, obj):
         return get_cached_user_status(obj.id)
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        user = User(**validated_data)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 class ConnectionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -218,7 +238,7 @@ class TicketSerializer(serializers.ModelSerializer):
 class TicketListSerializer(serializers.ModelSerializer):
     contact_details = ContactSerializer(source='contact', read_only=True)
     attendant_details = UserSerializer(source='user', read_only=True)
-    customer_details = CustomerSerializer(source='contact.customer', read_only=True)
+    customer_details = CustomerLightSerializer(source='contact.customer', read_only=True)
 
     class Meta:
         model = Ticket

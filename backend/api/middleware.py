@@ -21,13 +21,8 @@ class UpdateLastActivityMiddleware:
                     redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
                     self.r = redis.Redis.from_url(redis_url)
                 
-                status_key = f"user_status_{user_id}"
-                status_bytes = self.r.get(status_key)
-                status = status_bytes.decode('utf-8') if status_bytes else None
-                
-                if status != 'offline':
-                    key = f"user_active_{user_id}"
-                    self.r.setex(key, 60, int(timezone.now().timestamp()))
+                key = f"user_active_{user_id}"
+                self.r.setex(key, 60, int(timezone.now().timestamp()))
             except Exception as e:
                 print(f"Error recording user activity in Redis: {e}")
 

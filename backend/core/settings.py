@@ -74,8 +74,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
+db_config = env.db('DATABASE_URL', default=f"postgres://{env('DB_USER', default='postgres')}:{env('DB_PASSWORD', default='postgres')}@{env('DB_HOST', default='db')}:{env('DB_PORT', default='5432')}/{env('DB_NAME', default='whatsapp_saas')}")
+db_config['CONN_MAX_AGE'] = 60
+
 DATABASES = {
-    'default': env.db('DATABASE_URL', default=f"postgres://{env('DB_USER', default='postgres')}:{env('DB_PASSWORD', default='postgres')}@{env('DB_HOST', default='db')}:{env('DB_PORT', default='5432')}/{env('DB_NAME', default='whatsapp_saas')}")
+    'default': db_config
 }
 
 AUTH_USER_MODEL = 'tickets.User'

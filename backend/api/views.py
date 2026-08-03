@@ -10,6 +10,7 @@ except ImportError:
 
 from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement, WebcalFeed
 from .serializers import (
+    UserSerializer,
     TicketSerializer, 
     TicketListSerializer,
     ConnectionSerializer, 
@@ -136,24 +137,24 @@ class CustomerViewSet(TenantModelViewSet):
             contact.customer = customer
             contact.save()
 
-        # Reutiliza ticket aberto existente se houver para não duplicar
-        ticket = Ticket.objects.filter(
-            company=request.user.company,
-            contact=contact,
-            status__in=['open', 'pending']
-        ).order_by('-id').first()
-
-        if not ticket:
-            ticket = Ticket.objects.create(
+        with transaction.atomic():
+            ticket = Ticket.objects.select_for_update().filter(
                 company=request.user.company,
                 contact=contact,
-                user=request.user,
-                status='open'
-            )
-        else:
-            if not ticket.user:
-                ticket.user = request.user
-                ticket.save()
+                status__in=['open', 'pending']
+            ).order_by('-id').first()
+
+            if not ticket:
+                ticket = Ticket.objects.create(
+                    company=request.user.company,
+                    contact=contact,
+                    user=request.user,
+                    status='open'
+                )
+            else:
+                if not ticket.user:
+                    ticket.user = request.user
+                    ticket.save()
         
         return Response(TicketSerializer(ticket).data)
 
@@ -200,12 +201,12 @@ class ContactViewSet(TenantModelViewSet):
 
     def perform_update(self, serializer):
         contact = serializer.save()
-        tickets = Ticket.objects.filter(contact=contact, status__in=['open', 'pending'])
+        tickets = Ticket.objects.filter(contact=contact, status__in=['open', 'pending']).select_related('contact', 'contact__customer', 'user')
         for ticket in tickets:
             event_payload = {
                 "company_id": str(ticket.company.id),
                 "type": "ticket_updated",
-                "payload": TicketSerializer(ticket).data
+                "payload": TicketListSerializer(ticket).data
             }
             from django.core.serializers.json import DjangoJSONEncoder
             try:
@@ -313,11 +314,12 @@ class TicketViewSet(TenantModelViewSet):
         
         if limit:
             try:
-                queryset = queryset[:int(limit)]
+                queryset = queryset[:min(int(limit), 200)]
             except ValueError:
-                pass
-        elif status_filter == 'closed':
-            queryset = queryset[:200]  # Limite padrão de segurança
+                queryset = queryset[:100]
+        else:
+            default_cap = 200 if status_filter == 'closed' else 100
+            queryset = queryset[:default_cap]
             
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
@@ -408,18 +410,15 @@ class TicketViewSet(TenantModelViewSet):
 
         # Notificar Realtime via Redis Pub/Sub
         try:
-            import redis
-            import json
-            r = redis.Redis(host='redis', port=6379, db=0)
-            from .serializers import MessageSerializer
+            from django.core.serializers.json import DjangoJSONEncoder
             serializer = MessageSerializer(message)
-            r.publish(
-                f"company_{ticket.company.id}_chats",
+            redis_client.publish(
+                "company_events",
                 json.dumps({
+                    "company_id": str(ticket.company.id),
                     "type": "new_message",
-                    "ticket_id": ticket.id,
-                    "message": serializer.data
-                })
+                    "payload": serializer.data
+                }, cls=DjangoJSONEncoder)
             )
         except Exception as redis_err:
             print(f"[SYSTEM SEND] Erro ao notificar Redis: {str(redis_err)}")
@@ -838,7 +837,7 @@ class TicketViewSet(TenantModelViewSet):
         tickets_with_times = Ticket.objects.filter(company=company).annotate(
             first_client_time=Subquery(first_client_msg_ts),
             first_agent_time=Subquery(first_agent_msg_ts)
-        ).exclude(first_client_time__isnull=True).exclude(first_agent_time__isnull=True).values('first_client_time', 'first_agent_time')
+        ).exclude(first_client_time__isnull=True).exclude(first_agent_time__isnull=True).order_by('-id').values('first_client_time', 'first_agent_time')[:100]
 
         total_seconds = 0
         counted_tickets = 0
@@ -1324,35 +1323,7 @@ class TicketViewSet(TenantModelViewSet):
         
         return Response({"status": "Broadcast iniciado", "target_count": len(customer_phones)})
 
-    @action(detail=False, methods=['get'])
-    def generate_report(self, request):
-        import csv
-        from django.http import HttpResponse
-        
-        company = request.user.company
-        tickets = Ticket.objects.filter(company=company).order_by('-created_at')
-        
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="tickets_report.csv"'
-        
-        writer = csv.writer(response)
-        writer.writerow(['Ticket ID', 'Cliente', 'WhatsApp/JID', 'Status', 'Prioridade', 'Atendente', 'Assunto', 'Resolução', 'Criado em', 'Atualizado em'])
-        
-        for t in tickets:
-            writer.writerow([
-                t.id,
-                t.contact.name or '',
-                t.contact.remote_jid,
-                t.get_status_display(),
-                t.get_priority_display(),
-                f"{t.user.first_name} {t.user.last_name}" if t.user else 'Não atribuído',
-                t.subject or '',
-                t.resolution or '',
-                t.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                t.updated_at.strftime('%Y-%m-%d %H:%M:%S')
-            ])
-            
-        return response
+
 
 class ConnectionViewSet(TenantModelViewSet):
     queryset = Connection.objects.all()
@@ -1730,33 +1701,7 @@ class WebhookView(viewsets.ViewSet):
         process_webhook_event.delay(connection.id, data)
         return Response({"status": "queued"}, status=200)
 
-class UserSerializer(serializers.ModelSerializer):
-    status = serializers.SerializerMethodField()
 
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'password', 'department', 'status', 'whatsapp', 'avatar']
-        extra_kwargs = {'password': {'write_only': True}}
-
-    def get_status(self, obj):
-        try:
-            from api.serializers import get_cached_user_status
-            return get_cached_user_status(obj.id)
-        except Exception:
-            return "Offline"
-
-    def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
-        return user
-
-    def update(self, instance, validated_data):
-        password = validated_data.pop('password', None)
-        if password:
-            instance.set_password(password)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
 
 class UserViewSet(TenantModelViewSet):
     queryset = User.objects.all()
@@ -1981,8 +1926,13 @@ class PendencyViewSet(TenantModelViewSet):
             )
         ).order_by('priority_order', 'forecast_date')
 
+        if self.action == 'list':
+            images_prefetch = Prefetch('images', queryset=PendencyImage.objects.only('id', 'created_at', 'pendency_id'))
+        else:
+            images_prefetch = 'images'
+
         return qs.prefetch_related(
-            'images',
+            images_prefetch,
             Prefetch('movements', queryset=PendencyMovement.objects.select_related('user'))
         )
 
@@ -2038,10 +1988,25 @@ class WebcalFeedViewSet(viewsets.ModelViewSet):
         user = request.user
         all_events = []
 
-        # 1. Buscar feeds WebCAL ativos
+        # 1. Buscar feeds WebCAL ativos (com cache Redis de 15 min por feed)
         feeds = WebcalFeed.objects.filter(company=user.company, is_active=True)
         for feed in feeds:
-            feed_events = fetch_and_parse_webcal(feed.url)
+            cache_key = f"webcal_feed_events_{feed.id}"
+            feed_events = None
+            try:
+                cached_json = redis_client.get(cache_key)
+                if cached_json:
+                    feed_events = json.loads(cached_json.decode('utf-8'))
+            except Exception:
+                feed_events = None
+
+            if feed_events is None:
+                feed_events = fetch_and_parse_webcal(feed.url)
+                try:
+                    redis_client.setex(cache_key, 900, json.dumps(feed_events))
+                except Exception:
+                    pass
+
             for evt in feed_events:
                 evt['feed_id'] = feed.id
                 evt['feed_name'] = feed.name
