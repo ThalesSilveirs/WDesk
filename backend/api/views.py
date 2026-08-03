@@ -1403,17 +1403,27 @@ class ConnectionViewSet(TenantModelViewSet):
 
             if response and response.status_code == 200:
                 data = response.json()
-                qrcode = data.get('code') or \
-                         data.get('base64') or \
+                inner_data = data.get('data', {}) if isinstance(data.get('data'), dict) else data
+                qrcode = inner_data.get('qrcode') or \
+                         inner_data.get('base64') or \
                          data.get('qrcode') or \
-                         data.get('qrcode', {}).get('base64')
+                         data.get('base64')
                 
+                if not qrcode and inner_data.get('code'):
+                    qrcode = inner_data.get('code')
+                elif not qrcode and data.get('code'):
+                    qrcode = data.get('code')
+
                 if qrcode:
-                    if qrcode.startswith('iVBOR'): qrcode = f"data:image/png;base64,{qrcode}"
-                    connection.qrcode = qrcode
-                    connection.status = 'connecting'
-                    connection.save()
-                    return Response({"qrcode": qrcode, "status": connection.status})
+                    if isinstance(qrcode, dict):
+                        qrcode = qrcode.get('base64') or qrcode.get('code') or qrcode.get('qrcode')
+                    if isinstance(qrcode, str):
+                        if qrcode.startswith('iVBOR'):
+                            qrcode = f"data:image/png;base64,{qrcode}"
+                        connection.qrcode = qrcode
+                        connection.status = 'connecting'
+                        connection.save()
+                        return Response({"qrcode": qrcode, "status": connection.status})
                 
                 return Response({"error": "QR Code ainda não disponível. Tente novamente em instantes.", "data": data}, status=400)
             
