@@ -52,8 +52,14 @@
         <button class="action-btn" @click="chatStore.showBroadcastModal = true" title="Nova Transmissão">
           <PlusIcon :size="18" />
         </button>
-        <button class="action-btn" title="Visualização em Grade">
-          <LayoutGridIcon :size="18" />
+        <button 
+          class="action-btn" 
+          @click="chatStore.toggleLayoutMode" 
+          :title="chatStore.layoutMode === 'grid' ? 'Visualização em Lista' : 'Visualização em Grade'"
+          :class="{ active: chatStore.layoutMode === 'grid' }"
+        >
+          <LayoutListIcon v-if="chatStore.layoutMode === 'grid'" :size="18" />
+          <LayoutGridIcon v-else :size="18" />
         </button>
         <button class="action-btn" title="Filtrar Conversas">
           <FilterIcon :size="18" />
@@ -116,8 +122,8 @@
     </div>
 
     <!-- Unified Ticket List -->
-    <div class="ticket-list" v-if="chatStore.loading && activeTabTickets.length === 0">
-      <div v-for="n in 6" :key="'skel-' + n" class="ticket-skeleton-item">
+    <div class="ticket-list" :class="{ 'grid-layout': chatStore.layoutMode === 'grid' }" v-if="chatStore.loading && activeTabTickets.length === 0">
+      <div v-for="n in 6" :key="'skel-' + n" class="ticket-skeleton-item" :class="{ 'grid-item': chatStore.layoutMode === 'grid' }">
         <div class="skeleton-avatar"></div>
         <div class="skeleton-details">
           <div class="skeleton-line short"></div>
@@ -126,12 +132,15 @@
       </div>
     </div>
 
-    <div class="ticket-list" v-else-if="activeTabTickets.length > 0">
+    <div class="ticket-list" :class="{ 'grid-layout': chatStore.layoutMode === 'grid' }" v-else-if="activeTabTickets.length > 0">
       <div 
         v-for="ticket in activeTabTickets" 
         :key="ticket.id"
         class="ticket-item"
-        :class="{ active: chatStore.activeTicket?.id === ticket.id }"
+        :class="{ 
+          active: chatStore.activeTicket?.id === ticket.id,
+          'grid-item': chatStore.layoutMode === 'grid'
+        }"
         @click="chatStore.selectTicket(ticket)"
       >
         <!-- Left vertical active bar indicators -->
@@ -208,6 +217,7 @@ import { formatDateOrTime } from '../../utils/formatters'
 import {
   Plus as PlusIcon,
   LayoutGrid as LayoutGridIcon,
+  LayoutList as LayoutListIcon,
   Filter as FilterIcon,
   Search as SearchIcon,
   MessageSquare as MessageSquareIcon,
@@ -933,6 +943,114 @@ const activeTabTickets = computed(() => {
   0% { opacity: 0.4; }
   50% { opacity: 0.8; }
   100% { opacity: 0.4; }
+}
+
+/* Grid Layout Styles */
+.ticket-list.grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  align-content: start;
+}
+
+.ticket-item.grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  gap: 8px;
+  position: relative;
+  transition: all 0.2s ease;
+  border-bottom: none;
+  contain-intrinsic-size: 140px;
+}
+
+.ticket-item.grid-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ticket-item.grid-item.active {
+  background: rgba(34, 181, 95, 0.08);
+  border-color: var(--accent);
+}
+
+.ticket-item.grid-item.active .active-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: auto;
+  width: 100%;
+  height: 3px;
+  opacity: 1;
+  border-radius: 3px 3px 0 0;
+}
+
+.ticket-item.grid-item .ticket-info {
+  align-items: center;
+  width: 100%;
+  text-align: center;
+}
+
+.ticket-item.grid-item .top-row {
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 2px;
+  gap: 2px;
+}
+
+.ticket-item.grid-item .top-row .time {
+  font-size: 0.72rem;
+  opacity: 0.6;
+}
+
+.ticket-item.grid-item .bottom-row {
+  justify-content: center;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.ticket-item.grid-item .last-msg {
+  text-align: center;
+  font-size: 0.78rem;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-item.grid-item .unread-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  margin: 0;
+}
+
+.ticket-item.grid-item .attendant-label {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+.ticket-skeleton-item.grid-item {
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border-bottom: none;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+}
+
+.ticket-skeleton-item.grid-item .skeleton-details {
+  align-items: center;
+  width: 100%;
 }
 
 @media (max-width: 768px) {

@@ -26,10 +26,16 @@ export const useChatStore = defineStore('chat', {
     notifyAll: localStorage.getItem('notifyAll') === 'true',
     hasMoreMessages: false,
     loadingMore: false,
-    mobileMenuOpen: false
+    mobileMenuOpen: false,
+    layoutMode: localStorage.getItem('layoutMode') || 'list'
   }),
 
   actions: {
+    toggleLayoutMode() {
+      this.layoutMode = this.layoutMode === 'list' ? 'grid' : 'list'
+      localStorage.setItem('layoutMode', this.layoutMode)
+    },
+
     toggleMobileMenu() {
       this.mobileMenuOpen = !this.mobileMenuOpen
     },
