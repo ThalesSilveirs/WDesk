@@ -156,7 +156,8 @@
         <div class="profile-container" ref="profileContainerRef">
           <button @click.stop="toggleProfileMenu" class="avatar-btn" :data-tooltip="userDisplayName">
             <div class="avatar-circle">
-              {{ userInitials }}
+              <img v-if="chatStore.user?.avatar" :src="chatStore.user.avatar" class="sidebar-avatar-img" alt="Avatar" />
+              <span v-else>{{ userInitials }}</span>
             </div>
             <span class="status-dot" :class="currentStatus"></span>
           </button>
@@ -598,6 +599,13 @@ onUnmounted(() => {
   font-size: 0.95rem;
   box-shadow: 0 2px 8px rgba(219, 39, 119, 0.3);
   transition: transform 0.2s ease;
+  overflow: hidden;
+}
+
+.sidebar-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .avatar-btn:hover .avatar-circle {

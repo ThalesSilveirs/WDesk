@@ -64,7 +64,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status', 'whatsapp')
+        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status', 'whatsapp', 'avatar')
 
     def get_status(self, obj):
         return get_cached_user_status(obj.id)
@@ -228,7 +228,7 @@ class CustomerLightSerializer(serializers.ModelSerializer):
 class UserLightSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name']
+        fields = ['id', 'username', 'first_name', 'last_name', 'avatar']
 
 
 class ContactLightSerializer(serializers.ModelSerializer):

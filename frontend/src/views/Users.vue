@@ -12,7 +12,8 @@
         <div v-for="user in users" :key="user.id" class="user-card glass-effect">
           <div class="avatar-wrapper">
             <div class="user-avatar">
-              {{ user.first_name?.charAt(0) || user.username.charAt(0).toUpperCase() }}
+              <img v-if="user.avatar" :src="user.avatar" class="avatar-img" alt="Foto de perfil" />
+              <span v-else>{{ user.first_name?.charAt(0) || user.username.charAt(0).toUpperCase() }}</span>
             </div>
             <span class="status-dot-indicator" :class="user.status?.toLowerCase() || 'offline'"></span>
           </div>
@@ -44,6 +45,24 @@
         <div class="modal-content" @click.stop>
           <h2>{{ editingId ? 'Editar Atendente' : 'Novo Atendente' }}</h2>
           <form @submit.prevent="saveUser" class="user-form">
+            <!-- Upload / Preview de Foto de Perfil -->
+            <div class="avatar-upload-box">
+              <div class="avatar-preview-circle">
+                <img v-if="newUser.avatar" :src="newUser.avatar" alt="Preview da Foto" />
+                <span v-else>{{ newUser.first_name?.charAt(0) || '👤' }}</span>
+              </div>
+              <div class="avatar-upload-info">
+                <label class="btn-upload-file">
+                  <UploadIcon :size="16" /> Escolher Foto
+                  <input type="file" accept="image/*" @change="handleAvatarUpload" style="display: none;" />
+                </label>
+                <button v-if="newUser.avatar" type="button" @click="newUser.avatar = ''" class="btn-remove-file">
+                  Remover
+                </button>
+                <small class="avatar-help-text">Formatos JPG ou PNG. Recomendado: imagem quadrada.</small>
+              </div>
+            </div>
+
             <div class="form-row">
               <input v-model="newUser.first_name" type="text" class="input-glass" placeholder="Nome" required />
               <input v-model="newUser.last_name" type="text" class="input-glass" placeholder="Sobrenome" required />
@@ -75,7 +94,8 @@ import {
   Plus as PlusIcon,
   Trash2 as TrashIcon,
   Pencil as PencilIcon,
-  MessageSquare as WhatsAppIcon
+  MessageSquare as WhatsAppIcon,
+  Upload as UploadIcon
 } from 'lucide-vue-next'
 const users = ref([])
 const showAddModal = ref(false)
@@ -88,8 +108,23 @@ const newUser = ref({
   password: '',
   role: 'attendant',
   department: '',
-  whatsapp: ''
+  whatsapp: '',
+  avatar: ''
 })
+
+const handleAvatarUpload = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    alert("A foto deve ter no máximo 5MB")
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (evt) => {
+    newUser.value.avatar = evt.target.result
+  }
+  reader.readAsDataURL(file)
+}
 
 const fetchUsers = async () => {
   const response = await axios.get(`/api/v1/users/`)
@@ -98,14 +133,14 @@ const fetchUsers = async () => {
 
 const editUser = (user) => {
   editingId.value = user.id
-  newUser.value = { ...user, password: '' }
+  newUser.value = { ...user, password: '', avatar: user.avatar || '' }
   showAddModal.value = true
 }
 
 const closeModal = () => {
   showAddModal.value = false
   editingId.value = null
-  newUser.value = { username: '', first_name: '', last_name: '', email: '', password: '', role: 'attendant', department: '', whatsapp: '' }
+  newUser.value = { username: '', first_name: '', last_name: '', email: '', password: '', role: 'attendant', department: '', whatsapp: '', avatar: '' }
 }
 
 const saveUser = async () => {
@@ -209,6 +244,90 @@ onUnmounted(() => {
   justify-content: center;
   font-size: 1.5rem;
   font-weight: bold;
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Upload de Avatar no Modal */
+.avatar-upload-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  margin-bottom: 5px;
+}
+
+.avatar-preview-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: bold;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+
+.avatar-preview-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-upload-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.btn-upload-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.btn-upload-file:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-remove-file {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+.avatar-help-text {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }
 
 .user-details { flex: 1; }

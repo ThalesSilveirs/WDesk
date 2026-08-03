@@ -30,6 +30,8 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='attendant')
     department = models.CharField(max_length=100, null=True, blank=True) # Área de atuação
     whatsapp = models.CharField(max_length=20, null=True, blank=True)
+    avatar = models.TextField(null=True, blank=True)
+
 
 class Connection(models.Model):
     STATUS_CHOICES = (

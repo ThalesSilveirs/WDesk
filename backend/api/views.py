@@ -1712,7 +1712,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'password', 'department', 'status', 'whatsapp']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'password', 'department', 'status', 'whatsapp', 'avatar']
         extra_kwargs = {'password': {'write_only': True}}
 
     def get_status(self, obj):
