@@ -111,6 +111,14 @@ class ContactSerializer(serializers.ModelSerializer):
             'company': {'read_only': True}
         }
 
+
+class ContactListSerializer(serializers.ModelSerializer):
+    customer_details = CustomerLightSerializer(source='customer', read_only=True)
+    class Meta:
+        model = Contact
+        fields = ['id', 'name', 'remote_jid', 'cellphone', 'email', 'profile_pic', 'customer', 'customer_details']
+
+
     def to_internal_value(self, data):
         if hasattr(data, 'copy'):
             data = data.copy()

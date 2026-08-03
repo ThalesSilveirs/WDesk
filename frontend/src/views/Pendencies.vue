@@ -879,16 +879,14 @@ const clearFiltersAndSearch = () => {
 const fetchData = async () => {
   loadingList.value = true
   try {
-    const [resPendencies, resCustomers, resUsers, resContacts] = await Promise.all([
+    const [resPendencies, resCustomers, resUsers] = await Promise.all([
       axios.get('/api/v1/pendencies/'),
       axios.get('/api/v1/customers/'),
-      axios.get('/api/v1/users/'),
-      axios.get('/api/v1/contacts/')
+      axios.get('/api/v1/users/')
     ])
     pendencies.value = resPendencies.data
     customers.value = resCustomers.data
     users.value = resUsers.data.filter(u => u.role !== 'system') // Ignorar usuários do sistema
-    contacts.value = resContacts.data
   } catch (error) {
     console.error('Erro ao carregar dados:', error)
   } finally {
@@ -910,13 +908,20 @@ const handleCustomerSearch = () => {
   ).slice(0, 5) // Limitar a 5 resultados
 }
 
-const selectCustomer = (customer) => {
+const selectCustomer = async (customer) => {
   form.value.customer = customer.id
   selectedCustomerName.value = customer.name
   customerSearch.value = ''
   customerSearchResults.value = []
   showCustomerDropdown.value = false
   form.value.contact = null // Resetar contato dependente
+
+  try {
+    const res = await axios.get(`/api/v1/contacts/?customer=${customer.id}`)
+    contacts.value = res.data || []
+  } catch (e) {
+    contacts.value = []
+  }
 }
 
 const clearSelectedCustomer = () => {
@@ -1051,6 +1056,13 @@ const editPendency = (item) => {
     selectedCustomerName.value = item.customer_details.name
   } else {
     selectedCustomerName.value = ''
+  }
+
+  if (item.customer) {
+    const custId = typeof item.customer === 'object' ? item.customer.id : item.customer
+    axios.get(`/api/v1/contacts/?customer=${custId}`).then(res => {
+      contacts.value = res.data || []
+    }).catch(() => {})
   }
 
   showModal.value = true

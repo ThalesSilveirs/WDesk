@@ -18,6 +18,7 @@ from .serializers import (
     CustomerSerializer,
     CustomerContactSerializer,
     ContactSerializer,
+    ContactListSerializer,
     CompanySerializer,
     MessageReactionSerializer,
     QuickReplySerializer,
@@ -175,6 +176,18 @@ class CustomerContactViewSet(viewsets.ModelViewSet):
 class ContactViewSet(TenantModelViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ContactListSerializer
+        return ContactSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('customer')
+        customer_id = self.request.query_params.get('customer')
+        if customer_id:
+            qs = qs.filter(customer_id=customer_id)
+        return qs
 
     def perform_update(self, serializer):
         contact = serializer.save()
