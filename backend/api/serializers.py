@@ -300,24 +300,6 @@ class PendencySerializer(serializers.ModelSerializer):
             'created_by': {'read_only': True}
         }
 
-
-class PendencyListSerializer(serializers.ModelSerializer):
-    images = PendencyImageListSerializer(many=True, read_only=True)
-    movements = PendencyMovementSerializer(many=True, read_only=True)
-    customer_details = CustomerLightSerializer(source='customer', read_only=True)
-    user_details = UserLightSerializer(source='user', read_only=True)
-    contact_details = ContactLightSerializer(source='contact', read_only=True)
-    created_by_details = UserLightSerializer(source='created_by', read_only=True)
-
-    class Meta:
-        model = Pendency
-        fields = '__all__'
-        extra_kwargs = {
-            'company': {'read_only': True},
-            'created_by': {'read_only': True}
-        }
-
-
     def create(self, validated_data):
         uploaded_images = validated_data.pop('uploaded_images', [])
         pendency = super().create(validated_data)
@@ -331,6 +313,10 @@ class PendencyListSerializer(serializers.ModelSerializer):
         for img_base64 in uploaded_images:
             PendencyImage.objects.create(pendency=pendency, image=img_base64)
         return pendency
+
+
+class PendencyListSerializer(PendencySerializer):
+    images = PendencyImageListSerializer(many=True, read_only=True)
 
 
 class WebcalFeedSerializer(serializers.ModelSerializer):
