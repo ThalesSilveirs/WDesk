@@ -17,6 +17,10 @@
           <input v-model="password" type="password" class="input-glass" placeholder="Sua senha" required />
         </div>
         
+        <div v-if="errorMessage" class="error-banner">
+          {{ errorMessage }}
+        </div>
+
         <button type="submit" class="btn-primary" :disabled="loading">
           {{ loading ? 'Entrando...' : 'Entrar' }}
         </button>
@@ -33,16 +37,18 @@ import { useChatStore } from '../store/chat'
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
+const errorMessage = ref('')
 const router = useRouter()
 const chatStore = useChatStore()
 
 const handleLogin = async () => {
   loading.value = true
+  errorMessage.value = ''
   try {
     await chatStore.login(username.value, password.value)
     router.push('/')
   } catch (err) {
-    alert('Erro ao entrar. Verifique suas credenciais.')
+    errorMessage.value = 'Erro ao entrar. Verifique suas credenciais.'
   } finally {
     loading.value = false
   }
@@ -94,6 +100,17 @@ const handleLogin = async () => {
 .input-group label {
   font-size: 0.9rem;
   color: var(--text-secondary);
+}
+
+.error-banner {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
 }
 
 button {

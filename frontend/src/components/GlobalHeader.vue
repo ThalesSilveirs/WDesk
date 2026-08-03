@@ -463,7 +463,7 @@ onUnmounted(() => {
 }
 
 .header-search input {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 9px 38px 9px 40px;
@@ -479,7 +479,7 @@ onUnmounted(() => {
   border-color: var(--accent);
   width: 400px;
   box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--input-bg-focus);
 }
 
 .search-shortcut-hint {
@@ -487,7 +487,7 @@ onUnmounted(() => {
   right: 12px;
   font-size: 0.7rem;
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--kbd-bg);
   color: var(--text-secondary);
   padding: 2px 6px;
   border-radius: 4px;
@@ -533,7 +533,7 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border);
   font-size: 0.8rem;
   color: var(--text-secondary);
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--surface-tinted);
 }
 
 .search-popover-body {
@@ -567,7 +567,7 @@ onUnmounted(() => {
 }
 
 .search-result-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-bg);
 }
 
 .item-avatar {
@@ -643,7 +643,7 @@ onUnmounted(() => {
 .search-popover-footer {
   padding: 10px 16px;
   border-top: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--surface-tinted-hover);
   font-size: 0.78rem;
   color: var(--text-secondary);
   text-align: center;
@@ -655,7 +655,7 @@ onUnmounted(() => {
 }
 
 .search-popover-footer kbd {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--kbd-bg);
   padding: 1px 5px;
   border-radius: 4px;
   font-family: monospace;
@@ -664,7 +664,7 @@ onUnmounted(() => {
 /* Notificações */
 .notification-container { position: relative; }
 .header-icon-btn {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--border);
   color: var(--text-primary);
   width: 40px;
@@ -677,7 +677,7 @@ onUnmounted(() => {
   position: relative;
   transition: all 0.2s;
 }
-.header-icon-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.header-icon-btn:hover { background: var(--hover-bg); }
 .badge {
   position: absolute;
   top: -4px;
@@ -720,7 +720,7 @@ onUnmounted(() => {
 
 .dropdown-list { max-height: 300px; overflow-y: auto; }
 .notif-item { display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
-.notif-item:hover { background: rgba(255, 255, 255, 0.05); }
+.notif-item:hover { background: var(--hover-bg); }
 .notif-content h5 { margin: 0 0 4px; font-size: 0.85rem; }
 .notif-content p { margin: 0 0 4px; font-size: 0.8rem; color: var(--text-secondary); }
 .notif-time { font-size: 0.7rem; color: var(--text-secondary); }

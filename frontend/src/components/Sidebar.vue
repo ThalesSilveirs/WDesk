@@ -514,7 +514,7 @@ onUnmounted(() => {
 }
 
 .nav-link-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
   color: var(--text-primary);
   transform: translateY(-1px);
 }
@@ -704,7 +704,7 @@ onUnmounted(() => {
 }
 
 .status-option:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
 }
 
 .status-option.active {
@@ -779,7 +779,7 @@ onUnmounted(() => {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--border);
   color: var(--text-primary);
   padding: 10px 20px;
@@ -789,7 +789,7 @@ onUnmounted(() => {
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-bg);
 }
 
 .btn-danger-sm {
@@ -873,7 +873,7 @@ onUnmounted(() => {
 
 .search-input {
   width: 100%;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 10px 8px 32px;
@@ -921,7 +921,7 @@ onUnmounted(() => {
 }
 
 .notif-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
 }
 
 .notif-item.unread {

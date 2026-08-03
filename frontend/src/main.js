@@ -39,8 +39,13 @@ if (localStorage.getItem('performanceMode') === 'true') {
 }
 
 const app = createApp(App)
+const pinia = createPinia()
 
-app.use(createPinia())
+app.use(pinia)
 app.use(router)
+
+// Inicializar data-theme a partir do store
+const chatStore = useChatStore()
+document.documentElement.setAttribute('data-theme', chatStore.theme)
 
 app.mount('#app')
