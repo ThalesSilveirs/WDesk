@@ -5,6 +5,12 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
+        username = attrs.get(self.username_field)
+        if username:
+            user_obj = User.objects.filter(username__iexact=username).first()
+            if user_obj:
+                attrs[self.username_field] = user_obj.username
+
         data = super().validate(attrs)
         data['role'] = self.user.role
         data['company_id'] = str(self.user.company.id) if self.user.company else None

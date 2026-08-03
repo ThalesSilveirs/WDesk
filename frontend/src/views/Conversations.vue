@@ -307,7 +307,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { useChatStore } from '../store/chat'
 import { X as XIcon, Trash2 as TrashIcon, ClipboardList as ClipboardListIcon } from 'lucide-vue-next'

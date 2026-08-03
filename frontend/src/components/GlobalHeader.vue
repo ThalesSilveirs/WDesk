@@ -194,6 +194,8 @@ const searchContainerRef = ref(null)
 const isSearchOpen = ref(false)
 const localSearchQuery = ref(chatStore.searchQuery || '')
 const showNotificationDropdown = ref(false)
+const customersList = ref([])
+const pendenciesList = ref([])
 
 let lastSearchFetchTime = 0
 
