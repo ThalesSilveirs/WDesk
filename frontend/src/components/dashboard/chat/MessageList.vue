@@ -7,6 +7,12 @@
         <span>Carregando mensagens anteriores...</span>
       </div>
 
+      <!-- Loader de troca de conversa -->
+      <div v-if="chatStore.loadingMessages && messages.length === 0" class="loading-more-spinner">
+        <span class="spinner-dot"></span>
+        <span>Carregando conversa...</span>
+      </div>
+
       <template v-for="msg in messages" :key="msg.id">
         <!-- Mensagem de Evento do Sistema (Centralizada) -->
         <div v-if="isSystemMessage(msg)" class="system-message-center">

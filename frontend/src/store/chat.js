@@ -13,6 +13,7 @@ export const useChatStore = defineStore('chat', {
     messages: [],
     socket: null,
     loading: false,
+    loadingMessages: false,
     fetchError: null,
     currentFilter: 'unassigned', // 'mine', 'unassigned', 'closed', 'all'
     attendants: [],
@@ -464,8 +465,13 @@ export const useChatStore = defineStore('chat', {
     },
 
     async selectTicket(ticket) {
+      if (!ticket) return
+      const targetId = ticket.id
+
       this.activeTicket = ticket
+      this.messages = []
       this.loadingMore = false
+      this.loadingMessages = true
 
       // Reseta contador no backend
       if (ticket.unread_count > 0) {
@@ -476,17 +482,25 @@ export const useChatStore = defineStore('chat', {
       try {
         // Concorrência via Promise.all para carregar detalhes e mensagens em paralelo
         const [ticketRes, msgRes] = await Promise.all([
-          axios.get(`/api/v1/tickets/${ticket.id}/`),
-          axios.get(`/api/v1/tickets/${ticket.id}/messages/`, { params: { limit: 50 } })
+          axios.get(`/api/v1/tickets/${targetId}/`),
+          axios.get(`/api/v1/tickets/${targetId}/messages/`, { params: { limit: 50 } })
         ])
 
-        this.activeTicket = ticketRes.data
-        this.messages = msgRes.data
-        this.hasMoreMessages = msgRes.data.length === 50
+        if (this.activeTicket && this.activeTicket.id === targetId) {
+          this.activeTicket = ticketRes.data
+          this.messages = msgRes.data
+          this.hasMoreMessages = msgRes.data.length === 50
+        }
       } catch (e) {
         console.error("Erro ao carregar conversa e mensagens:", e)
-        this.messages = []
-        this.hasMoreMessages = false
+        if (this.activeTicket && this.activeTicket.id === targetId) {
+          this.messages = []
+          this.hasMoreMessages = false
+        }
+      } finally {
+        if (this.activeTicket && this.activeTicket.id === targetId) {
+          this.loadingMessages = false
+        }
       }
     },
 
