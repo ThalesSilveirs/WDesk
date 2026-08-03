@@ -751,13 +751,15 @@ const filteredPendencies = computed(() => {
     }
 
     // Filtro de Cliente
-    if (filterCustomer.value !== 'all' && item.customer !== filterCustomer.value) {
-      return false
+    if (filterCustomer.value !== 'all') {
+      const itemCustId = typeof item.customer === 'object' ? item.customer?.id : item.customer
+      if (itemCustId != filterCustomer.value) return false
     }
 
     // Filtro de Responsável
-    if (filterUser.value !== 'all' && item.user !== filterUser.value) {
-      return false
+    if (filterUser.value !== 'all') {
+      const itemUserId = typeof item.user === 'object' ? item.user?.id : item.user
+      if (itemUserId != filterUser.value) return false
     }
 
     // Filtro de Tipo Operação
