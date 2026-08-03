@@ -44,7 +44,7 @@
       @cancelReply="cancelReplyingMessage"
     />
     <div v-else class="closed-banner">
-      Este atendimento foi finalizado em {{ new Date(chatStore.activeTicket.updated_at).toLocaleString() }}.
+      Este atendimento foi finalizado em {{ closedTicketDateFormatted }}.
     </div>
   </div>
 </template>
@@ -52,6 +52,7 @@
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue'
 import { useChatStore } from '../../store/chat'
+import { formatFullDateTime } from '../../utils/formatters'
 
 // Sub-componentes
 import ChatHeader from './chat/ChatHeader.vue'
@@ -98,6 +99,9 @@ const newMessageRef = computed({
 
 // 1. Resolução e limpeza de Blob URLs
 const activeTicketId = computed(() => chatStore.activeTicket?.id)
+const closedTicketDateFormatted = computed(() => {
+  return formatFullDateTime(chatStore.activeTicket?.updated_at)
+})
 const { resolvedUrls, resolveMessageMedia } = useMediaResolver(activeTicketId)
 
 // 2. Ações de mensagem (editar, responder, scroll)

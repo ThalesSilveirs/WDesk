@@ -18,7 +18,7 @@
             v-model="localSearchQuery" 
             type="text" 
             placeholder="Buscar clientes, conversas ou pendências..." 
-            @focus="isSearchOpen = true"
+            @focus="handleSearchFocus"
             @keydown.esc="isSearchOpen = false"
             @keydown.enter="handleSearchEnter"
           />
@@ -195,10 +195,11 @@ const isSearchOpen = ref(false)
 const localSearchQuery = ref(chatStore.searchQuery || '')
 const showNotificationDropdown = ref(false)
 
-const customersList = ref([])
-const pendenciesList = ref([])
+let lastSearchFetchTime = 0
 
-const fetchSearchData = async () => {
+const fetchSearchData = async (force = false) => {
+  const now = Date.now()
+  if (!force && lastSearchFetchTime && (now - lastSearchFetchTime < 30000)) return
   try {
     const [resCust, resPend] = await Promise.all([
       axios.get('/api/v1/customers/'),
@@ -206,9 +207,15 @@ const fetchSearchData = async () => {
     ])
     customersList.value = resCust.data || []
     pendenciesList.value = resPend.data || []
+    lastSearchFetchTime = now
   } catch (e) {
     console.error("Erro ao carregar dados da busca global", e)
   }
+}
+
+const handleSearchFocus = () => {
+  isSearchOpen.value = true
+  fetchSearchData()
 }
 
 const toggleMobileMenu = () => {

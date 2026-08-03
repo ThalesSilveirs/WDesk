@@ -64,7 +64,7 @@
         <span class="msg-time">
           <span v-if="msg.from_me && msg.user_details" class="msg-attendant">{{ msg.user_details.first_name }} {{ msg.user_details.last_name }} • </span>
           <span v-if="msg.is_edited" class="msg-edited-badge" title="Mensagem editada">(editada) • </span>
-          {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+          {{ formatTime(msg.timestamp) }}
         </span>
       </div>
 
@@ -86,6 +86,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import AudioPlayer from '../AudioPlayer.vue'
 import MessageActionBar from './MessageActionBar.vue'
+import { formatTime } from '../../../utils/formatters'
 import {
   cleanBody,
   isPlaceholder,

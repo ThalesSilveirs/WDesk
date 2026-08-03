@@ -182,20 +182,18 @@
                   <ActivityIcon :size="14" />
                   <span><strong>Status:</strong> <span class="status-indicator-inline" :class="item.status">{{ statusLabels[item.status] }}</span></span>
                 </div>
-                <!-- Botão de Movimentações abaixo do Status -->
+                <!-- Botões de Movimentações e Anexos abaixo do Status -->
                 <div class="card-movements-btn-row">
                   <button @click="openMovementsModal(item)" class="btn-movements-inline">
                     <HistoryIcon :size="14" />
                     <span>Movimentações</span>
                     <span v-if="item.movements?.length > 0" class="movement-badge-inline">{{ item.movements.length }}</span>
                   </button>
-                </div>
-              </div>
-
-              <!-- Imagens Anexadas -->
-              <div v-if="item.images && item.images.length > 0" class="attached-images">
-                <div v-for="img in item.images" :key="img.id" class="image-thumb" @click="openLightbox(img.image)">
-                  <img :src="img.image" alt="Anexo" />
+                  <button @click="openAttachmentsModal(item)" class="btn-attachments-inline" title="Ver e Gerenciar Anexos">
+                    <PaperclipIcon :size="14" />
+                    <span>Anexos</span>
+                    <span v-if="item.images?.length > 0" class="attachment-badge-inline">{{ item.images.length }}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -255,12 +253,11 @@
                   <span class="status-indicator" :class="item.status">{{ statusLabels[item.status] }}</span>
                 </td>
                 <td>
-                  <div v-if="item.images && item.images.length > 0" class="table-images">
-                    <span class="images-count-badge" @click="openLightbox(item.images[0].image)">
-                      <ImageIcon :size="14" /> {{ item.images.length }}
-                    </span>
-                  </div>
-                  <span v-else>-</span>
+                  <button @click="openAttachmentsModal(item)" class="btn-table-attachments" title="Ver Anexos">
+                    <PaperclipIcon :size="14" />
+                    <span>Anexos</span>
+                    <span v-if="item.images?.length > 0" class="attachment-count-badge">{{ item.images.length }}</span>
+                  </button>
                 </td>
                 <td class="actions-col">
                   <div class="table-actions">
@@ -538,6 +535,87 @@
       </div>
     </Transition>
 
+    <!-- Modal de Anexos da Pendência -->
+    <Transition name="modal-fade">
+      <div v-if="showAttachmentsModal" class="modal-overlay" role="dialog" aria-modal="true" @click="showAttachmentsModal = false">
+        <div class="modal-content medium-modal" @click.stop>
+          <div class="modal-header">
+            <h2>Anexos: {{ selectedPendencyForAttachments?.title }}</h2>
+            <button @click="showAttachmentsModal = false" class="close-btn-round"><XIcon :size="20" /></button>
+          </div>
+
+          <div class="modal-body attachments-modal-body">
+            <!-- Spinner de Carregamento -->
+            <div v-if="loadingAttachments" class="loading-inline">
+              <div class="spinner-sm"></div>
+              <span>Carregando anexos...</span>
+            </div>
+
+            <!-- Estado Vazio -->
+            <div v-else-if="!selectedPendencyForAttachments?.images || selectedPendencyForAttachments.images.length === 0" class="no-attachments-placeholder">
+              <PaperclipIcon :size="36" />
+              <p>Nenhum anexo registrado nesta pendência.</p>
+            </div>
+
+            <!-- Galeria de Anexos -->
+            <div v-else class="attachments-gallery-grid">
+              <div v-for="img in selectedPendencyForAttachments.images" :key="img.id" class="attachment-card glass-effect">
+                <div class="attachment-preview" @click="openLightbox(img.image)">
+                  <img :src="img.image" alt="Anexo da Pendência" />
+                  <div class="attachment-hover-overlay">
+                    <Maximize2Icon :size="20" />
+                    <span>Ampliar</span>
+                  </div>
+                </div>
+                <div class="attachment-card-footer">
+                  <span class="attachment-date">{{ formatDateTime(img.created_at) }}</span>
+                  <div class="attachment-actions">
+                    <a :href="img.image" :download="'anexo_pendencia_' + img.id" class="attachment-action-btn" title="Baixar Anexo" target="_blank">
+                      <DownloadIcon :size="14" />
+                    </a>
+                    <button type="button" @click="deleteAttachmentInModal(img.id)" class="attachment-action-btn delete" title="Excluir Anexo">
+                      <TrashIcon :size="14" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="modal-divider" />
+
+            <!-- Upload de Novos Anexos no próprio modal -->
+            <div class="modal-upload-section">
+              <h3>Adicionar Novos Anexos</h3>
+              <div 
+                class="drag-drop-area glass-effect compact-drag" 
+                @dragover.prevent="modalDragOver = true" 
+                @dragleave="modalDragOver = false" 
+                @drop.prevent="handleModalFileDrop"
+                :class="{ 'drag-over': modalDragOver }"
+                @click="triggerModalFileInput"
+              >
+                <input type="file" ref="modalFileInput" multiple accept="image/*" class="hidden-input" @change="handleModalFileSelect" />
+                <UploadCloudIcon :size="24" />
+                <p>Arraste ou clique para selecionar imagens</p>
+                <span class="sub">PNG, JPG, GIF até 5MB</span>
+              </div>
+
+              <!-- Preview de Imagens Selecionadas no Modal -->
+              <div v-if="modalNewImages.length > 0" class="modal-new-images-row">
+                <div v-for="(img, idx) in modalNewImages" :key="idx" class="modal-img-preview">
+                  <img :src="img" alt="Novo anexo" />
+                  <button type="button" @click="modalNewImages.splice(idx, 1)" class="remove-btn">&times;</button>
+                </div>
+                <button type="button" @click="uploadModalAttachments" class="btn-primary btn-upload-now" :disabled="uploadingModalImages">
+                  {{ uploadingModalImages ? 'Enviando...' : `Salvar Anexos (${modalNewImages.length})` }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Modal Lightbox (Visualizar Imagem cheia) -->
     <Transition name="fade">
       <div v-if="showLightbox" class="lightbox-overlay" @click="showLightbox = false">
@@ -612,7 +690,10 @@ import {
   Send as SendIcon,
   Tag as TagIcon,
   AlertTriangle as AlertTriangleIcon,
-  Activity as ActivityIcon
+  Activity as ActivityIcon,
+  Paperclip as PaperclipIcon,
+  Download as DownloadIcon,
+  Maximize2 as Maximize2Icon
 } from 'lucide-vue-next'
 import { useChatStore } from '../store/chat'
 
@@ -679,6 +760,14 @@ const selectedPendencyForMovements = ref(null)
 const newMovementText = ref('')
 const loadingAddMovement = ref(false)
 const loadingMovements = ref(false)
+
+const showAttachmentsModal = ref(false)
+const selectedPendencyForAttachments = ref(null)
+const loadingAttachments = ref(false)
+const modalFileInput = ref(null)
+const modalDragOver = ref(false)
+const modalNewImages = ref([])
+const uploadingModalImages = ref(false)
 
 const showFinishModal = ref(false)
 const selectedPendencyForFinish = ref(null)
@@ -1202,6 +1291,102 @@ const addMovement = async () => {
 const printPendency = (item) => {
   if (!item) return
   window.open(`/pendencies/${item.id}/print`, '_blank')
+}
+
+const openAttachmentsModal = async (item) => {
+  selectedPendencyForAttachments.value = item
+  showAttachmentsModal.value = true
+  loadingAttachments.value = true
+  modalNewImages.value = []
+  try {
+    const res = await axios.get(`/api/v1/pendencies/${item.id}/`)
+    selectedPendencyForAttachments.value = res.data
+    const idx = pendencies.value.findIndex(p => p.id === item.id)
+    if (idx !== -1) {
+      pendencies.value[idx] = res.data
+    }
+  } catch (error) {
+    console.error('Erro ao buscar anexos:', error)
+  } finally {
+    loadingAttachments.value = false
+  }
+}
+
+const triggerModalFileInput = () => {
+  modalFileInput.value?.click()
+}
+
+const handleModalFileSelect = (e) => {
+  const files = e.target.files
+  processModalFiles(files)
+  e.target.value = ''
+}
+
+const handleModalFileDrop = (e) => {
+  modalDragOver.value = false
+  const files = e.dataTransfer.files
+  processModalFiles(files)
+}
+
+const processModalFiles = (files) => {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    if (!file.type.startsWith('image/')) {
+      alert('Apenas imagens são permitidas.')
+      continue
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('A imagem excede o tamanho limite de 5MB.')
+      continue
+    }
+
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      modalNewImages.value.push(ev.target.result)
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+const uploadModalAttachments = async () => {
+  if (!selectedPendencyForAttachments.value || modalNewImages.value.length === 0) return
+  uploadingModalImages.value = true
+  try {
+    const pendencyId = selectedPendencyForAttachments.value.id
+    const res = await axios.patch(`/api/v1/pendencies/${pendencyId}/`, {
+      uploaded_images: modalNewImages.value
+    })
+    selectedPendencyForAttachments.value = res.data
+    modalNewImages.value = []
+    
+    const idx = pendencies.value.findIndex(p => p.id === pendencyId)
+    if (idx !== -1) {
+      pendencies.value[idx] = res.data
+    }
+  } catch (error) {
+    console.error("Erro ao enviar anexos:", error)
+    alert("Erro ao enviar anexos.")
+  } finally {
+    uploadingModalImages.value = false
+  }
+}
+
+const deleteAttachmentInModal = async (imgId) => {
+  if (!selectedPendencyForAttachments.value) return
+  if (!confirm('Deseja excluir permanentemente este anexo?')) return
+  const pendencyId = selectedPendencyForAttachments.value.id
+  try {
+    await axios.post(`/api/v1/pendencies/${pendencyId}/delete-image/`, { image_id: imgId })
+    selectedPendencyForAttachments.value.images = selectedPendencyForAttachments.value.images.filter(img => img.id !== imgId)
+    
+    const idx = pendencies.value.findIndex(p => p.id === pendencyId)
+    if (idx !== -1) {
+      pendencies.value[idx].images = pendencies.value[idx].images.filter(img => img.id !== imgId)
+    }
+  } catch (error) {
+    console.error("Erro ao deletar anexo:", error)
+    alert("Erro ao deletar anexo.")
+  }
 }
 
 const sortedMovementsForModal = computed(() => {
@@ -2566,5 +2751,244 @@ onUnmounted(() => {
 .btn-danger-sm:hover {
   background: #dc2626;
   transform: translateY(-1px);
+}
+
+/* Botões Inline e Tabela de Anexos */
+.btn-attachments-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface-tinted);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-attachments-inline:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.attachment-badge-inline {
+  background: var(--accent);
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+
+.btn-table-attachments {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-tinted);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-table-attachments:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.attachment-count-badge {
+  background: var(--accent);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+/* Galeria de Anexos no Modal */
+.attachments-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.no-attachments-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 30px 20px;
+  color: var(--text-secondary);
+  background: var(--surface-tinted);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.attachments-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.attachment-card {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+}
+
+.attachment-preview {
+  position: relative;
+  height: 120px;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.attachment-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.attachment-preview:hover img {
+  transform: scale(1.06);
+}
+
+.attachment-hover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.attachment-preview:hover .attachment-hover-overlay {
+  opacity: 1;
+}
+
+.attachment-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--surface-tinted);
+  border-top: 1px solid var(--border);
+}
+
+.attachment-date {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.attachment-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.attachment-action-btn:hover {
+  background: var(--hover-bg);
+  color: var(--accent);
+}
+
+.attachment-action-btn.delete:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.modal-upload-section h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.compact-drag {
+  padding: 14px !important;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+.modal-new-images-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.modal-img-preview {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.modal-img-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modal-img-preview .remove-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.btn-upload-now {
+  padding: 8px 16px;
+  font-size: 0.85rem;
 }
 </style>

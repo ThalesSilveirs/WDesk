@@ -1,6 +1,4 @@
-import { defineStore } from 'pinia'
-import axios from 'axios'
-import { io } from 'socket.io-client'
+let globalAudioCtx = null
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -11,6 +9,7 @@ export const useChatStore = defineStore('chat', {
     messages: [],
     socket: null,
     loading: false,
+    fetchError: null,
     currentFilter: 'unassigned', // 'mine', 'unassigned', 'closed', 'all'
     attendants: [],
     userRole: localStorage.getItem('role') || 'attendant',
@@ -258,29 +257,28 @@ export const useChatStore = defineStore('chat', {
 
     playNotificationSound() {
       try {
-        if (!window._globalAudioCtx) {
-          window._globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
+        if (!globalAudioCtx) {
+          globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
         }
-        const audioCtx = window._globalAudioCtx
-        if (audioCtx.state === 'suspended') {
-          audioCtx.resume()
+        if (globalAudioCtx.state === 'suspended') {
+          globalAudioCtx.resume()
         }
 
-        const oscillator = audioCtx.createOscillator()
-        const gainNode = audioCtx.createGain()
+        const oscillator = globalAudioCtx.createOscillator()
+        const gainNode = globalAudioCtx.createGain()
 
         oscillator.type = 'sine'
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime) // A5
-        oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5) // A4
+        oscillator.frequency.setValueAtTime(880, globalAudioCtx.currentTime) // A5
+        oscillator.frequency.exponentialRampToValueAtTime(440, globalAudioCtx.currentTime + 0.5) // A4
 
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5)
+        gainNode.gain.setValueAtTime(0.1, globalAudioCtx.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, globalAudioCtx.currentTime + 0.5)
 
         oscillator.connect(gainNode)
-        gainNode.connect(audioCtx.destination)
+        gainNode.connect(globalAudioCtx.destination)
 
         oscillator.start()
-        oscillator.stop(audioCtx.currentTime + 0.5)
+        oscillator.stop(globalAudioCtx.currentTime + 0.5)
       } catch (e) {
         console.warn("Erro ao reproduzir som de notificação:", e)
       }
@@ -430,11 +428,15 @@ export const useChatStore = defineStore('chat', {
       if (filter) this.currentFilter = filter
 
       this.loading = true
+      this.fetchError = null
       try {
         const response = await axios.get(`/api/v1/tickets/`, {
           params: { status_filter: this.currentFilter }
         })
         this.tickets = response.data
+      } catch (e) {
+        console.error("Erro ao buscar tickets:", e)
+        this.fetchError = "Falha ao carregar lista de conversas."
       } finally {
         this.loading = false
       }
@@ -459,24 +461,26 @@ export const useChatStore = defineStore('chat', {
 
     async selectTicket(ticket) {
       this.activeTicket = ticket
+      this.loadingMore = false
+
       // Reseta contador no backend
       if (ticket.unread_count > 0) {
-        axios.post(`/api/v1/tickets/${ticket.id}/reset_unread/`, {})
+        axios.post(`/api/v1/tickets/${ticket.id}/reset_unread/`, {}).catch(() => {})
         ticket.unread_count = 0
       }
 
-      const response = await axios.get(`/api/v1/tickets/${ticket.id}/`)
-      this.activeTicket = response.data
-      
-      this.loadingMore = false
       try {
-        const msgResponse = await axios.get(`/api/v1/tickets/${ticket.id}/messages/`, {
-          params: { limit: 50 }
-        })
-        this.messages = msgResponse.data
-        this.hasMoreMessages = msgResponse.data.length === 50
+        // Concorrência via Promise.all para carregar detalhes e mensagens em paralelo
+        const [ticketRes, msgRes] = await Promise.all([
+          axios.get(`/api/v1/tickets/${ticket.id}/`),
+          axios.get(`/api/v1/tickets/${ticket.id}/messages/`, { params: { limit: 50 } })
+        ])
+
+        this.activeTicket = ticketRes.data
+        this.messages = msgRes.data
+        this.hasMoreMessages = msgRes.data.length === 50
       } catch (e) {
-        console.error("Erro ao buscar mensagens do ticket:", e)
+        console.error("Erro ao carregar conversa e mensagens:", e)
         this.messages = []
         this.hasMoreMessages = false
       }

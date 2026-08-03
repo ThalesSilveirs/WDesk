@@ -40,9 +40,9 @@
 
     <!-- Modal de Finalização -->
     <Transition name="modal-fade">
-      <div v-if="showCloseModal" class="modal-overlay" @click="showCloseModal = false">
+      <div v-if="showCloseModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="close-modal-title" @click="showCloseModal = false">
         <div class="modal-content" @click.stop>
-          <h2>Finalizar Atendimento</h2>
+          <h2 id="close-modal-title">Finalizar Atendimento</h2>
           <p style="color: var(--text-secondary); margin-bottom: 15px;">Descreva brevemente como o caso foi resolvido:</p>
           
           <div class="form-group">
@@ -56,8 +56,10 @@
           </div>
 
           <div class="modal-actions" style="margin-top: 20px;">
-            <button @click="showCloseModal = false" class="btn-secondary">Cancelar</button>
-            <button @click="confirmClose" class="btn-success-sm" :disabled="!resolutionSummary.trim()">Confirmar e Fechar</button>
+            <button @click="showCloseModal = false" class="btn-secondary" :disabled="isClosing">Cancelar</button>
+            <button @click="confirmClose" class="btn-success-sm" :disabled="!resolutionSummary.trim() || isClosing">
+              {{ isClosing ? 'Finalizando...' : 'Confirmar e Fechar' }}
+            </button>
           </div>
         </div>
       </div>
@@ -327,6 +329,7 @@ const selectedVideo = ref(null)
 const showCRM = ref(window.innerWidth > 768)
 const resolutionSummary = ref('')
 const isDeleting = ref(false)
+const isClosing = ref(false)
 
 const historyParams = ref({
   contactId: null,
@@ -334,6 +337,25 @@ const historyParams = ref({
   contactName: '',
   customerName: '',
   type: 'contact'
+})
+
+const handleModalEsc = (e) => {
+  if (e.key === 'Escape') {
+    if (showCloseModal.value) showCloseModal.value = false
+    else if (showTransferModal.value) showTransferModal.value = false
+    else if (showPriorityModal.value) showPriorityModal.value = false
+    else if (showDeleteModal.value) showDeleteModal.value = false
+    else if (selectedImage.value) selectedImage.value = null
+    else if (selectedVideo.value) selectedVideo.value = null
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleModalEsc)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleModalEsc)
 })
 
 const openHistory = (params) => {
@@ -364,10 +386,17 @@ const confirmTransfer = async (userId) => {
 }
 
 const confirmClose = async () => {
-  if (!resolutionSummary.value.trim()) return
-  await chatStore.closeTicket(chatStore.activeTicket.id, resolutionSummary.value)
-  showCloseModal.value = false
-  resolutionSummary.value = ''
+  if (!resolutionSummary.value.trim() || isClosing.value) return
+  isClosing.value = true
+  try {
+    await chatStore.closeTicket(chatStore.activeTicket.id, resolutionSummary.value)
+    showCloseModal.value = false
+    resolutionSummary.value = ''
+  } catch (e) {
+    console.error("Erro ao finalizar atendimento:", e)
+  } finally {
+    isClosing.value = false
+  }
 }
 
 const confirmDelete = async () => {

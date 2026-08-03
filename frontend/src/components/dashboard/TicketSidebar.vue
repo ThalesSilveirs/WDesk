@@ -116,7 +116,17 @@
     </div>
 
     <!-- Unified Ticket List -->
-    <div class="ticket-list" v-if="activeTabTickets.length > 0">
+    <div class="ticket-list" v-if="chatStore.loading && activeTabTickets.length === 0">
+      <div v-for="n in 6" :key="'skel-' + n" class="ticket-skeleton-item">
+        <div class="skeleton-avatar"></div>
+        <div class="skeleton-details">
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line long"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticket-list" v-else-if="activeTabTickets.length > 0">
       <div 
         v-for="ticket in activeTabTickets" 
         :key="ticket.id"
@@ -150,7 +160,7 @@
         <div class="ticket-info">
           <div class="top-row">
             <span class="name">{{ ticket.contact_details?.name || ticket.contact_details?.remote_jid }}</span>
-            <span class="time">{{ formatTime(ticket.updated_at) }}</span>
+            <span class="time">{{ formatDateOrTime(ticket.updated_at) }}</span>
           </div>
           
           <div class="bottom-row">
@@ -172,7 +182,7 @@
     <!-- Empty state for no conversations -->
     <div class="empty-state" v-else>
       <MessageSquareIcon :size="32" class="empty-icon" />
-      <span>Nenhuma conversa encontrada</span>
+      <span>{{ chatStore.fetchError || 'Nenhuma conversa encontrada' }}</span>
     </div>
     <!-- Logout Confirmation Modal -->
     <Transition name="modal-fade">
@@ -192,8 +202,9 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { useChatStore } from '../../store/chat'
+import { useUserProfile } from '../../composables/useUserProfile'
+import { formatDateOrTime } from '../../utils/formatters'
 import {
   Plus as PlusIcon,
   LayoutGrid as LayoutGridIcon,
@@ -205,61 +216,25 @@ import {
   LogOut as LogOutIcon
 } from 'lucide-vue-next'
 
-const router = useRouter()
 const chatStore = useChatStore()
 const localSearchQuery = ref(chatStore.searchQuery)
 const searchInputRef = ref(null)
 
-const showLogoutModal = ref(false)
-const showProfileMenu = ref(false)
-const currentStatus = ref('online')
-const profileContainerRef = ref(null)
-
-const toggleProfileMenu = () => {
-  showProfileMenu.value = !showProfileMenu.value
-}
-
-const changeStatus = (status) => {
-  currentStatus.value = status
-  showProfileMenu.value = false
-  chatStore.changeUserStatus(status)
-}
-
-const triggerLogout = () => {
-  showProfileMenu.value = false
-  showLogoutModal.value = true
-}
-
-const logout = () => {
-  chatStore.logout()
-  router.push('/login')
-}
-
-const handleStatusSynced = (e) => {
-  currentStatus.value = e.detail.status
-}
-
-const userDisplayName = computed(() => {
-  if (!chatStore.user) return 'Carregando...'
-  return chatStore.user.first_name 
-    ? `${chatStore.user.first_name} ${chatStore.user.last_name || ''}` 
-    : chatStore.user.username
-})
-
-const userInitials = computed(() => {
-  if (!chatStore.user) return '?'
-  const name = chatStore.user.first_name || chatStore.user.username
-  return name.charAt(0).toUpperCase()
-})
-
-const handleClickOutside = (event) => {
-  if (profileContainerRef.value && !profileContainerRef.value.contains(event.target)) {
-    showProfileMenu.value = false
-  }
-}
+const {
+  showProfileMenu,
+  showLogoutModal,
+  currentStatus,
+  profileContainerRef,
+  userDisplayName,
+  userInitials,
+  toggleProfileMenu,
+  changeStatus,
+  triggerLogout,
+  logout
+} = useUserProfile()
 
 const isMac = computed(() => {
-  return window.navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  return /mac/i.test(navigator.userAgent)
 })
 
 // Debounce local search query back to store
@@ -289,11 +264,6 @@ const handleGlobalKeydown = (e) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalKeydown)
-  window.addEventListener('user-status-synced', handleStatusSynced)
-  window.addEventListener('click', handleClickOutside)
-  if (chatStore.user?.status) {
-    currentStatus.value = chatStore.user.status
-  }
   // Fetch initial data if lists are empty
   if (chatStore.myTickets.length === 0) {
     chatStore.fetchMyTickets()
@@ -305,13 +275,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
-  window.removeEventListener('user-status-synced', handleStatusSynced)
-  window.removeEventListener('click', handleClickOutside)
 })
 
 const myTicketsCount = computed(() => chatStore.myTickets.length)
 const unassignedCount = computed(() => {
-  // Let's filter tickets that don't have an attendant
   return chatStore.tickets.filter(t => !t.user && t.status !== 'closed').length
 })
 
@@ -324,12 +291,16 @@ const selectFilter = async (filter) => {
   }
 }
 
-// Unified active list computed based on selection
+// 1. Base list memoized by current filter selection
+const baseTicketsList = computed(() => {
+  return chatStore.currentFilter === 'mine' ? chatStore.myTickets : chatStore.tickets
+})
+
+// 2. Active list computed based on query filter
 const activeTabTickets = computed(() => {
-  const ticketsList = chatStore.currentFilter === 'mine' ? chatStore.myTickets : chatStore.tickets
   const query = (chatStore.searchQuery || '').toLowerCase().trim()
-  if (!query) return ticketsList
-  return ticketsList.filter(ticket => {
+  if (!query) return baseTicketsList.value
+  return baseTicketsList.value.filter(ticket => {
     const contactName = (ticket.contact_details?.name || '').toLowerCase()
     const remoteJid = (ticket.contact_details?.remote_jid || '').toLowerCase()
     const lastMsg = (ticket.last_message || '').toLowerCase()
@@ -351,16 +322,6 @@ const activeTabTickets = computed(() => {
            customerDoc.includes(query)
   })
 })
-
-const formatTime = (dateStr) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  const now = new Date()
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-  return date.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
-}
 </script>
 
 <style scoped>
@@ -926,6 +887,52 @@ const formatTime = (dateStr) => {
   border-radius: 10px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.ticket-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 72px;
+}
+
+/* Skeleton Loading Animation */
+.ticket-skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  opacity: 0.6;
+  animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.skeleton-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+.skeleton-line.short { width: 40%; }
+.skeleton-line.long { width: 80%; }
+
+@keyframes skeleton-pulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.4; }
 }
 
 @media (max-width: 768px) {

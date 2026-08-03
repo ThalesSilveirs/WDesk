@@ -326,7 +326,8 @@ const autoResize = () => {
   nextTick(() => {
     if (!messageInput.value) return
     messageInput.value.style.height = 'auto'
-    messageInput.value.style.height = `${messageInput.value.scrollHeight}px`
+    const targetHeight = Math.min(Math.max(messageInput.value.scrollHeight, 24), 140)
+    messageInput.value.style.height = `${targetHeight}px`
   })
 }
 
