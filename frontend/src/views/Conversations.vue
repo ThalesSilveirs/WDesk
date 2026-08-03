@@ -339,97 +339,6 @@ const historyParams = ref({
   type: 'contact'
 })
 
-const handleModalEsc = (e) => {
-  if (e.key === 'Escape') {
-    if (showCloseModal.value) showCloseModal.value = false
-    else if (showTransferModal.value) showTransferModal.value = false
-    else if (showPriorityModal.value) showPriorityModal.value = false
-    else if (showDeleteModal.value) showDeleteModal.value = false
-    else if (selectedImage.value) selectedImage.value = null
-    else if (selectedVideo.value) selectedVideo.value = null
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleModalEsc)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleModalEsc)
-})
-
-const openHistory = (params) => {
-  historyParams.value = {
-    contactId: chatStore.activeTicket?.contact_details?.id || null,
-    customerId: chatStore.activeTicket?.customer_details?.id || null,
-    contactName: chatStore.activeTicket?.contact_details?.name || '',
-    customerName: chatStore.activeTicket?.customer_details?.name || '',
-    type: params.type
-  }
-  showHistoryModal.value = true
-}
-
-const openTransfer = () => {
-  chatStore.fetchAttendants()
-  showTransferModal.value = true
-}
-
-const confirmTransfer = async (userId) => {
-  if (!chatStore.activeTicket) return
-  const ticketId = chatStore.activeTicket.id
-  showTransferModal.value = false
-  try {
-    await chatStore.transferTicket(ticketId, userId)
-  } catch (e) {
-    console.error("Erro ao transferir atendimento:", e)
-  }
-}
-
-const confirmClose = async () => {
-  if (!resolutionSummary.value.trim() || isClosing.value) return
-  isClosing.value = true
-  try {
-    await chatStore.closeTicket(chatStore.activeTicket.id, resolutionSummary.value)
-    showCloseModal.value = false
-    resolutionSummary.value = ''
-  } catch (e) {
-    console.error("Erro ao finalizar atendimento:", e)
-  } finally {
-    isClosing.value = false
-  }
-}
-
-const confirmDelete = async () => {
-  if (!chatStore.activeTicket) return
-  isDeleting.value = true
-  try {
-    await chatStore.deleteTicket(chatStore.activeTicket.id)
-    showDeleteModal.value = false
-  } catch (e) {
-    console.error("Erro ao excluir atendimento:", e)
-    alert("Erro ao excluir atendimento: " + (e.response?.data?.error || e.message))
-  } finally {
-    isDeleting.value = false
-  }
-}
-
-const updateTicketPriority = async () => {
-  if (!chatStore.activeTicket) return
-  await chatStore.updateTicket(chatStore.activeTicket.id, {
-    priority: chatStore.activeTicket.priority
-  })
-}
-
-const setPriority = async (level) => {
-  if (!chatStore.activeTicket) return
-  chatStore.activeTicket.priority = level
-  await updateTicketPriority()
-  showPriorityModal.value = false
-}
-
-const openImage = (url) => { selectedImage.value = url }
-const openVideo = (url) => { selectedVideo.value = url }
-
 // Ações de Criar Pendência a partir do Chat
 const showCreatePendencyModal = ref(false)
 const savingPendency = ref(false)
@@ -459,22 +368,102 @@ const operationTypes = {
   reforma_tributaria: 'Reforma Tributária'
 }
 
-const openCreatePendencyModal = async () => {
+function handleModalEsc(e) {
+  if (e.key === 'Escape') {
+    if (showCloseModal.value) showCloseModal.value = false
+    else if (showTransferModal.value) showTransferModal.value = false
+    else if (showPriorityModal.value) showPriorityModal.value = false
+    else if (showDeleteModal.value) showDeleteModal.value = false
+    else if (selectedImage.value) selectedImage.value = null
+    else if (selectedVideo.value) selectedVideo.value = null
+  }
+}
+
+function openHistory(params) {
+  historyParams.value = {
+    contactId: chatStore.activeTicket?.contact_details?.id || null,
+    customerId: chatStore.activeTicket?.customer_details?.id || null,
+    contactName: chatStore.activeTicket?.contact_details?.name || '',
+    customerName: chatStore.activeTicket?.customer_details?.name || '',
+    type: params.type
+  }
+  showHistoryModal.value = true
+}
+
+function openTransfer() {
+  chatStore.fetchAttendants()
+  showTransferModal.value = true
+}
+
+async function confirmTransfer(userId) {
+  if (!chatStore.activeTicket) return
+  const ticketId = chatStore.activeTicket.id
+  showTransferModal.value = false
+  try {
+    await chatStore.transferTicket(ticketId, userId)
+  } catch (e) {
+    console.error("Erro ao transferir atendimento:", e)
+  }
+}
+
+async function confirmClose() {
+  if (!resolutionSummary.value.trim() || isClosing.value) return
+  isClosing.value = true
+  try {
+    await chatStore.closeTicket(chatStore.activeTicket.id, resolutionSummary.value)
+    showCloseModal.value = false
+    resolutionSummary.value = ''
+  } catch (e) {
+    console.error("Erro ao finalizar atendimento:", e)
+  } finally {
+    isClosing.value = false
+  }
+}
+
+async function confirmDelete() {
+  if (!chatStore.activeTicket) return
+  isDeleting.value = true
+  try {
+    await chatStore.deleteTicket(chatStore.activeTicket.id)
+    showDeleteModal.value = false
+  } catch (e) {
+    console.error("Erro ao excluir atendimento:", e)
+    alert("Erro ao excluir atendimento: " + (e.response?.data?.error || e.message))
+  } finally {
+    isDeleting.value = false
+  }
+}
+
+async function updateTicketPriority() {
+  if (!chatStore.activeTicket) return
+  await chatStore.updateTicket(chatStore.activeTicket.id, {
+    priority: chatStore.activeTicket.priority
+  })
+}
+
+async function setPriority(level) {
+  if (!chatStore.activeTicket) return
+  chatStore.activeTicket.priority = level
+  await updateTicketPriority()
+  showPriorityModal.value = false
+}
+
+function openImage(url) { selectedImage.value = url }
+function openVideo(url) { selectedVideo.value = url }
+
+async function openCreatePendencyModal() {
   const activeTicket = chatStore.activeTicket
   if (!activeTicket) return
 
-  // Fetch attendants list if empty
   if (chatStore.attendants.length === 0) {
     await chatStore.fetchAttendants()
   }
 
-  // Pre-fill fields
   let latestMsg = ''
   if (chatStore.messages && chatStore.messages.length > 0) {
     latestMsg = chatStore.messages[chatStore.messages.length - 1].body || ''
   }
 
-  // Date formatted to local ISO
   const now = new Date()
   const offset = now.getTimezoneOffset() * 60000
   const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16)
@@ -497,7 +486,7 @@ const openCreatePendencyModal = async () => {
   showCreatePendencyModal.value = true
 }
 
-const searchCustomersForPendency = async () => {
+async function searchCustomersForPendency() {
   const query = customerSearchText.value.trim()
   if (query.length < 2) {
     customerSearchResults.value = []
@@ -513,18 +502,18 @@ const searchCustomersForPendency = async () => {
   }
 }
 
-const selectCustomer = (c) => {
+function selectCustomer(c) {
   selectedCustomer.value = c
   showCustomerDropdown.value = false
   customerSearchText.value = ''
   customerSearchResults.value = []
 }
 
-const clearSelectedCustomer = () => {
+function clearSelectedCustomer() {
   selectedCustomer.value = null
 }
 
-const savePendencyFromChat = async () => {
+async function savePendencyFromChat() {
   if (!selectedCustomer.value) {
     alert('Por favor, selecione e vincule um Cliente.')
     return
@@ -560,8 +549,6 @@ const savePendencyFromChat = async () => {
     
     await axios.post('/api/v1/pendencies/', payload)
     
-    // Se o contato do ticket não tiver cliente vinculado ainda,
-    // e o usuário selecionou um cliente no modal, vincula automaticamente!
     if (chatStore.activeTicket?.contact_details && !chatStore.activeTicket.customer_details) {
       try {
         await chatStore.updateContact(chatStore.activeTicket.contact_details.id, {
@@ -584,11 +571,15 @@ const savePendencyFromChat = async () => {
   }
 }
 
-
 onMounted(() => {
+  window.addEventListener('keydown', handleModalEsc)
   chatStore.fetchTickets()
   chatStore.fetchMyTickets()
   chatStore.initSocket()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleModalEsc)
 })
 </script>
 
