@@ -91,6 +91,98 @@
             </div>
           </div>
         </section>
+
+        <!-- SEÇÃO: MONITOR DE RECURSOS DO SERVIDOR AO VIVO -->
+        <section class="settings-section glass-effect" style="margin-top: 25px;">
+          <div class="section-header" style="justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <ActivityIcon :size="24" style="color: #10b981;" />
+              <div>
+                <h2>Monitor de Recursos do Servidor (Ao Vivo)</h2>
+                <p class="section-desc">Uso de CPU, Memória RAM e SWAP em tempo real no servidor.</p>
+              </div>
+            </div>
+            <div class="live-indicator">
+              <span class="pulse-dot"></span>
+              <span>AO VIVO</span>
+            </div>
+          </div>
+
+          <!-- Cards de Métricas e Gráficos -->
+          <div class="metrics-grid">
+            <!-- CPU Card -->
+            <div class="metric-card glass-effect">
+              <div class="metric-header">
+                <div class="metric-title-wrap">
+                  <CpuIcon :size="18" style="color: #3b82f6;" />
+                  <span class="metric-name">Processador (CPU)</span>
+                </div>
+                <span class="metric-value" :class="getCpuColorClass(currentMetrics.cpu_percent)">
+                  {{ currentMetrics.cpu_percent }}%
+                </span>
+              </div>
+              <div class="chart-container">
+                <svg class="live-svg-chart" viewBox="0 0 300 80" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4"/>
+                      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+                    </linearGradient>
+                  </defs>
+                  <polygon :points="getCpuFillPoints" fill="url(#cpuGrad)" />
+                  <polyline :points="getCpuStrokePoints" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- RAM Card -->
+            <div class="metric-card glass-effect">
+              <div class="metric-header">
+                <div class="metric-title-wrap">
+                  <RamIcon :size="18" style="color: #10b981;" />
+                  <span class="metric-name">Memória RAM</span>
+                </div>
+                <div class="metric-value-wrap">
+                  <span class="metric-value" :class="getRamColorClass(currentMetrics.memory_percent)">
+                    {{ currentMetrics.memory_percent }}%
+                  </span>
+                  <small class="metric-sub">{{ currentMetrics.memory_used_mb }} MB / {{ currentMetrics.memory_total_mb }} MB</small>
+                </div>
+              </div>
+              <div class="chart-container">
+                <svg class="live-svg-chart" viewBox="0 0 300 80" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="ramGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#10b981" stop-opacity="0.4"/>
+                      <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
+                    </linearGradient>
+                  </defs>
+                  <polygon :points="getRamFillPoints" fill="url(#ramGrad)" />
+                  <polyline :points="getRamStrokePoints" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- SWAP Card (se houver SWAP no sistema) -->
+            <div v-if="currentMetrics.swap_total_mb > 0" class="metric-card glass-effect">
+              <div class="metric-header">
+                <div class="metric-title-wrap">
+                  <HardDriveIcon :size="18" style="color: #f59e0b;" />
+                  <span class="metric-name">Memória SWAP</span>
+                </div>
+                <div class="metric-value-wrap">
+                  <span class="metric-value" :class="getRamColorClass(currentMetrics.swap_percent)">
+                    {{ currentMetrics.swap_percent }}%
+                  </span>
+                  <small class="metric-sub">{{ currentMetrics.swap_used_mb }} MB / {{ currentMetrics.swap_total_mb }} MB</small>
+                </div>
+              </div>
+              <div class="swap-progress-bg">
+                <div class="swap-progress-fill" :style="{ width: currentMetrics.swap_percent + '%' }"></div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- ABA 2: GATEWAY WHATSAPP -->
@@ -484,7 +576,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useChatStore } from '../store/chat'
 import { useRouter } from 'vue-router'
 import { 
@@ -504,7 +596,11 @@ import {
   Plus as PlusIcon,
   ClipboardList as ClipboardIcon,
   Server as ServerIcon,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Activity as ActivityIcon,
+  Cpu as CpuIcon,
+  HardDrive as HardDriveIcon,
+  Database as RamIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -518,6 +614,103 @@ const confirmReset = ref(false)
 const resetTextConfirm = ref('')
 
 const performanceMode = ref(localStorage.getItem('performanceMode') === 'true')
+
+// === ESTADOS E MÉTODOS DE MONITORAMENTO DO SERVIDOR ===
+const currentMetrics = ref({
+  cpu_percent: 0,
+  memory_percent: 0,
+  memory_used_mb: 0,
+  memory_total_mb: 0,
+  swap_percent: 0,
+  swap_used_mb: 0,
+  swap_total_mb: 0
+})
+
+const cpuHistory = ref(Array(20).fill(0))
+const ramHistory = ref(Array(20).fill(0))
+let metricsInterval = null
+
+const fetchMetrics = async () => {
+  const data = await chatStore.fetchSystemMetrics()
+  if (data) {
+    currentMetrics.value = data
+    cpuHistory.value.push(data.cpu_percent)
+    if (cpuHistory.value.length > 20) cpuHistory.value.shift()
+
+    ramHistory.value.push(data.memory_percent)
+    if (ramHistory.value.length > 20) ramHistory.value.shift()
+  }
+}
+
+const startMetricsPolling = () => {
+  if (metricsInterval) clearInterval(metricsInterval)
+  fetchMetrics()
+  metricsInterval = setInterval(fetchMetrics, 3000)
+}
+
+const stopMetricsPolling = () => {
+  if (metricsInterval) {
+    clearInterval(metricsInterval)
+    metricsInterval = null
+  }
+}
+
+watch(activeSettingsTab, (newTab) => {
+  if (newTab === 'general') {
+    startMetricsPolling()
+  } else {
+    stopMetricsPolling()
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  stopMetricsPolling()
+})
+
+const getCpuColorClass = (val) => {
+  if (val > 85) return 'danger-text'
+  if (val > 60) return 'warning-text'
+  return 'success-text'
+}
+
+const getRamColorClass = (val) => {
+  if (val > 85) return 'danger-text'
+  if (val > 70) return 'warning-text'
+  return 'success-text'
+}
+
+const getCpuStrokePoints = computed(() => {
+  const width = 300
+  const height = 80
+  const step = width / (cpuHistory.value.length - 1 || 1)
+  return cpuHistory.value.map((val, idx) => {
+    const x = idx * step
+    const y = height - (val / 100) * (height - 10) - 5
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+})
+
+const getCpuFillPoints = computed(() => {
+  const stroke = getCpuStrokePoints.value
+  return `0,80 ${stroke} 300,80`
+})
+
+const getRamStrokePoints = computed(() => {
+  const width = 300
+  const height = 80
+  const step = width / (ramHistory.value.length - 1 || 1)
+  return ramHistory.value.map((val, idx) => {
+    const x = idx * step
+    const y = height - (val / 100) * (height - 10) - 5
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+})
+
+const getRamFillPoints = computed(() => {
+  const stroke = getRamStrokePoints.value
+  return `0,80 ${stroke} 300,80`
+})
+
 
 const togglePerformanceMode = () => {
   localStorage.setItem('performanceMode', performanceMode.value ? 'true' : 'false')
@@ -1423,5 +1616,119 @@ onMounted(() => {
 .status-card strong {
   font-size: 1rem;
   color: var(--text-primary);
+}
+
+/* Estilos das Métricas do Servidor Ao Vivo */
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-ring 1.5s infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.5; }
+  100% { transform: scale(0.95); opacity: 1; }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.metric-card {
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.metric-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.metric-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.metric-value-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.metric-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: monospace;
+}
+
+.metric-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.danger-text { color: #ef4444; }
+.warning-text { color: #f59e0b; }
+.success-text { color: #10b981; }
+
+.chart-container {
+  width: 100%;
+  height: 70px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px;
+}
+
+.live-svg-chart {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.swap-progress-bg {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.swap-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+  transition: width 0.5s ease;
 }
 </style>

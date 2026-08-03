@@ -1,7 +1,13 @@
 from rest_framework import viewsets, status, permissions, serializers
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
 from rest_framework.decorators import action
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement, WebcalFeed
 from .serializers import (
     TicketSerializer, 
@@ -2069,6 +2075,72 @@ class WebcalFeedViewSet(viewsets.ModelViewSet):
             return Response({"error": "URL do feed não informada."}, status=status.HTTP_400_BAD_REQUEST)
         events = fetch_and_parse_webcal(url)
         return Response({"count": len(events), "events": events[:20]}, status=status.HTTP_200_OK)
+
+
+class SystemMetricsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        metrics = {
+            "cpu_percent": 0.0,
+            "memory_percent": 0.0,
+            "memory_used_mb": 0,
+            "memory_total_mb": 0,
+            "swap_percent": 0.0,
+            "swap_used_mb": 0,
+            "swap_total_mb": 0,
+            "timestamp": int(time.time())
+        }
+
+        if psutil:
+            try:
+                cpu = psutil.cpu_percent(interval=None)
+                mem = psutil.virtual_memory()
+                swap = psutil.swap_memory()
+                
+                metrics.update({
+                    "cpu_percent": round(cpu, 1),
+                    "memory_percent": round(mem.percent, 1),
+                    "memory_used_mb": round(mem.used / (1024 * 1024)),
+                    "memory_total_mb": round(mem.total / (1024 * 1024)),
+                    "swap_percent": round(swap.percent, 1),
+                    "swap_used_mb": round(swap.used / (1024 * 1024)),
+                    "swap_total_mb": round(swap.total / (1024 * 1024)),
+                })
+            except Exception:
+                pass
+        else:
+            try:
+                with open('/proc/meminfo', 'r') as f:
+                    lines = f.readlines()
+                mem_dict = {}
+                for line in lines:
+                    parts = line.split(':')
+                    if len(parts) == 2:
+                        key = parts[0].strip()
+                        val = parts[1].strip().split()[0]
+                        mem_dict[key] = int(val)
+                
+                total = mem_dict.get('MemTotal', 0)
+                available = mem_dict.get('MemAvailable', mem_dict.get('MemFree', 0))
+                used = total - available
+                if total > 0:
+                    metrics["memory_percent"] = round((used / total) * 100, 1)
+                    metrics["memory_used_mb"] = round(used / 1024)
+                    metrics["memory_total_mb"] = round(total / 1024)
+                
+                swap_total = mem_dict.get('SwapTotal', 0)
+                swap_free = mem_dict.get('SwapFree', 0)
+                swap_used = swap_total - swap_free
+                if swap_total > 0:
+                    metrics["swap_percent"] = round((swap_used / swap_total) * 100, 1)
+                    metrics["swap_used_mb"] = round(swap_used / 1024)
+                    metrics["swap_total_mb"] = round(swap_total / 1024)
+            except Exception:
+                pass
+
+        return Response(metrics, status=status.HTTP_200_OK)
+
 
 
 

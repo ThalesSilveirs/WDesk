@@ -4,7 +4,7 @@ from .views import (
     TicketViewSet, ConnectionViewSet, WebhookView, UserViewSet, CustomerViewSet, 
     CustomerContactViewSet, ContactViewSet, CompanyViewSet, QuickReplyViewSet, 
     AbsenceScheduleViewSet, CityViewSet, PendencyViewSet, PendencyMovementViewSet,
-    WebcalFeedViewSet
+    WebcalFeedViewSet, SystemMetricsView
 )
 
 router = DefaultRouter()
@@ -24,6 +24,8 @@ router.register(r'webcal-feeds', WebcalFeedViewSet, basename='webcal-feed')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('system-metrics/', SystemMetricsView.as_view(), name='system_metrics'),
     path('webhooks/evolution/', WebhookView.as_view({'post': 'evolution', 'get': 'evolution'}), name='webhook_evolution'),
     path('webhooks/evolution', WebhookView.as_view({'post': 'evolution', 'get': 'evolution'})),
 ]
+

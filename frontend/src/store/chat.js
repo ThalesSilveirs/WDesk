@@ -741,6 +741,16 @@ export const useChatStore = defineStore('chat', {
     async updateAbsenceSchedule(payload) {
       const response = await axios.patch('/api/v1/absence-schedules/mine/', payload)
       return response.data
+    },
+
+    async fetchSystemMetrics() {
+      try {
+        const response = await axios.get('/api/v1/system-metrics/')
+        return response.data
+      } catch (e) {
+        console.error("Erro ao buscar métricas do sistema", e)
+        return null
+      }
     }
   }
 })
