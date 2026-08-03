@@ -924,11 +924,81 @@ const handleReset = async () => {
   }
 }
 
+// === ESTADOS E MÉTODOS DE CALENDÁRIOS WEBCAL ===
+const webcalFeeds = ref([])
+const showFeedForm = ref(false)
+const editingFeedId = ref(null)
+const savingFeed = ref(false)
+const feedForm = ref({
+  name: '',
+  url: '',
+  color: '#3b82f6'
+})
+
+const fetchWebcalFeeds = async () => {
+  try {
+    webcalFeeds.value = await chatStore.fetchWebcalFeeds()
+  } catch (e) {
+    console.error("Erro ao buscar calendários iCal", e)
+  }
+}
+
+const openNewFeedForm = () => {
+  editingFeedId.value = null
+  feedForm.value = { name: '', url: '', color: '#3b82f6' }
+  showFeedForm.value = true
+}
+
+const editFeed = (feed) => {
+  editingFeedId.value = feed.id
+  feedForm.value = { name: feed.name, url: feed.url, color: feed.color || '#3b82f6' }
+  showFeedForm.value = true
+}
+
+const closeFeedForm = () => {
+  showFeedForm.value = false
+}
+
+const saveFeed = async () => {
+  if (!feedForm.value.name || !feedForm.value.url) {
+    alert("Preencha o nome e a URL do feed de calendário")
+    return
+  }
+
+  savingFeed.value = true
+  try {
+    if (editingFeedId.value) {
+      await chatStore.updateWebcalFeed(editingFeedId.value, feedForm.value)
+    } else {
+      await chatStore.createWebcalFeed(feedForm.value)
+    }
+    await fetchWebcalFeeds()
+    showFeedForm.value = false
+  } catch (e) {
+    alert("Erro ao salvar calendário. Verifique se a URL está correta.")
+  } finally {
+    savingFeed.value = false
+  }
+}
+
+const deleteFeed = async (id) => {
+  if (confirm("Tem certeza que deseja remover este calendário?")) {
+    try {
+      await chatStore.deleteWebcalFeed(id)
+      await fetchWebcalFeeds()
+    } catch (e) {
+      alert("Erro ao excluir calendário")
+    }
+  }
+}
+
 onMounted(() => {
   fetchSettings()
   fetchQuickReplies()
   fetchAbsenceSettings()
+  fetchWebcalFeeds()
 })
+
 </script>
 
 <style scoped>

@@ -751,6 +751,31 @@ export const useChatStore = defineStore('chat', {
         console.error("Erro ao buscar métricas do sistema", e)
         return null
       }
+    },
+
+    // Feeds de Calendário (Webcal / iCal)
+    async fetchWebcalFeeds() {
+      try {
+        const response = await axios.get('/api/v1/webcal-feeds/')
+        return response.data
+      } catch (e) {
+        console.error("Erro ao buscar feeds de calendário", e)
+        return []
+      }
+    },
+
+    async createWebcalFeed(payload) {
+      const response = await axios.post('/api/v1/webcal-feeds/', payload)
+      return response.data
+    },
+
+    async updateWebcalFeed(id, payload) {
+      const response = await axios.patch(`/api/v1/webcal-feeds/${id}/`, payload)
+      return response.data
+    },
+
+    async deleteWebcalFeed(id) {
+      await axios.delete(`/api/v1/webcal-feeds/${id}/`)
     }
   }
 })
