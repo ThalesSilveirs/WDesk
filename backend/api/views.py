@@ -314,12 +314,11 @@ class TicketViewSet(TenantModelViewSet):
         
         if limit:
             try:
-                queryset = queryset[:min(int(limit), 200)]
+                queryset = queryset[:int(limit)]
             except ValueError:
-                queryset = queryset[:100]
-        else:
-            default_cap = 200 if status_filter == 'closed' else 100
-            queryset = queryset[:default_cap]
+                pass
+        elif status_filter == 'closed':
+            queryset = queryset[:200]
             
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)

@@ -68,6 +68,8 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
     def get_status(self, obj):
+        if not obj or not hasattr(obj, 'id'):
+            return "Offline"
         return get_cached_user_status(obj.id)
 
     def create(self, validated_data):
@@ -126,6 +128,8 @@ class CustomerSerializer(serializers.ModelSerializer):
         }
 
     def get_additional_contacts(self, obj):
+        if not obj or not hasattr(obj, 'contacts'):
+            return []
         return ContactNestedSerializer(obj.contacts.all(), many=True, context=self.context).data
 
 
@@ -238,7 +242,7 @@ class TicketSerializer(serializers.ModelSerializer):
 class TicketListSerializer(serializers.ModelSerializer):
     contact_details = ContactSerializer(source='contact', read_only=True)
     attendant_details = UserSerializer(source='user', read_only=True)
-    customer_details = CustomerLightSerializer(source='contact.customer', read_only=True)
+    customer_details = CustomerSerializer(source='contact.customer', read_only=True)
 
     class Meta:
         model = Ticket
