@@ -878,7 +878,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import axios from 'axios'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { 
   Users as UsersIcon, 
   Search as SearchIcon, 
@@ -903,9 +903,10 @@ import { useChatStore } from '../store/chat'
 
 const chatStore = useChatStore()
 const router = useRouter()
+const route = useRoute()
 const contentWrapperRef = ref(null)
 const customers = ref([])
-const search = ref('')
+const search = ref(route.query.search || '')
 const showModal = ref(false)
 const showContactsModal = ref(false)
 const showTicketModal = ref(false)

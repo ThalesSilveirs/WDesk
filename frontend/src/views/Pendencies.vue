@@ -587,6 +587,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 import {
   ClipboardList as ClipboardListIcon,
@@ -638,13 +639,14 @@ const statusLabels = {
 }
 
 // Estados Reativos
+const route = useRoute()
 const chatStore = useChatStore()
 const sendingReports = ref(false)
 const pendencies = ref([])
 const customers = ref([])
 const users = ref([])
 const contacts = ref([]) // Todos os contatos da empresa
-const search = ref('')
+const search = ref(route.query.search || '')
 const viewMode = ref('grid')
 
 // Filtros

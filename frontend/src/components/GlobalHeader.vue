@@ -6,33 +6,124 @@
         <MenuIcon :size="22" />
       </button>
       <h1>{{ pageTitle }}</h1>
-      
-      <!-- User Status Dropdown -->
-      <div class="status-dropdown" @click.stop>
-        <button @click="showStatusMenu = !showStatusMenu" class="status-btn" :class="currentStatus">
-          <span class="status-dot"></span>
-          <span class="status-text-label">{{ formatStatusName(currentStatus) }}</span>
-          <ChevronDownIcon :size="16" />
-        </button>
-        <div v-if="showStatusMenu" class="status-menu glass-effect">
-          <button @click="changeStatus('online')" class="status-option online">
-            <span class="status-dot"></span> Online
-          </button>
-          <button @click="changeStatus('away')" class="status-option away">
-            <span class="status-dot"></span> Ausente
-          </button>
-          <button @click="changeStatus('offline')" class="status-option offline">
-            <span class="status-dot"></span> Offline
-          </button>
-        </div>
-      </div>
     </div>
 
     <div class="header-right">
-      <!-- Global Search -->
-      <div class="header-search">
-        <SearchIcon :size="18" class="search-icon" />
-        <input v-model="localSearchQuery" type="text" placeholder="Buscar conversas ou logs..." />
+      <!-- Global Advanced Search Suite -->
+      <div class="header-search-container" ref="searchContainerRef" @click.stop>
+        <div class="header-search" :class="{ focused: isSearchOpen }">
+          <SearchIcon :size="18" class="search-icon" />
+          <input 
+            ref="searchInputRef"
+            v-model="localSearchQuery" 
+            type="text" 
+            placeholder="Buscar clientes, conversas ou pendências..." 
+            @focus="isSearchOpen = true"
+            @keydown.esc="isSearchOpen = false"
+            @keydown.enter="handleSearchEnter"
+          />
+          <!-- Clear Button -->
+          <button v-if="localSearchQuery" @click="clearSearch" class="clear-search-btn" title="Limpar busca">
+            <XIcon :size="14" />
+          </button>
+          <span v-else class="search-shortcut-hint">Ctrl K</span>
+        </div>
+
+        <!-- Global Search Autocomplete / Results Popover -->
+        <Transition name="fade-fast">
+          <div v-if="isSearchOpen && localSearchQuery.trim().length > 0" class="global-search-popover glass-effect">
+            <div class="search-popover-header">
+              <span>Resultados para "<strong>{{ localSearchQuery }}</strong>"</span>
+            </div>
+
+            <div class="search-popover-body">
+              <!-- Categoria 1: Conversas / Tickets -->
+              <div v-if="searchResults.tickets.length > 0" class="search-category-section">
+                <div class="category-header">
+                  <MessageSquareIcon :size="14" style="color: var(--accent);" />
+                  <span>CONVERSAS ({{ searchResults.tickets.length }})</span>
+                </div>
+                <div 
+                  v-for="ticket in searchResults.tickets" 
+                  :key="'t_' + ticket.id" 
+                  class="search-result-item"
+                  @click="openTicket(ticket)"
+                >
+                  <div class="item-avatar">
+                    {{ (ticket.customer_name || ticket.contact?.name || '#').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="item-info">
+                    <div class="item-title">
+                      <strong>{{ ticket.customer_name || ticket.contact?.name || 'Cliente' }}</strong>
+                      <span class="ticket-id-tag">#{{ ticket.id }}</span>
+                    </div>
+                    <p class="item-sub">{{ ticket.last_message || 'Nenhuma mensagem recente' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Categoria 2: Clientes -->
+              <div v-if="searchResults.customers.length > 0" class="search-category-section">
+                <div class="category-header">
+                  <UsersIcon :size="14" style="color: #10b981;" />
+                  <span>CLIENTES ({{ searchResults.customers.length }})</span>
+                </div>
+                <div 
+                  v-for="customer in searchResults.customers" 
+                  :key="'c_' + customer.id" 
+                  class="search-result-item"
+                  @click="openCustomer(customer)"
+                >
+                  <div class="item-avatar customer-bg">
+                    {{ customer.name.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="item-info">
+                    <div class="item-title">
+                      <strong>{{ customer.name }}</strong>
+                      <span v-if="customer.document" class="doc-tag">{{ customer.document }}</span>
+                    </div>
+                    <p class="item-sub">{{ customer.phone || customer.email || 'Sem telefone' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Categoria 3: Pendências -->
+              <div v-if="searchResults.pendencies.length > 0" class="search-category-section">
+                <div class="category-header">
+                  <CheckSquareIcon :size="14" style="color: #f59e0b;" />
+                  <span>PENDÊNCIAS ({{ searchResults.pendencies.length }})</span>
+                </div>
+                <div 
+                  v-for="pendency in searchResults.pendencies" 
+                  :key="'p_' + pendency.id" 
+                  class="search-result-item"
+                  @click="openPendency(pendency)"
+                >
+                  <div class="item-avatar pendency-bg">
+                    📋
+                  </div>
+                  <div class="item-info">
+                    <div class="item-title">
+                      <strong>{{ pendency.title }}</strong>
+                      <span v-if="pendency.priority" class="priority-tag" :class="pendency.priority">{{ pendency.priority }}</span>
+                    </div>
+                    <p class="item-sub">{{ pendency.description || 'Sem descrição' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Estado Vazio -->
+              <div v-if="totalResultsCount === 0" class="search-empty-state">
+                <span>Nenhum resultado encontrado para "<strong>{{ localSearchQuery }}</strong>"</span>
+              </div>
+            </div>
+
+            <!-- Footer: Ver tudo em Conversas -->
+            <div class="search-popover-footer" @click="handleSearchEnter">
+              <span>Pressione <kbd>Enter</kbd> para filtrar conversas por "{{ localSearchQuery }}"</span>
+            </div>
+          </div>
+        </Transition>
       </div>
 
       <!-- Notification Bell with Dropdown -->
@@ -75,102 +166,7 @@
           </div>
         </div>
       </div>
-
-      <button class="header-icon-btn history-btn" title="Histórico">
-        <HistoryIcon :size="20" />
-      </button>
-      
-      <!-- Logged In User Profile Dropdown -->
-      <div class="profile-dropdown-container" @click.stop>
-        <button @click="showProfileMenu = !showProfileMenu" class="profile-avatar-btn" title="Menu do Usuário">
-          <div class="profile-avatar">
-            <div class="profile-initials">
-              {{ userInitials }}
-            </div>
-            <span class="profile-name">{{ userDisplayName }}</span>
-          </div>
-          <ChevronDownIcon :size="14" class="profile-arrow" />
-        </button>
-        
-        <Transition name="modal-fade">
-          <div v-if="showProfileMenu" class="profile-menu glass-effect">
-            <div class="profile-menu-header">
-              <strong>{{ userDisplayName }}</strong>
-              <span class="profile-role">{{ chatStore.userRole === 'admin' ? 'Administrador' : 'Atendente' }}</span>
-            </div>
-            <div class="profile-menu-items">
-              <!-- Mobile only menu items (normally in Sidebar bottom-section) -->
-              <div class="mobile-only-items">
-                <button @click="toggleTheme" class="menu-item">
-                  <SunIcon v-if="chatStore.theme === 'dark'" :size="16" />
-                  <MoonIcon v-else :size="16" />
-                  <span>Tema: {{ chatStore.theme === 'dark' ? 'Claro' : 'Escuro' }}</span>
-                </button>
-                <button @click="triggerHelp" class="menu-item">
-                  <HelpCircleIcon :size="16" />
-                  <span>Ajuda</span>
-                </button>
-              </div>
-
-              <!-- Toggle: Notificações de Todas as Conversas (só admin) -->
-              <div
-                v-if="chatStore.userRole === 'admin'"
-                class="menu-item toggle-item"
-                @click.stop="toggleNotifyAll"
-                title="Receber notificações de todas as conversas"
-              >
-                <BellIcon :size="16" />
-                <span>Todas as notificações</span>
-                <div class="toggle-switch" :class="{ active: chatStore.notifyAll }">
-                  <div class="toggle-thumb"></div>
-                </div>
-              </div>
-
-              <button @click="triggerLogout" class="menu-item logout">
-                <LogOutIcon :size="16" />
-                <span>Sair</span>
-              </button>
-            </div>
-          </div>
-        </Transition>
-      </div>
     </div>
-
-    <!-- Logout Modal -->
-    <Teleport to="body">
-      <Transition name="modal-fade">
-        <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
-          <div class="modal-content small-modal" @click.stop>
-            <h2>Sair do Sistema</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 20px;">Tem certeza que deseja encerrar sua sessão?</p>
-            <div class="modal-actions">
-              <button @click="showLogoutModal = false" class="btn-secondary">Cancelar</button>
-              <button @click="logout" class="btn-danger-sm">Confirmar Sair</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- Help Modal -->
-    <Teleport to="body">
-      <Transition name="modal-fade">
-        <div v-if="showHelpModal" class="modal-overlay" @click="showHelpModal = false">
-          <div class="modal-content" @click.stop>
-            <h2>Central de Ajuda</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 20px;">Precisa de auxílio no OmniChat?</p>
-            <div style="display: flex; flex-direction: column; gap: 10px; text-align: left; color: var(--text-secondary);">
-              <p>• Para conectar seu WhatsApp, acesse <strong>Conexões</strong> no menu Configurações.</p>
-              <p>• Use a aba <strong>Conversas</strong> para responder aos seus clientes em tempo real.</p>
-              <p>• Crie campanhas em massa usando o botão <strong>Nova Transmissão</strong>.</p>
-            </div>
-            <div class="modal-actions" style="margin-top: 25px;">
-              <button @click="showHelpModal = false" class="btn-success-sm">Entendido</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
   </header>
 </template>
 
@@ -178,16 +174,14 @@
 import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore } from '../store/chat'
+import axios from 'axios'
 import { 
-  ChevronDown as ChevronDownIcon,
   Search as SearchIcon,
   Bell as BellIcon,
-  History as HistoryIcon,
   MessageSquare as MessageSquareIcon,
-  Sun as SunIcon,
-  Moon as MoonIcon,
-  HelpCircle as HelpCircleIcon,
-  LogOut as LogOutIcon,
+  Users as UsersIcon,
+  CheckSquare as CheckSquareIcon,
+  X as XIcon,
   Menu as MenuIcon
 } from 'lucide-vue-next'
 
@@ -195,43 +189,114 @@ const route = useRoute()
 const router = useRouter()
 const chatStore = useChatStore()
 
+const searchInputRef = ref(null)
+const searchContainerRef = ref(null)
+const isSearchOpen = ref(false)
+const localSearchQuery = ref(chatStore.searchQuery || '')
+const showNotificationDropdown = ref(false)
+
+const customersList = ref([])
+const pendenciesList = ref([])
+
+const fetchSearchData = async () => {
+  try {
+    const [resCust, resPend] = await Promise.all([
+      axios.get('/api/v1/customers/'),
+      axios.get('/api/v1/pendencies/')
+    ])
+    customersList.value = resCust.data || []
+    pendenciesList.value = resPend.data || []
+  } catch (e) {
+    console.error("Erro ao carregar dados da busca global", e)
+  }
+}
+
 const toggleMobileMenu = () => {
   chatStore.toggleMobileMenu()
 }
 
-const showProfileMenu = ref(false)
-const showLogoutModal = ref(false)
-const showHelpModal = ref(false)
-
-const toggleTheme = () => {
-  chatStore.toggleTheme()
+const clearSearch = () => {
+  localSearchQuery.value = ''
+  chatStore.searchQuery = ''
+  isSearchOpen.value = false
 }
 
-const triggerLogout = () => {
-  showProfileMenu.value = false
-  showLogoutModal.value = true
+// Result computation
+const searchResults = computed(() => {
+  const q = (localSearchQuery.value || '').trim().toLowerCase()
+  if (!q) return { tickets: [], customers: [], pendencies: [] }
+
+  // 1. Tickets
+  const allTickets = [...(chatStore.tickets || []), ...(chatStore.myTickets || [])]
+  const uniqueTicketsMap = new Map()
+  allTickets.forEach(t => uniqueTicketsMap.set(t.id, t))
+  
+  const matchedTickets = Array.from(uniqueTicketsMap.values()).filter(t => {
+    const custName = (t.customer_name || t.contact?.name || t.contact?.push_name || '').toLowerCase()
+    const custPhone = (t.contact?.remote_jid || t.contact?.cellphone || '').toLowerCase()
+    const ticketId = String(t.id)
+    const subject = (t.subject || '').toLowerCase()
+    const lastMsg = (t.last_message || '').toLowerCase()
+    return custName.includes(q) || custPhone.includes(q) || ticketId.includes(q) || subject.includes(q) || lastMsg.includes(q)
+  }).slice(0, 5)
+
+  // 2. Customers
+  const matchedCustomers = (customersList.value || []).filter(c => {
+    const name = (c.name || '').toLowerCase()
+    const doc = (c.document || '').toLowerCase()
+    const phone = (c.phone || c.cellphone || '').toLowerCase()
+    return name.includes(q) || doc.includes(q) || phone.includes(q)
+  }).slice(0, 4)
+
+  // 3. Pendencies
+  const matchedPendencies = (pendenciesList.value || []).filter(p => {
+    const title = (p.title || '').toLowerCase()
+    const desc = (p.description || '').toLowerCase()
+    return title.includes(q) || desc.includes(q)
+  }).slice(0, 4)
+
+  return {
+    tickets: matchedTickets,
+    customers: matchedCustomers,
+    pendencies: matchedPendencies
+  }
+})
+
+const totalResultsCount = computed(() => {
+  const r = searchResults.value
+  return r.tickets.length + r.customers.length + r.pendencies.length
+})
+
+const openTicket = async (ticket) => {
+  chatStore.activeTicket = ticket
+  await chatStore.fetchMessages(ticket.id)
+  isSearchOpen.value = false
+  if (route.path !== '/conversations') {
+    router.push('/conversations')
+  }
 }
 
-const logout = () => {
-  chatStore.logout()
-  router.push('/login')
+const openCustomer = (customer) => {
+  isSearchOpen.value = false
+  router.push({ path: '/customers', query: { search: customer.name } })
 }
 
-const triggerHelp = () => {
-  showProfileMenu.value = false
-  showHelpModal.value = true
+const openPendency = (pendency) => {
+  isSearchOpen.value = false
+  router.push({ path: '/pendencies', query: { search: pendency.title } })
 }
 
-const toggleNotifyAll = () => {
-  chatStore.toggleNotifyAll()
+const handleSearchEnter = () => {
+  if (localSearchQuery.value) {
+    chatStore.searchQuery = localSearchQuery.value
+    isSearchOpen.value = false
+    if (route.path !== '/conversations') {
+      router.push('/conversations')
+    }
+  }
 }
 
-const currentStatus = ref('online')
-const showStatusMenu = ref(false)
-const showNotificationDropdown = ref(false)
-
-const localSearchQuery = ref(chatStore.searchQuery)
-
+// Sync store searchQuery
 let debounceTimeout = null
 watch(localSearchQuery, (newVal) => {
   if (debounceTimeout) clearTimeout(debounceTimeout)
@@ -240,17 +305,13 @@ watch(localSearchQuery, (newVal) => {
   }, 250)
 })
 
-// Redirect to Conversations view when search query is typed from elsewhere
 watch(() => chatStore.searchQuery, (newQuery) => {
   if (newQuery !== localSearchQuery.value) {
     localSearchQuery.value = newQuery
   }
-  if (newQuery && route.path !== '/conversations') {
-    router.push('/conversations')
-  }
 })
 
-// Computes dynamic page title based on active route
+// Page title
 const pageTitle = computed(() => {
   switch (route.name) {
     case 'Dashboard': return 'Painel do Agente'
@@ -258,43 +319,15 @@ const pageTitle = computed(() => {
     case 'Users': return 'Gerenciamento de Equipe'
     case 'Analytics': return 'Métricas & Relatórios'
     case 'Settings': return 'Configurações do Sistema'
+    case 'Customers': return 'Clientes & Contatos'
+    case 'Pendencies': return 'Gestão de Pendências'
     default: return 'wDesk'
   }
-})
-
-// Computes display name
-const userDisplayName = computed(() => {
-  if (!chatStore.user) return 'Carregando...'
-  return chatStore.user.first_name 
-    ? `${chatStore.user.first_name} ${chatStore.user.last_name || ''}` 
-    : chatStore.user.username
-})
-
-// Computes profile initials
-const userInitials = computed(() => {
-  if (!chatStore.user) return '?'
-  const name = chatStore.user.first_name || chatStore.user.username
-  return name.charAt(0).toUpperCase()
 })
 
 const unreadCount = computed(() => {
   return chatStore.notifications.filter(n => !n.read).length
 })
-
-const formatStatusName = (status) => {
-  const map = {
-    'online': 'Online',
-    'away': 'Ausente',
-    'offline': 'Offline'
-  }
-  return map[status] || status
-}
-
-const changeStatus = (status) => {
-  currentStatus.value = status
-  showStatusMenu.value = false
-  chatStore.changeUserStatus(status)
-}
 
 const toggleNotificationDropdown = (e) => {
   e.stopPropagation()
@@ -339,30 +372,40 @@ const formatTime = (date) => {
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
-const handleWindowClick = () => {
+const handleGlobalKeydown = (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    searchInputRef.value?.focus()
+    isSearchOpen.value = true
+  } else if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault()
+    searchInputRef.value?.focus()
+    isSearchOpen.value = true
+  } else if (e.key === 'Escape') {
+    isSearchOpen.value = false
+  }
+}
+
+const handleWindowClick = (e) => {
   showNotificationDropdown.value = false
-  showStatusMenu.value = false
-  showProfileMenu.value = false
+  if (searchContainerRef.value && !searchContainerRef.value.contains(e.target)) {
+    isSearchOpen.value = false
+  }
 }
 
-const handleStatusSynced = (e) => {
-  currentStatus.value = e.detail.status
-}
-
-// Close dropdown on window click
 onMounted(() => {
+  fetchSearchData()
   window.addEventListener('click', handleWindowClick)
-  window.addEventListener('user-status-synced', handleStatusSynced)
+  window.addEventListener('keydown', handleGlobalKeydown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('click', handleWindowClick)
-  window.removeEventListener('user-status-synced', handleStatusSynced)
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 </script>
 
 <style scoped>
-/* Global Top Header Bar */
 .global-header {
   display: flex;
   justify-content: space-between;
@@ -372,8 +415,8 @@ onUnmounted(() => {
   background: var(--bg-sidebar);
   height: 70px;
   flex-shrink: 0;
-  position: relative; /* Stacking context */
-  z-index: 999; /* Ensure notifications dropdown is above content */
+  position: relative;
+  z-index: 999;
 }
 
 .mobile-menu-toggle-btn {
@@ -394,302 +437,140 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
-.status-dropdown {
-  position: relative;
-}
-
-.status-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 6px 14px;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.status-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.status-btn.online .status-dot, .status-option.online .status-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
-.status-btn.away .status-dot, .status-option.away .status-dot { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
-.status-btn.offline .status-dot, .status-option.offline .status-dot { background: #94a3b8; }
-
-.status-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 8px;
-  border-radius: 12px;
-  overflow: hidden;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  min-width: 140px;
-  border: 1px solid var(--border);
-  background: var(--bg-sidebar);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-}
-
-.status-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 15px;
-  border: none;
-  background: none;
-  color: var(--text-primary);
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.status-option:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .header-right {
   display: flex;
   align-items: center;
   gap: 20px;
 }
 
+/* Busca Global */
+.header-search-container {
+  position: relative;
+}
+
 .header-search {
   position: relative;
   display: flex;
   align-items: center;
+  transition: all 0.2s ease;
 }
 
 .search-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   color: var(--text-secondary);
+  pointer-events: none;
 }
 
 .header-search input {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 8px 12px 8px 38px;
+  padding: 9px 38px 9px 40px;
   color: var(--text-primary);
   outline: none;
-  width: 240px;
+  width: 320px;
   font-size: 0.85rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.header-search.focused input,
 .header-search input:focus {
   border-color: var(--accent);
+  width: 400px;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+  background: rgba(0, 0, 0, 0.35);
 }
 
-.notification-container {
-  position: relative;
+.search-shortcut-hint {
+  position: absolute;
+  right: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
 }
 
-.header-icon-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.clear-search-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  position: relative;
-  transition: all 0.2s;
-}
-
-.header-icon-btn:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.header-icon-btn .badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #ef4444;
-  color: white;
-  font-size: 0.7rem;
-  font-weight: bold;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
 }
 
-/* Notifications Dropdown Panel */
-.notification-dropdown {
+.clear-search-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Popover de Resultados da Busca Global */
+.global-search-popover {
   position: absolute;
   top: 100%;
   right: 0;
   margin-top: 10px;
-  width: 320px;
-  max-height: 400px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
+  width: 420px;
   background: var(--bg-sidebar);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-  z-index: 1010;
-  display: flex;
-  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  z-index: 1050;
 }
 
-.dropdown-header {
-  padding: 15px;
+.search-popover-header {
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.dropdown-header h4 {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.clear-btn {
-  background: none;
-  border: none;
-  color: #ef4444;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.clear-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.dropdown-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-}
-
-.notif-item {
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.2s;
-  margin-bottom: 4px;
-}
-
-.notif-item:hover {
-  background: var(--glass);
-}
-
-.notif-item.unread {
-  background: rgba(34, 181, 95, 0.05);
-}
-
-.notif-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(34, 181, 95, 0.1);
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.notif-content {
-  flex: 1;
-  text-align: left;
-}
-
-.notif-content h5 {
-  margin: 0 0 4px 0;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.notif-content p {
-  margin: 0 0 6px 0;
   font-size: 0.8rem;
   color: var(--text-secondary);
-  line-height: 1.3;
+  background: rgba(0, 0, 0, 0.1);
 }
 
-.notif-time {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  opacity: 0.7;
+.search-popover-body {
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 8px 0;
 }
 
-.empty-notif {
-  padding: 30px;
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
+.search-category-section {
+  margin-bottom: 8px;
 }
 
-.history-btn {
-  color: var(--text-secondary);
-}
-
-/* Logged In User Profile & Dropdown */
-.profile-dropdown-container {
-  position: relative;
+.category-header {
   display: flex;
   align-items: center;
-  padding-left: 15px;
-  border-left: 1px solid var(--border);
+  gap: 6px;
+  padding: 6px 16px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
 }
 
-.profile-avatar-btn {
+.search-result-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
+  gap: 12px;
+  padding: 10px 16px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 12px;
-  transition: background 0.2s;
-  color: var(--text-primary);
+  transition: background 0.15s ease;
 }
 
-.profile-avatar-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+.search-result-item:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.profile-arrow {
-  color: var(--text-secondary);
-  opacity: 0.7;
-}
-
-.profile-avatar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.profile-initials {
+.item-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -699,258 +580,164 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
-.profile-name {
-  font-size: 0.85rem;
-  font-weight: 600;
+.customer-bg { background: #10b981; }
+.pendency-bg { background: #f59e0b; }
+
+.item-info {
+  flex: 1;
+  overflow: hidden;
+}
+
+.item-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
   color: var(--text-primary);
 }
 
-.profile-menu {
+.ticket-id-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.doc-tag {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.priority-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.priority-tag.high { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.priority-tag.medium { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.priority-tag.low { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+
+.item-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 2px 0 0;
+}
+
+.search-empty-state {
+  padding: 30px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.search-popover-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+}
+
+.search-popover-footer:hover {
+  color: var(--accent);
+}
+
+.search-popover-footer kbd {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* Notificações */
+.notification-container { position: relative; }
+.header-icon-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+.header-icon-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-dropdown {
   position: absolute;
   top: 100%;
   right: 0;
   margin-top: 10px;
-  width: 220px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
+  width: 320px;
   background: var(--bg-sidebar);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-  z-index: 1010;
-  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 16px 35px rgba(0,0,0,0.4);
+  overflow: hidden;
+  z-index: 1050;
+}
+
+.dropdown-header {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.profile-menu-header {
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 4px;
-}
-
-.profile-menu-header strong {
-  font-size: 0.9rem;
-  color: var(--text-primary);
-}
-
-.profile-role {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.profile-menu-items {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.menu-item {
-  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: none;
-  background: none;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  transition: background 0.2s;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
 }
+.dropdown-header h4 { margin: 0; font-size: 0.9rem; }
+.clear-btn { background: none; border: none; color: var(--accent); font-size: 0.8rem; cursor: pointer; }
 
-.menu-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.menu-item.logout {
-  color: #ef4444;
-}
-
-.menu-item.logout:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.mobile-only-items {
-  display: none;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* Toggle switch estilo iOS */
-.toggle-item {
-  justify-content: space-between !important;
-  cursor: pointer;
-  user-select: none;
-}
-
-.toggle-switch {
-  width: 34px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--border);
-  position: relative;
-  transition: background 0.25s;
-  flex-shrink: 0;
-  pointer-events: none;
-}
-
-.toggle-switch.active {
-  background: var(--accent);
-  box-shadow: 0 0 8px rgba(34, 181, 95, 0.4);
-}
-
-.toggle-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: white;
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  transition: left 0.25s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.toggle-switch.active .toggle-thumb {
-  left: 18px;
-}
-
-/* Modal styling copy for global header integration */
-.small-modal {
-  max-width: 400px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.btn-danger-sm {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-danger-sm:hover {
-  background: #dc2626;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-}
-
-.btn-success-sm {
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
+.dropdown-list { max-height: 300px; overflow-y: auto; }
+.notif-item { display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.notif-item:hover { background: rgba(255, 255, 255, 0.05); }
+.notif-content h5 { margin: 0 0 4px; font-size: 0.85rem; }
+.notif-content p { margin: 0 0 4px; font-size: 0.8rem; color: var(--text-secondary); }
+.notif-time { font-size: 0.7rem; color: var(--text-secondary); }
+.empty-notif { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
 
 @media (max-width: 768px) {
-  .global-header {
-    padding: 10px 14px;
-    height: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    position: relative;
-    z-index: 1000;
-  }
-  
-  .header-left {
-    display: flex !important;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-  }
-
-  .header-right {
-    display: flex !important;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-  }
-  
   .mobile-menu-toggle-btn {
-    display: flex !important;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 10px;
+    display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 100;
-    pointer-events: auto;
-    touch-action: manipulation;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
   }
-
-  .header-left h1 {
-    font-size: 1.25rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin: 0;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .profile-dropdown-container {
-    margin-left: auto;
-    border-left: none !important;
-    padding-left: 0 !important;
-  }
-
-  .status-dropdown {
-    flex-shrink: 0;
-  }
-
-  .notification-container {
-    flex-shrink: 0;
-  }
-
-  .header-search {
-    display: flex !important;
-    flex: 1 !important;
-    max-width: none !important;
-  }
-
-  .status-btn span.status-text-label {
-    display: none;
-  }
-
-  .history-btn {
-    display: none !important;
-  }
-  
-  .profile-name {
-    display: none;
-  }
-
-  .mobile-only-items {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 4px;
-    margin-bottom: 4px;
-  }
+  .header-search input { width: 160px; }
+  .header-search.focused input, .header-search input:focus { width: 220px; }
+  .global-search-popover { width: 300px; }
 }
 </style>
