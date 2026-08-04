@@ -139,7 +139,8 @@
         class="ticket-item"
         :class="{ 
           active: chatStore.activeTicket?.id === ticket.id,
-          'grid-item': chatStore.layoutMode === 'grid'
+          'grid-item': chatStore.layoutMode === 'grid',
+          'blocked-ticket': ticket.customer_details?.is_blocked || ticket.contact_details?.customer_details?.is_blocked
         }"
         @click="chatStore.selectTicket(ticket)"
       >
@@ -168,7 +169,12 @@
         <!-- Ticket text details -->
         <div class="ticket-info">
           <div class="top-row">
-            <span class="name">{{ ticket.contact_details?.name || ticket.contact_details?.remote_jid }}</span>
+            <span class="name">
+              {{ ticket.contact_details?.name || ticket.contact_details?.remote_jid }}
+              <span v-if="ticket.customer_details?.is_blocked || ticket.contact_details?.customer_details?.is_blocked" class="blocked-tag-pill" title="Cliente Bloqueado">
+                <LockIcon :size="10" /> Bloqueado
+              </span>
+            </span>
             <span class="time">{{ formatDateOrTime(ticket.updated_at) }}</span>
           </div>
           
@@ -223,7 +229,8 @@ import {
   MessageSquare as MessageSquareIcon,
   Sun as SunIcon,
   Moon as MoonIcon,
-  LogOut as LogOutIcon
+  LogOut as LogOutIcon,
+  Lock as LockIcon
 } from 'lucide-vue-next'
 
 const chatStore = useChatStore()
@@ -1051,6 +1058,27 @@ const activeTabTickets = computed(() => {
 .ticket-skeleton-item.grid-item .skeleton-details {
   align-items: center;
   width: 100%;
+}
+
+.blocked-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 5px;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
+.ticket-item.blocked-ticket {
+  border-left: 3px solid #ef4444;
+  background: rgba(239, 68, 68, 0.03);
 }
 
 @media (max-width: 768px) {

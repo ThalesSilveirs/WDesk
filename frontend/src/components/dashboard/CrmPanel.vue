@@ -34,6 +34,14 @@
         
         <!-- Tags/Badges list -->
         <div class="tags-container">
+          <span 
+            v-if="chatStore.activeTicket?.customer_details?.is_blocked || chatStore.activeTicket?.contact_details?.customer_details?.is_blocked" 
+            class="tag-badge blocked"
+            title="Cliente Bloqueado no Cadastro"
+            style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); display: inline-flex; align-items: center; gap: 4px;"
+          >
+            <LockIcon :size="12" /> BLOQUEADO
+          </span>
           <span class="tag-badge status" :class="chatStore.activeTicket.status">
             {{ formatStatus(chatStore.activeTicket.status) }}
           </span>
@@ -381,7 +389,8 @@ import {
   MessageSquare as MessageSquareIcon,
   Languages as LanguagesIcon,
   ClipboardList as ClipboardListIcon,
-  Clock as ClockIcon
+  Clock as ClockIcon,
+  Lock as LockIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({

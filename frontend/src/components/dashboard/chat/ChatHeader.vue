@@ -28,6 +28,9 @@
           <span v-if="activeTicket.customer_details?.fantasy_name || activeTicket.customer_details?.name" class="company-badge" :title="activeTicket.customer_details?.name">
             {{ activeTicket.customer_details?.fantasy_name || activeTicket.customer_details?.name }}
           </span>
+          <span v-if="isCustomerBlocked" class="blocked-header-badge" title="Este cliente está bloqueado no cadastro">
+            <LockIcon :size="12" /> BLOQUEADO
+          </span>
           <span class="status-dot-indicator" :class="activeTicket.status" :title="activeTicket.status === 'open' ? 'Em aberto' : (activeTicket.status === 'pending' ? 'Pendente' : 'Finalizado')"></span>
         </div>
         <p class="ticket-subject">{{ activeTicket.subject || 'Sem assunto definido' }}</p>
@@ -123,7 +126,8 @@ import {
   CheckCircle2 as CheckIcon,
   Trash2 as TrashIcon,
   X as XIcon,
-  ClipboardList as ClipboardListIcon
+  ClipboardList as ClipboardListIcon,
+  Lock as LockIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -143,6 +147,12 @@ const emit = defineEmits([
 
 const chatStore = useChatStore()
 const activeTicket = computed(() => chatStore.activeTicket || {})
+const isCustomerBlocked = computed(() => {
+  return !!(
+    activeTicket.value?.customer_details?.is_blocked ||
+    activeTicket.value?.contact_details?.customer_details?.is_blocked
+  )
+})
 const imageError = ref(false)
 const showMenu = ref(false)
 const dropdownRef = ref(null)
@@ -593,5 +603,19 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(4px);
+}
+
+.blocked-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
 }
 </style>
