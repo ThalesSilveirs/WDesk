@@ -115,6 +115,15 @@
                 <button @click="openCustomerHistory(customer)" class="icon-btn" title="Histórico de Atendimentos">
                   <HistoryIcon :size="18" />
                 </button>
+                <button 
+                  @click="toggleBlockCustomer(customer)" 
+                  class="icon-btn" 
+                  :class="{ 'blocked-btn': customer.is_blocked }" 
+                  :title="customer.is_blocked ? 'Desbloquear Cliente' : 'Bloquear Cliente'"
+                >
+                  <UnlockIcon v-if="customer.is_blocked" :size="18" />
+                  <LockIcon v-else :size="18" />
+                </button>
                 <button @click="editCustomer(customer)" class="icon-btn" title="Editar">
                   <EditIcon :size="18" />
                 </button>
@@ -197,6 +206,15 @@
                     </button>
                     <button @click="openCustomerHistory(customer)" class="table-action-btn" title="Histórico de Atendimentos">
                       <HistoryIcon :size="16" />
+                    </button>
+                    <button 
+                      @click="toggleBlockCustomer(customer)" 
+                      class="table-action-btn" 
+                      :class="{ 'blocked-btn': customer.is_blocked }" 
+                      :title="customer.is_blocked ? 'Desbloquear Cliente' : 'Bloquear Cliente'"
+                    >
+                      <UnlockIcon v-if="customer.is_blocked" :size="16" />
+                      <LockIcon v-else :size="16" />
                     </button>
                     <button @click="editCustomer(customer)" class="table-action-btn" title="Editar">
                       <EditIcon :size="16" />
@@ -907,7 +925,9 @@ import {
   Filter as FilterIcon,
   History as HistoryIcon,
   Smartphone as SmartphoneIcon,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Lock as LockIcon,
+  Unlock as UnlockIcon
 } from 'lucide-vue-next'
 import HistoryModal from '../components/dashboard/HistoryModal.vue'
 import { useChatStore } from '../store/chat'
@@ -1112,9 +1132,24 @@ const setViewMode = (mode) => {
 
 // Estados dos filtros (CRM)
 const showFilters = ref(false)
-const filterStatus = ref('all')
+const filterStatus = ref('active')
 const filterType = ref('all')
 const filterState = ref('all')
+
+const toggleBlockCustomer = async (customer) => {
+  const actionText = customer.is_blocked ? 'desbloquear' : 'bloquear'
+  if (!confirm(`Deseja realmente ${actionText} o cliente "${customer.name}"?`)) return
+  
+  try {
+    await axios.patch(`/api/v1/customers/${customer.id}/`, {
+      is_blocked: !customer.is_blocked
+    })
+    await fetchCustomers()
+  } catch (e) {
+    console.error(`Erro ao ${actionText} cliente`, e)
+    alert(`Erro ao ${actionText} cliente.`)
+  }
+}
 
 const availableStates = computed(() => {
   const states = customers.value.map(c => c.state).filter(Boolean).map(s => s.trim().toUpperCase())
