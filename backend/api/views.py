@@ -1858,6 +1858,67 @@ class CityViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(Q(name__icontains=q) | Q(ibge_code__icontains=q))
         return queryset
 
+    @action(detail=False, methods=['post'], url_path='sync-ibge')
+    def sync_ibge(self, request):
+        if not request.user.is_superuser:
+            return Response({"error": "Apenas administradores podem sincronizar cidades com o IBGE"}, status=403)
+            
+        import urllib.request
+        import json
+        from rest_framework.response import Response
+        
+        url = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios"
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode('utf-8'))
+        except Exception as e:
+            return Response({"error": f"Erro ao buscar dados do IBGE: {str(e)}"}, status=500)
+
+        try:
+            from django.db import transaction
+            with transaction.atomic():
+                City.objects.all().delete()
+                
+                cities_to_create = []
+                for item in data:
+                    ibge_code = str(item.get('id'))
+                    name = item.get('nome')
+                    
+                    state = None
+                    micro = item.get('microrregiao')
+                    if micro:
+                        meso = micro.get('mesorregiao')
+                        if meso:
+                            uf = meso.get('UF')
+                            if uf:
+                                state = uf.get('sigla')
+                                  
+                    if not state:
+                        regiao_imediata = item.get('regiao-imediata')
+                        if regiao_imediata:
+                            regiao_inter = regiao_imediata.get('regiao-intermediaria')
+                            if regiao_inter:
+                                uf = regiao_inter.get('UF')
+                                if uf:
+                                    state = uf.get('sigla')
+                    
+                    if not state:
+                        state = 'XX'
+                      
+                    cities_to_create.append(City(
+                        ibge_code=ibge_code,
+                        name=name,
+                        state=state
+                    ))
+                
+                if cities_to_create:
+                    City.objects.bulk_create(cities_to_create, batch_size=500)
+            
+            return Response({"success": True, "count": len(cities_to_create)})
+        except Exception as e:
+            return Response({"error": f"Erro ao salvar cidades no banco: {str(e)}"}, status=500)
+
 
 class PendencyViewSet(TenantModelViewSet):
     queryset = Pendency.objects.all()

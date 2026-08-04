@@ -21,11 +21,11 @@ def import_cities():
 
     print(f"Total de {len(data)} cidades encontradas. Processando...")
     
-    cities_to_create = []
-    existing_codes = set(City.objects.values_list('ibge_code', flat=True))
+    print("Limpando a tabela de cidades existente...")
+    City.objects.all().delete()
     
+    cities_to_create = []
     created_count = 0
-    updated_count = 0
     
     for item in data:
         ibge_code = str(item.get('id'))
@@ -54,23 +54,18 @@ def import_cities():
         if not state:
             state = 'XX' # Fallback
           
-        if ibge_code in existing_codes:
-            City.objects.filter(ibge_code=ibge_code).update(name=name, state=state)
-            updated_count += 1
-        else:
-            cities_to_create.append(City(
-                ibge_code=ibge_code,
-                name=name,
-                state=state
-            ))
-            created_count += 1
+        cities_to_create.append(City(
+            ibge_code=ibge_code,
+            name=name,
+            state=state
+        ))
+        created_count += 1
 
     if cities_to_create:
         City.objects.bulk_create(cities_to_create, batch_size=500)
 
     print(f"Importação concluída!")
     print(f"Criadas: {created_count}")
-    print(f"Atualizadas: {updated_count}")
 
 if __name__ == '__main__':
     import_cities()

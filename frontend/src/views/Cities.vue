@@ -15,6 +15,11 @@
             <SearchIcon :size="20" />
             <input v-model="searchQuery" placeholder="Filtrar por nome ou código..." type="text" />
           </div>
+          <button @click="syncWithIBGE" class="btn-secondary" :disabled="syncing" style="display: flex; align-items: center; gap: 8px;">
+            <RefreshCwIcon v-if="!syncing" :size="20" />
+            <span v-else class="spinner-mini"></span>
+            {{ syncing ? 'Sincronizando...' : 'Sincronizar IBGE' }}
+          </button>
           <button @click="openNewCityForm" class="btn-primary">
             <PlusIcon :size="20" /> Nova Cidade
           </button>
@@ -119,6 +124,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 import { useChatStore } from '../store/chat'
 import { 
   MapPin as MapPinIcon, 
@@ -126,7 +132,8 @@ import {
   Search as SearchIcon, 
   Edit as EditIcon, 
   Trash as TrashIcon, 
-  Check as CheckIcon 
+  Check as CheckIcon,
+  RefreshCw as RefreshCwIcon
 } from 'lucide-vue-next'
 
 const chatStore = useChatStore()
@@ -147,6 +154,26 @@ const fetchCitiesList = async () => {
     citiesList.value = await chatStore.fetchCities()
   } catch (e) {
     console.error("Erro ao buscar cidades", e)
+  }
+}
+
+const syncing = ref(false)
+
+const syncWithIBGE = async () => {
+  if (!confirm("Isso irá apagar todas as cidades cadastradas atualmente e reimportar a base completa de municípios do IBGE (mais de 5.500 registros). Deseja prosseguir?")) {
+    return
+  }
+  syncing.value = true
+  try {
+    const response = await axios.post('/api/v1/cities/sync-ibge/')
+    alert(`Importação concluída com sucesso! ${response.data.count} cidades cadastradas.`)
+    await fetchCitiesList()
+  } catch (err) {
+    console.error("Erro ao sincronizar cidades com o IBGE", err)
+    const errorMsg = err.response?.data?.error || "Erro na sincronização."
+    alert(errorMsg)
+  } finally {
+    syncing.value = false
   }
 }
 
@@ -516,5 +543,20 @@ onMounted(() => {
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+.spinner-mini {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
