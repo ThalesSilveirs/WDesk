@@ -271,15 +271,26 @@
                 </div>
                 <div class="form-group">
                   <label>{{ clientType === 'PJ' ? 'CNPJ *' : 'CPF *' }}</label>
-                  <input 
-                    v-if="clientType === 'PJ'"
-                    v-model="form.cnpj" 
-                    @input="form.cnpj = formatCNPJ($event.target.value)"
-                    class="input-glass" 
-                    placeholder="Ex: 00.000.000/0000-00" 
-                    maxlength="18"
-                    required
-                  />
+                  <div v-if="clientType === 'PJ'" class="input-with-button">
+                    <input 
+                      v-model="form.cnpj" 
+                      @input="form.cnpj = formatCNPJ($event.target.value)"
+                      class="input-glass" 
+                      placeholder="Ex: 00.000.000/0000-00" 
+                      maxlength="18"
+                      required
+                    />
+                    <button 
+                      type="button" 
+                      class="btn-search-cnpj" 
+                      @click="searchCNPJ" 
+                      :disabled="loadingCNPJ"
+                      title="Buscar dados via CNPJ"
+                    >
+                      <SearchIcon v-if="!loadingCNPJ" :size="16" />
+                      <span v-else class="spinner-mini"></span>
+                    </button>
+                  </div>
                   <input 
                     v-else
                     v-model="form.cpf" 
@@ -927,6 +938,77 @@ const openCustomerHistory = (customer) => {
 }
 
 const clientType = ref('PJ')
+const loadingCNPJ = ref(false)
+
+const searchCNPJ = async () => {
+  const cnpjClean = (form.value.cnpj || '').replace(/\D/g, '')
+  if (cnpjClean.length !== 14) {
+    alert('Por favor, informe um CNPJ válido com 14 dígitos.')
+    return
+  }
+  loadingCNPJ.value = true
+  try {
+    const response = await axios.get(`https://brasilapi.com.br/api/cnpj/v1/${cnpjClean}`)
+    const data = response.data
+    
+    if (data) {
+      // Preenche os campos principais
+      form.value.name = data.razao_social || data.nome_fantasia || form.value.name
+      form.value.fantasy_name = data.nome_fantasia || data.razao_social || form.value.fantasy_name
+      
+      // Email
+      if (data.email) {
+        form.value.email = data.email
+      }
+      
+      // Telefone
+      if (data.ddd_telefone_1) {
+        form.value.phone = data.ddd_telefone_1
+      }
+      
+      // Endereço
+      form.value.zip_code = data.cep ? data.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2') : form.value.zip_code
+      form.value.address = data.logradouro || form.value.address
+      form.value.number = data.numero || form.value.number
+      form.value.complement = data.complemento || form.value.complement
+      form.value.neighborhood = data.bairro || form.value.neighborhood
+      
+      if (data.municipio) {
+        form.value.city = data.municipio
+      }
+      if (data.uf) {
+        form.value.state = data.uf
+      }
+      
+      // Tenta buscar o relacionamento de cidade no banco para associar
+      if (data.municipio && data.uf) {
+        try {
+          const cities = await chatStore.fetchCities(data.municipio)
+          const matchedCity = cities.find(c => c.name.toLowerCase() === data.municipio.toLowerCase() && c.state.toLowerCase() === data.uf.toLowerCase())
+          if (matchedCity) {
+            form.value.city_relationship = matchedCity.id
+            citySearchQuery.value = matchedCity.name
+          } else {
+            const closeMatch = cities.find(c => c.name.toLowerCase() === data.municipio.toLowerCase())
+            if (closeMatch) {
+              form.value.city_relationship = closeMatch.id
+              citySearchQuery.value = closeMatch.name
+            } else {
+              citySearchQuery.value = data.municipio
+            }
+          }
+        } catch (cityErr) {
+          console.error("Erro ao buscar relacionamento da cidade do CNPJ", cityErr)
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao buscar CNPJ", e)
+    alert("Erro ao buscar CNPJ. Verifique se o número está correto ou tente novamente mais tarde.")
+  } finally {
+    loadingCNPJ.value = false
+  }
+}
 
 const formatCPF = (val) => {
   if (!val) return ''
@@ -2752,5 +2834,56 @@ onUnmounted(() => {
 .slide-fade-enter-from, .slide-fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+.input-with-button {
+  display: flex;
+  position: relative;
+  width: 100%;
+}
+
+.input-with-button .input-glass {
+  flex: 1;
+  padding-right: 48px;
+  width: 100%;
+}
+
+.btn-search-cnpj {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: 40px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.btn-search-cnpj:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.btn-search-cnpj:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner-mini {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 </style>
