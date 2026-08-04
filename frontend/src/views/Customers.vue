@@ -983,14 +983,27 @@ const searchCNPJ = async () => {
       // Tenta buscar o relacionamento de cidade no banco para associar
       if (data.municipio && data.uf) {
         try {
+          const normalizeString = (str) => {
+            if (!str) return ''
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+          }
+          
           const cities = await chatStore.fetchCities(data.municipio)
-          const matchedCity = cities.find(c => c.name.toLowerCase() === data.municipio.toLowerCase() && c.state.toLowerCase() === data.uf.toLowerCase())
+          const matchedCity = cities.find(c => 
+            normalizeString(c.name) === normalizeString(data.municipio) && 
+            normalizeString(c.state) === normalizeString(data.uf)
+          )
+          
           if (matchedCity) {
+            form.value.city = matchedCity.name
+            form.value.state = matchedCity.state
             form.value.city_relationship = matchedCity.id
             citySearchQuery.value = matchedCity.name
           } else {
-            const closeMatch = cities.find(c => c.name.toLowerCase() === data.municipio.toLowerCase())
+            const closeMatch = cities.find(c => normalizeString(c.name) === normalizeString(data.municipio))
             if (closeMatch) {
+              form.value.city = closeMatch.name
+              form.value.state = closeMatch.state
               form.value.city_relationship = closeMatch.id
               citySearchQuery.value = closeMatch.name
             } else {
