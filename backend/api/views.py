@@ -1869,9 +1869,13 @@ class CityViewSet(viewsets.ModelViewSet):
         
         url = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios"
         try:
+            import gzip
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req) as response:
-                data = json.loads(response.read().decode('utf-8'))
+                response_data = response.read()
+                if response.info().get('Content-Encoding') == 'gzip' or response_data.startswith(b'\x1f\x8b'):
+                    response_data = gzip.decompress(response_data)
+                data = json.loads(response_data.decode('utf-8'))
         except Exception as e:
             return Response({"error": f"Erro ao buscar dados do IBGE: {str(e)}"}, status=500)
 
