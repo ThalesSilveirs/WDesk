@@ -71,7 +71,7 @@ class CustomerViewSet(TenantModelViewSet):
         return CustomerSerializer
 
     def get_queryset(self):
-        return super().get_queryset().select_related('city_relationship')
+        return super().get_queryset().select_related('city_relationship').prefetch_related('contacts')
 
     @action(detail=True, methods=['post'])
     def open_ticket(self, request, pk=None):

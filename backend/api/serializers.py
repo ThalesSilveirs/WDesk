@@ -141,13 +141,19 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 class CustomerListSerializer(serializers.ModelSerializer):
     city_relationship_details = CitySerializer(source='city_relationship', read_only=True)
+    additional_contacts = serializers.SerializerMethodField()
 
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'fantasy_name', 'cnpj', 'cpf', 'phone', 'email', 'city_relationship_details']
+        fields = ['id', 'name', 'fantasy_name', 'cnpj', 'cpf', 'phone', 'email', 'city_relationship_details', 'additional_contacts']
         extra_kwargs = {
             'company': {'read_only': True}
         }
+
+    def get_additional_contacts(self, obj):
+        if not obj or not hasattr(obj, 'contacts'):
+            return []
+        return ContactNestedSerializer(obj.contacts.all(), many=True, context=self.context).data
 
 
 class ContactSerializer(serializers.ModelSerializer):
