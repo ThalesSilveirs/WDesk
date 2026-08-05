@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
     restart: unless-stopped
-    command: postgres -c shared_buffers=64MB -c max_connections=30
+    command: postgres -c shared_buffers=256MB -c max_connections=200 -c work_mem=16MB -c effective_cache_size=512MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh
@@ -44,7 +42,7 @@ services:
       - WEBHOOK_GLOBAL_ENABLED=true
       - WEBHOOK_URL=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
       - WEBHOOK_GLOBAL_URL=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
-      - WEBHOOK_EVENTS=ALL,MESSAGE,READ_RECEIPT,PRESENCE,HISTORY_SYNC,CHAT_PRESENCE,CALL,CONNECTION,QRCODE,MESSAGES_UPDATE,MESSAGES_UPSERT,CONNECTION_UPDATE
+      - WEBHOOK_EVENTS=MESSAGE,READ_RECEIPT,HISTORY_SYNC,CALL,CONNECTION,QRCODE,MESSAGES_UPDATE,MESSAGES_UPSERT,CONNECTION_UPDATE
       - WEBHOOK_URL_MESSAGE=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
       - WEBHOOK_URL_MESSAGES_UPSERT=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
       - WEBHOOK_URL_CONNECTION_UPDATE=${WEBHOOK_GLOBAL_URL:-http://backend:8000/api/v1/webhooks/evolution}
@@ -91,8 +89,8 @@ services:
         condition: service_started
     networks:
       - app-network
-    ports:
-      - "8000:8000"
+    # ports:
+    #   - "8000:8000"
 
   worker:
     build: ./backend
