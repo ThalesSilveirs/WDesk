@@ -193,6 +193,8 @@ class Contact(models.Model):
         unique_together = ('company', 'remote_jid')
         indexes = [
             models.Index(fields=['company', 'remote_jid']),
+            models.Index(fields=['company', 'phone']),
+            models.Index(fields=['company', 'whatsapp']),
             models.Index(fields=['customer', 'phone']),
             models.Index(fields=['company', '-updated_at']),
         ]
@@ -225,7 +227,8 @@ class Ticket(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['company', 'status']),
-            models.Index(fields=['company', 'updated_at']),
+            models.Index(fields=['company', 'status', '-updated_at']),
+            models.Index(fields=['company', '-updated_at']),
             models.Index(fields=['contact', 'status']),
         ]
 
@@ -250,6 +253,7 @@ class Message(models.Model):
         ordering = ['timestamp', 'id']
         indexes = [
             models.Index(fields=['ticket', 'timestamp']),
+            models.Index(fields=['ticket', '-timestamp']),
         ]
 
 class MessageReaction(models.Model):

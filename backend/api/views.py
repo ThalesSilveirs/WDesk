@@ -37,6 +37,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import json
 import redis
+from django.core.cache import cache
 from django.conf import settings
 import requests
 import time
@@ -193,7 +194,7 @@ class ContactViewSet(TenantModelViewSet):
         return ContactSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related('customer')
+        qs = super().get_queryset().select_related('customer', 'company')
         customer_id = self.request.query_params.get('customer')
         if customer_id:
             qs = qs.filter(customer_id=customer_id)
@@ -1711,8 +1712,32 @@ class UserViewSet(TenantModelViewSet):
             return User.objects.filter(id=self.request.user.id)
         return super().get_queryset()
 
+    def list(self, request, *args, **kwargs):
+        cache_key = f"users_list_{request.user.company_id}_{request.user.role}"
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=300)
+        return response
+
+    def _clear_cache(self):
+        cache.delete_many([
+            f"users_list_{self.request.user.company_id}_admin",
+            f"users_list_{self.request.user.company_id}_attendant"
+        ])
+
     def perform_create(self, serializer):
         serializer.save(company=self.request.user.company)
+        self._clear_cache()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._clear_cache()
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        self._clear_cache()
 
     @action(detail=False, methods=['get'])
     def me(self, request):
@@ -1798,8 +1823,29 @@ class QuickReplyViewSet(TenantModelViewSet):
     queryset = QuickReply.objects.all().order_by('title')
     serializer_class = QuickReplySerializer
 
+    def list(self, request, *args, **kwargs):
+        cache_key = f"quick_replies_{request.user.company_id}"
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=600)
+        return response
+
+    def _clear_cache(self):
+        cache.delete(f"quick_replies_{self.request.user.company_id}")
+
     def perform_create(self, serializer):
         serializer.save(company=self.request.user.company, created_by=self.request.user)
+        self._clear_cache()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._clear_cache()
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        self._clear_cache()
 
 
 class AbsenceScheduleViewSet(viewsets.ModelViewSet):
@@ -1857,6 +1903,16 @@ class CityViewSet(viewsets.ModelViewSet):
         if q:
             queryset = queryset.filter(Q(name__icontains=q) | Q(ibge_code__icontains=q))
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        q = request.query_params.get('q', '')
+        cache_key = f"cities_list_{q[:20]}"
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=3600)
+        return response
 
     @action(detail=False, methods=['post'], url_path='sync-ibge')
     def sync_ibge(self, request):

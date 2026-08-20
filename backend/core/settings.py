@@ -79,6 +79,15 @@ DATABASES = {
 }
 DATABASES['default']['CONN_MAX_AGE'] = 60
 
+# Cache Redis nativo do Django
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': env('REDIS_URL', default='redis://redis:6379/1'),
+        'TIMEOUT': 300,
+    }
+}
+
 AUTH_USER_MODEL = 'tickets.User'
 
 REST_FRAMEWORK = {
