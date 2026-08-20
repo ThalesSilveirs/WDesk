@@ -1,9 +1,9 @@
 #!/bin/bash
 # Script para coletar status, logs e estado do repositório remoto git
 
-KEY_PATH="/home/thalessilveirs/Documentos/wdesk.key"
-IP="163.176.157.42"
-USER="ubuntu"
+KEY_PATH="${SSH_KEY_PATH:-/home/thalessilveirs/.ssh/id_ed25519}"
+IP="${REMOTE_IP:-177.153.35.98}"
+USER="${REMOTE_USER:-root}"
 OUTPUT_FILE="/home/thalessilveirs/WDesk/remote_status.log"
 
 echo "=== INICIANDO COLETA DE STATUS REMOTO ===" > "$OUTPUT_FILE"

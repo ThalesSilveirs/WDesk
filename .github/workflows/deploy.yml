@@ -1,16 +1,16 @@
-name: Deploy to Oracle Cloud
+name: Deploy to Production (Locaweb)
 
 on:
   push:
     branches:
-      - main  # Ou a branch que você utiliza
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
@@ -19,11 +19,9 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ./WDesk
+            cd /root/WDesk || cd ~/WDesk
             git fetch https://ThalesSilveirs:${{ secrets.MY_GITHUB_TOKEN }}@github.com/ThalesSilveirs/WDesk.git main
             git reset --hard FETCH_HEAD
             docker compose up -d --build --remove-orphans
-            docker compose exec backend python manage.py makemigrations
-            docker compose exec backend python manage.py migrate
-            docker compose restart nginx
-            docker compose restart frontend
+            docker compose exec -T backend python manage.py migrate
+            docker compose restart nginx frontend
