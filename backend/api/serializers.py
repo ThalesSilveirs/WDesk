@@ -120,7 +120,7 @@ class ContactNestedSerializer(serializers.ModelSerializer):
 class CustomerLightSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'phone', 'is_blocked', 'cnpj', 'cpf', 'city', 'state']
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -216,7 +216,7 @@ class ContactListSerializer(serializers.ModelSerializer):
     customer_details = CustomerLightSerializer(source='customer', read_only=True)
     class Meta:
         model = Contact
-        fields = ['id', 'name', 'remote_jid', 'cellphone', 'email', 'profile_pic', 'customer', 'customer_details']
+        fields = ['id', 'name', 'remote_jid', 'phone', 'cellphone', 'whatsapp', 'email', 'profile_pic', 'note', 'customer', 'customer_details']
 
 class CustomerContactSerializer(ContactSerializer):
     pass
@@ -252,9 +252,9 @@ class TicketSerializer(serializers.ModelSerializer):
         return MessageSerializer(reversed(messages), many=True, context=self.context).data
 
 class TicketListSerializer(serializers.ModelSerializer):
-    contact_details = ContactSerializer(source='contact', read_only=True)
+    contact_details = ContactListSerializer(source='contact', read_only=True)
     attendant_details = UserSerializer(source='user', read_only=True)
-    customer_details = CustomerSerializer(source='contact.customer', read_only=True)
+    customer_details = CustomerLightSerializer(source='contact.customer', read_only=True)
 
     class Meta:
         model = Ticket
