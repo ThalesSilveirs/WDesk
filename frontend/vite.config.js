@@ -24,5 +24,18 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  build: {
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-core': ['vue', 'vue-router', 'pinia'],
+          'vendor-icons': ['lucide-vue-next'],
+          'vendor-network': ['axios', 'socket.io-client']
+        }
+      }
+    }
   }
 })
