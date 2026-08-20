@@ -142,6 +142,12 @@ class Customer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['company', 'name']),
+            models.Index(fields=['company', 'is_blocked']),
+        ]
+
     def __str__(self):
         return f"{self.name} ({self.phone})"
 
@@ -185,6 +191,11 @@ class Contact(models.Model):
 
     class Meta:
         unique_together = ('company', 'remote_jid')
+        indexes = [
+            models.Index(fields=['company', 'remote_jid']),
+            models.Index(fields=['customer', 'phone']),
+            models.Index(fields=['company', '-updated_at']),
+        ]
 
 class Ticket(models.Model):
     STATUS_CHOICES = (
@@ -318,6 +329,12 @@ class Pendency(models.Model):
 
     class Meta:
         ordering = ['-priority', 'forecast_date']
+        indexes = [
+            models.Index(fields=['company', 'status']),
+            models.Index(fields=['customer', 'status']),
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['company', '-created_at']),
+        ]
 
     def __str__(self):
         return f"{self.title} ({self.company.name})"
