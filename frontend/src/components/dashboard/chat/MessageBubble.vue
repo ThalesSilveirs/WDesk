@@ -40,10 +40,35 @@
             </div>
           </div>
         </div>
+        <div v-else-if="msg.media_type === 'contact'" class="media-contact-card">
+          <div class="contact-card-top">
+            <div class="contact-avatar-badge">
+              <UserIcon :size="24" />
+            </div>
+            <div class="contact-card-info">
+              <span class="contact-card-name">{{ getContactCardData(msg).name }}</span>
+              <span v-if="getContactCardData(msg).phone" class="contact-card-phone">{{ getContactCardData(msg).phone }}</span>
+            </div>
+          </div>
+          <div class="contact-card-footer">
+            <a
+              v-if="getContactCardData(msg).cleanPhone"
+              :href="'https://wa.me/' + getContactCardData(msg).cleanPhone"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="contact-card-btn"
+              @click.stop
+            >
+              <MessageCircleIcon :size="16" />
+              <span>Conversar</span>
+            </a>
+            <span v-else class="contact-card-static-label">Contato</span>
+          </div>
+        </div>
 
         <!-- Text Display -->
         <p
-          v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio'"
+          v-if="msg.body && !isPlaceholder(msg.body) && msg.media_type !== 'audio' && msg.media_type !== 'contact'"
           v-html="parseWhatsAppMarkdown(msg.body, msg.from_me)"
         ></p>
 
@@ -95,7 +120,9 @@ import {
 } from '../../../utils/whatsappMarkdown'
 import {
   FileText as FileIcon,
-  Play as PlayIcon
+  Play as PlayIcon,
+  User as UserIcon,
+  MessageCircle as MessageCircleIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -162,6 +189,48 @@ const getDocExt = (fileName) => {
   if (!fileName) return 'Documento'
   const ext = fileName.split('.').pop().toUpperCase()
   return ext || 'Documento'
+}
+
+const getContactCardData = (msg) => {
+  let name = msg.file_name || ''
+  let phone = ''
+  let cleanPhone = ''
+  
+  if (msg.media_url) {
+    try {
+      const parsed = typeof msg.media_url === 'string' && msg.media_url.startsWith('{') ? JSON.parse(msg.media_url) : (msg.media_url.startsWith('[') ? JSON.parse(msg.media_url) : null)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        name = parsed[0].name || name
+        phone = parsed[0].phone || ''
+      } else if (parsed && typeof parsed === 'object') {
+        name = parsed.name || name
+        phone = parsed.phone || ''
+      }
+    } catch (e) {
+      const match = String(msg.media_url).match(/waid=(\d+)/) || String(msg.media_url).match(/TEL[^:]*:([+\d\s()-]+)/)
+      if (match) phone = match[1].trim()
+      const fnMatch = String(msg.media_url).match(/FN:(.*?)(?:\r?\n|$)/)
+      if (fnMatch) name = fnMatch[1].trim()
+    }
+  }
+
+  if (!name && msg.body) {
+    const clean = msg.body.replace('👤 Contato:', '').replace('👤 Contatos:', '').trim()
+    name = clean.split('(')[0].trim()
+  }
+
+  if (!name) name = 'Contato Compartilhado'
+
+  if (!phone && msg.body) {
+    const pMatch = msg.body.match(/\(([\d\s+-]+)\)/)
+    if (pMatch) phone = pMatch[1].trim()
+  }
+
+  if (phone) {
+    cleanPhone = phone.replace(/\D/g, '')
+  }
+
+  return { name, phone, cleanPhone }
 }
 
 const getGroupedReactions = (reactions) => {
@@ -323,6 +392,110 @@ const getGroupedReactions = (reactions) => {
 
 .doc-ext {
   font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Contact Card Styling */
+.media-contact-card {
+  width: 240px;
+  max-width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 4px 0 6px 0;
+}
+
+.contact-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.contact-avatar-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.message.me .contact-avatar-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.contact-card-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
+}
+
+.contact-card-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message.me .contact-card-name {
+  color: #fff;
+}
+
+.contact-card-phone {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message.me .contact-card-phone {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.contact-card-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.contact-card-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.message.me .contact-card-btn {
+  color: #fff;
+}
+
+.contact-card-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.contact-card-static-label {
+  display: block;
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 0.8rem;
   color: var(--text-secondary);
 }
 

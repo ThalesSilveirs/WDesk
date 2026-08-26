@@ -308,6 +308,8 @@ def process_webhook_event(self, connection_id, payload):
             aud_obj = actual_msg.get('audioMessage') or actual_msg.get('AudioMessage')
             doc_obj = actual_msg.get('documentMessage') or actual_msg.get('DocumentMessage')
             stk_obj = actual_msg.get('stickerMessage') or actual_msg.get('StickerMessage')
+            contact_obj = actual_msg.get('contactMessage') or actual_msg.get('ContactMessage') or msg_item.get('contactMessage')
+            contacts_array_obj = actual_msg.get('contactsArrayMessage') or actual_msg.get('ContactsArrayMessage') or msg_item.get('contactsArrayMessage')
             
             if img_obj:
                 media_type = 'image'
@@ -325,6 +327,47 @@ def process_webhook_event(self, connection_id, payload):
             elif stk_obj:
                 media_type = 'image'
                 mimetype = stk_obj.get('mimetype') or 'image/webp'
+            elif contact_obj:
+                media_type = 'contact'
+                mimetype = 'text/vcard'
+                vcard_str = contact_obj.get('vcard') or ''
+                disp_name = contact_obj.get('displayName') or contact_obj.get('name') or ''
+                phone_match = re.search(r'waid=(\d+)', vcard_str) or re.search(r'TEL[^:]*:([+\d\s()-]+)', vcard_str)
+                extracted_phone = phone_match.group(1).strip() if phone_match else ''
+                if not disp_name:
+                    fn_match = re.search(r'FN:(.*?)(?:\r?\n|$)', vcard_str)
+                    disp_name = fn_match.group(1).strip() if fn_match else 'Contato'
+                
+                contact_data = {
+                    "name": disp_name,
+                    "phone": extracted_phone,
+                    "vcard": vcard_str
+                }
+                media_url = json.dumps(contact_data)
+                file_name = disp_name
+                if not body:
+                    body = f"👤 Contato: {disp_name}" + (f" ({extracted_phone})" if extracted_phone else "")
+            elif contacts_array_obj:
+                media_type = 'contact'
+                mimetype = 'text/vcard'
+                contact_list = contacts_array_obj.get('contacts', [])
+                disp_name = contacts_array_obj.get('displayName') or (contact_list[0].get('displayName') if contact_list else 'Contatos')
+                parsed_contacts = []
+                for c in contact_list:
+                    vcard_str = c.get('vcard') or ''
+                    c_name = c.get('displayName') or ''
+                    phone_match = re.search(r'waid=(\d+)', vcard_str) or re.search(r'TEL[^:]*:([+\d\s()-]+)', vcard_str)
+                    c_phone = phone_match.group(1).strip() if phone_match else ''
+                    if not c_name:
+                        fn_match = re.search(r'FN:(.*?)(?:\r?\n|$)', vcard_str)
+                        c_name = fn_match.group(1).strip() if fn_match else 'Contato'
+                    parsed_contacts.append({"name": c_name, "phone": c_phone, "vcard": vcard_str})
+                
+                media_url = json.dumps(parsed_contacts)
+                file_name = disp_name
+                if not body:
+                    names = ", ".join([c['name'] for c in parsed_contacts[:3]])
+                    body = f"👤 Contatos: {names}"
             
             if not mimetype:
                 mimetype = actual_msg.get('mimetype') or 'image/jpeg'
@@ -460,6 +503,10 @@ def process_webhook_event(self, connection_id, payload):
                                     quoted_body = "🎵 Áudio"
                                 elif 'documentMessage' in quoted_msg_content:
                                     quoted_body = quoted_msg_content['documentMessage'].get('title') or "📄 Documento"
+                                elif 'contactMessage' in quoted_msg_content:
+                                    quoted_body = f"👤 {quoted_msg_content['contactMessage'].get('displayName') or 'Contato'}"
+                                elif 'contactsArrayMessage' in quoted_msg_content:
+                                    quoted_body = "👤 Contatos"
                                 elif 'stickerMessage' in quoted_msg_content:
                                     quoted_body = "🎨 Figurinha"
                             
@@ -605,7 +652,7 @@ def process_webhook_event(self, connection_id, payload):
                     }
                 )
                 
-                ticket.last_message = body or (f"📷 Foto" if media_type == 'image' else (f"🎵 Áudio" if media_type == 'audio' else f"📄 Documento"))
+                ticket.last_message = body or (f"📷 Foto" if media_type == 'image' else (f"🎵 Áudio" if media_type == 'audio' else (f"👤 Contato" if media_type == 'contact' else f"📄 Documento")))
                 if not from_me:
                     ticket.unread_count += 1
                 ticket.save()

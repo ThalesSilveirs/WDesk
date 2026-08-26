@@ -120,7 +120,7 @@ export const useChatStore = defineStore('chat', {
       const updateTicketFields = (ticket) => {
         let preview = message.body
         if (!preview && message.media_type) {
-          const types = { 'image': '📷 Foto', 'audio': '🎵 Áudio', 'video': '🎥 Vídeo', 'document': '📄 Documento' }
+          const types = { 'image': '📷 Foto', 'audio': '🎵 Áudio', 'video': '🎥 Vídeo', 'document': '📄 Documento', 'contact': '👤 Contato' }
           preview = types[message.media_type] || 'Nova mídia recebida'
         }
         ticket.last_message = preview
@@ -352,7 +352,7 @@ export const useChatStore = defineStore('chat', {
 
               let bodyText = message.body
               if (!bodyText && message.media_type) {
-                const types = { 'image': '📷 Foto', 'audio': '🎵 Áudio', 'video': '🎥 Vídeo', 'document': '📄 Documento' }
+                const types = { 'image': '📷 Foto', 'audio': '🎵 Áudio', 'video': '🎥 Vídeo', 'document': '📄 Documento', 'contact': '👤 Contato' }
                 bodyText = types[message.media_type] || 'Nova mídia recebida'
               }
 

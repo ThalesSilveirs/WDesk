@@ -175,6 +175,12 @@
                       <div v-else-if="msg.media_type === 'audio'" class="media-body">
                         <audio :src="msg.media_url" controls class="media-audio"></audio>
                       </div>
+                      <div v-else-if="msg.media_type === 'document'" class="media-body">
+                        <span class="media-badge">📄 {{ msg.file_name || 'Documento' }}</span>
+                      </div>
+                      <div v-else-if="msg.media_type === 'contact'" class="media-body">
+                        <span class="media-badge">👤 {{ msg.file_name || 'Contato compartilhado' }}</span>
+                      </div>
                       
                       <p class="msg-text">{{ msg.body }}</p>
                       <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
