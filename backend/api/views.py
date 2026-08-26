@@ -423,6 +423,94 @@ class TicketViewSet(TenantModelViewSet):
         except Exception as redis_err:
             print(f"[SYSTEM SEND] Erro ao notificar Redis: {str(redis_err)}")
 
+    @action(detail=False, methods=['post'])
+    def open_for_contact(self, request):
+        contact_phone = request.data.get('phone')
+        contact_name = request.data.get('name')
+        
+        if not contact_phone:
+            return Response({"error": "Telefone do contato é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        import re
+        phone_digits = re.sub(r'\D', '', str(contact_phone or ''))
+        if not phone_digits:
+            return Response({"error": "Número de telefone inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(phone_digits) in [10, 11] and not phone_digits.startswith('55'):
+            phone_digits = '55' + phone_digits
+        elif not phone_digits.startswith('55') and len(phone_digits) < 12:
+            phone_digits = '55' + phone_digits
+        remote_jid = f"{phone_digits}@s.whatsapp.net"
+        
+        from tickets.utils import get_br_jid_variant
+        from django.db.models import Q
+        
+        contact = Contact.objects.filter(
+            company=request.user.company,
+            remote_jid=remote_jid
+        ).first()
+
+        if not contact:
+            variant_jid = get_br_jid_variant(remote_jid)
+            if variant_jid:
+                contact = Contact.objects.filter(company=request.user.company, remote_jid=variant_jid).first()
+
+        if not contact and len(phone_digits) >= 8:
+            contact = Contact.objects.filter(
+                Q(whatsapp__icontains=phone_digits[-8:]) |
+                Q(cellphone__icontains=phone_digits[-8:]) |
+                Q(phone__icontains=phone_digits[-8:]),
+                company=request.user.company
+            ).first()
+
+        if contact and contact.remote_jid != remote_jid:
+            if not Contact.objects.filter(company=request.user.company, remote_jid=remote_jid).exists():
+                contact.remote_jid = remote_jid
+                contact.save()
+
+        if not contact:
+            # Tenta encontrar cliente por telefone
+            customer = Customer.objects.filter(
+                company=request.user.company,
+                phone__icontains=phone_digits[-8:]
+            ).first()
+            
+            contact = Contact.objects.create(
+                company=request.user.company,
+                remote_jid=remote_jid,
+                name=contact_name or phone_digits,
+                customer=customer,
+                phone=contact_phone,
+                whatsapp=contact_phone
+            )
+        elif contact_name and (not contact.name or contact.name == contact.phone or contact.name.isdigit()):
+            contact.name = contact_name
+            contact.save()
+
+        with transaction.atomic():
+            ticket = Ticket.objects.select_for_update().filter(
+                company=request.user.company,
+                contact=contact,
+                status__in=['open', 'pending']
+            ).order_by('-id').first()
+
+            if not ticket:
+                ticket = Ticket.objects.create(
+                    company=request.user.company,
+                    contact=contact,
+                    user=request.user,
+                    status='open'
+                )
+            else:
+                if not ticket.user:
+                    ticket.user = request.user
+                    ticket.save()
+        
+        # Notificar Realtime via Redis Pub/Sub
+        self.broadcast_ticket_update(ticket)
+        
+        return Response(TicketSerializer(ticket).data)
+
     @action(detail=True, methods=['post'])
     def reset_unread(self, request, pk=None):
         ticket = self.get_object()

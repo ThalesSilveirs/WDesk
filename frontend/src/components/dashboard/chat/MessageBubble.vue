@@ -51,17 +51,15 @@
             </div>
           </div>
           <div class="contact-card-footer">
-            <a
-              v-if="getContactCardData(msg).cleanPhone"
-              :href="'https://wa.me/' + getContactCardData(msg).cleanPhone"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              v-if="getContactCardData(msg).phone"
               class="contact-card-btn"
-              @click.stop
+              :disabled="loadingChat"
+              @click.stop="handleStartChat(getContactCardData(msg))"
             >
               <MessageCircleIcon :size="16" />
-              <span>Conversar</span>
-            </a>
+              <span>{{ loadingChat ? 'Abrindo...' : 'Conversar' }}</span>
+            </button>
             <span v-else class="contact-card-static-label">Contato</span>
           </div>
         </div>
@@ -109,6 +107,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useChatStore } from '../../../store/chat'
 import AudioPlayer from '../AudioPlayer.vue'
 import MessageActionBar from './MessageActionBar.vue'
 import { formatTime } from '../../../utils/formatters'
@@ -124,6 +124,10 @@ import {
   User as UserIcon,
   MessageCircle as MessageCircleIcon
 } from 'lucide-vue-next'
+
+const chatStore = useChatStore()
+const router = useRouter()
+const loadingChat = ref(false)
 
 const props = defineProps({
   msg: {
@@ -231,6 +235,24 @@ const getContactCardData = (msg) => {
   }
 
   return { name, phone, cleanPhone }
+}
+
+const handleStartChat = async (contactData) => {
+  if (!contactData || !contactData.phone) return
+  loadingChat.value = true
+  try {
+    await chatStore.openTicketForContact({
+      name: contactData.name,
+      phone: contactData.phone
+    })
+    if (router && router.currentRoute.value.path !== '/') {
+      router.push('/')
+    }
+  } catch (err) {
+    console.error("Erro ao chamar contato no sistema:", err)
+  } finally {
+    loadingChat.value = false
+  }
 }
 
 const getGroupedReactions = (reactions) => {
@@ -475,12 +497,20 @@ const getGroupedReactions = (reactions) => {
   gap: 8px;
   width: 100%;
   padding: 8px 12px;
+  background: transparent;
+  border: none;
   color: var(--accent);
   font-weight: 600;
   font-size: 0.85rem;
   text-decoration: none;
   transition: all 0.2s ease;
   cursor: pointer;
+  font-family: inherit;
+}
+
+.contact-card-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .message.me .contact-card-btn {

@@ -804,6 +804,25 @@ export const useChatStore = defineStore('chat', {
 
     async deleteWebcalFeed(id) {
       await axios.delete(`/api/v1/webcal-feeds/${id}/`)
+    },
+
+    async openTicketForContact({ name, phone }) {
+      try {
+        const response = await axios.post(`/api/v1/tickets/open_for_contact/`, {
+          name,
+          phone
+        })
+        const ticket = response.data
+        this._processOrUpdateTicket(ticket)
+        await this.selectTicket(ticket)
+        return ticket
+      } catch (e) {
+        console.error("Erro ao abrir conversa com o contato:", e)
+        const errMsg = e.response?.data?.error || "Erro ao abrir conversa com o contato"
+        alert(errMsg)
+        throw e
+      }
     }
   }
 })
+
