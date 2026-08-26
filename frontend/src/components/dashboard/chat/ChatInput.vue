@@ -57,7 +57,7 @@
         ref="fileInput"
         style="display: none"
         @change="handleFileUpload"
-        accept="image/*,audio/*,application/pdf"
+        accept="*/*"
       />
 
       <!-- Textarea input area (Upper Section) -->

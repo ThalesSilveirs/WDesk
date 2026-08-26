@@ -248,6 +248,9 @@ class Message(models.Model):
     quoted_message_id = models.CharField(max_length=255, null=True, blank=True)
     quoted_message_body = models.TextField(null=True, blank=True)
     quoted_message_sender = models.CharField(max_length=255, null=True, blank=True)
+    
+    # Nome original do arquivo para documentos
+    file_name = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         ordering = ['timestamp', 'id']

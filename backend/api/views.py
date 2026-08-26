@@ -555,6 +555,18 @@ class TicketViewSet(TenantModelViewSet):
                 mime_type = f'image/{ext}'
             elif ext in ['mp4', 'avi', 'mov', 'mkv']:
                 mime_type = f'video/{ext}'
+            elif ext == 'pfx':
+                mime_type = 'application/x-pkcs12'
+            elif ext == 'p12':
+                mime_type = 'application/x-pkcs12'
+            elif ext in ['pdf']:
+                mime_type = 'application/pdf'
+            elif ext in ['xlsx', 'xls']:
+                mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            elif ext in ['docx', 'doc']:
+                mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            elif ext in ['zip', 'rar', '7z']:
+                mime_type = 'application/zip'
             else:
                 mime_type = 'application/octet-stream'
         
@@ -606,7 +618,8 @@ class TicketViewSet(TenantModelViewSet):
                     body=caption or f"Enviou um {evo_type}",
                     media_url=f"data:{mime_type};base64,{base64_data}", 
                     media_type=evo_type,
-                    message_id=real_id
+                    message_id=real_id,
+                    file_name=file_obj.name if evo_type == 'document' else None
                 )
                 # Atualizar prévia do ticket
                 ticket.last_message = caption or f"📷 Foto" if evo_type == 'image' else (f"🎵 Áudio" if evo_type == 'audio' else f"📄 Documento")

@@ -35,8 +35,8 @@
           <div class="doc-card">
             <FileIcon :size="32" />
             <div class="doc-info">
-              <span class="doc-name">Ver Documento</span>
-              <span class="doc-ext">PDF / Arquivo</span>
+              <span class="doc-name">{{ msg.file_name || 'Ver Documento' }}</span>
+              <span class="doc-ext">{{ getDocExt(msg.file_name) }}</span>
             </div>
           </div>
         </div>
@@ -157,6 +157,12 @@ onUnmounted(() => {
     observer.disconnect()
   }
 })
+
+const getDocExt = (fileName) => {
+  if (!fileName) return 'Documento'
+  const ext = fileName.split('.').pop().toUpperCase()
+  return ext || 'Documento'
+}
 
 const getGroupedReactions = (reactions) => {
   if (!reactions || !reactions.length) return []

@@ -295,6 +295,7 @@ def process_webhook_event(self, connection_id, payload):
             media_type = None
             media_url = None
             mimetype = None
+            file_name = None
             
             actual_msg = message_content
             if 'viewOnceMessage' in actual_msg:
@@ -319,7 +320,8 @@ def process_webhook_event(self, connection_id, payload):
                 mimetype = aud_obj.get('mimetype') or 'audio/mp4'
             elif doc_obj:
                 media_type = 'document'
-                mimetype = doc_obj.get('mimetype') or 'application/pdf'
+                mimetype = doc_obj.get('mimetype') or 'application/octet-stream'
+                file_name = doc_obj.get('title') or doc_obj.get('fileName') or doc_obj.get('filename') or None
             elif stk_obj:
                 media_type = 'image'
                 mimetype = stk_obj.get('mimetype') or 'image/webp'
@@ -596,6 +598,7 @@ def process_webhook_event(self, connection_id, payload):
                         'body': body or "",
                         'media_url': media_url,
                         'media_type': media_type,
+                        'file_name': file_name,
                         'quoted_message_id': quoted_msg_id,
                         'quoted_message_body': quoted_msg_body,
                         'quoted_message_sender': quoted_msg_sender
