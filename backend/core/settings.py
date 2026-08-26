@@ -77,7 +77,7 @@ ASGI_APPLICATION = 'core.asgi.application'
 DATABASES = {
     'default': env.db('DATABASE_URL', default=f"postgres://{env('DB_USER', default='postgres')}:{env('DB_PASSWORD', default='postgres')}@{env('DB_HOST', default='db')}:{env('DB_PORT', default='5432')}/{env('DB_NAME', default='whatsapp_saas')}")
 }
-DATABASES['default']['CONN_MAX_AGE'] = 60
+DATABASES['default']['CONN_MAX_AGE'] = 0
 
 # Cache Redis nativo do Django
 CACHES = {

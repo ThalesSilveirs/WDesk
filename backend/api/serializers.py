@@ -97,6 +97,11 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+class UserLightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'first_name', 'last_name', 'role')
+
 class ConnectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Connection
@@ -253,7 +258,7 @@ class TicketSerializer(serializers.ModelSerializer):
 
 class TicketListSerializer(serializers.ModelSerializer):
     contact_details = ContactListSerializer(source='contact', read_only=True)
-    attendant_details = UserSerializer(source='user', read_only=True)
+    attendant_details = UserLightSerializer(source='user', read_only=True)
     customer_details = CustomerLightSerializer(source='contact.customer', read_only=True)
 
     class Meta:
