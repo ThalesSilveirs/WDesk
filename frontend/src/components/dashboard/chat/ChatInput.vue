@@ -50,6 +50,85 @@
       </button>
     </div>
 
+    <!-- MEDIA PREVIEW MODAL (Colar / Upload de Imagem ou Arquivo) -->
+    <Transition name="modal-fade">
+      <div v-if="showMediaPreview" class="media-preview-overlay" @click.self="closeMediaPreview">
+        <div class="media-preview-modal glass-modal">
+          <div class="media-preview-header">
+            <div class="header-file-info">
+              <ImageIcon v-if="isImage" :size="18" class="header-icon" />
+              <FileTextIcon v-else :size="18" class="header-icon" />
+              <div class="file-name-size">
+                <span class="file-name" :title="pendingMediaFile?.name">{{ pendingMediaFile?.name || 'Arquivo' }}</span>
+                <span class="file-size">{{ formatFileSize(pendingMediaFile?.size) }}</span>
+              </div>
+            </div>
+            <button class="close-preview-btn" @click="closeMediaPreview" :disabled="isSendingMedia" title="Fechar (Esc)">
+              <XIcon :size="18" />
+            </button>
+          </div>
+
+          <div class="media-preview-body">
+            <!-- Image Preview -->
+            <div v-if="isImage" class="preview-container image-mode">
+              <img :src="pendingMediaPreviewUrl" alt="Pré-visualização" class="preview-image" />
+            </div>
+
+            <!-- Video Preview -->
+            <div v-else-if="isVideo" class="preview-container video-mode">
+              <video :src="pendingMediaPreviewUrl" controls class="preview-video"></video>
+            </div>
+
+            <!-- Audio Preview -->
+            <div v-else-if="isAudio" class="preview-container audio-mode">
+              <audio :src="pendingMediaPreviewUrl" controls class="preview-audio"></audio>
+            </div>
+
+            <!-- Document / Generic File Preview -->
+            <div v-else class="preview-container doc-mode">
+              <div class="doc-preview-card">
+                <FileTextIcon :size="48" class="doc-large-icon" />
+                <span class="doc-name">{{ pendingMediaFile?.name }}</span>
+                <span class="doc-size">{{ formatFileSize(pendingMediaFile?.size) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Caption & Actions -->
+          <div class="media-preview-footer">
+            <div class="caption-input-box">
+              <input
+                ref="captionInputRef"
+                v-model="pendingMediaCaption"
+                @keydown.enter.prevent="sendPendingMedia"
+                placeholder="Adicionar legenda... (pressione Enter para enviar)"
+                :disabled="isSendingMedia"
+                class="caption-input"
+              />
+            </div>
+            <div class="preview-actions">
+              <button 
+                class="btn-preview-cancel" 
+                @click="closeMediaPreview" 
+                :disabled="isSendingMedia"
+              >
+                Cancelar
+              </button>
+              <button 
+                class="btn-preview-send" 
+                @click="sendPendingMedia" 
+                :disabled="isSendingMedia"
+              >
+                <LoaderIcon v-if="isSendingMedia" class="spin-icon" :size="16" />
+                <SendIcon v-else :size="16" />
+                <span>{{ isSendingMedia ? 'Enviando...' : 'Enviar' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Main input editor card wrapper -->
     <div class="chat-input-card">
       <input
@@ -152,7 +231,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useAudioRecorder } from '../../../composables/useAudioRecorder'
 import { cleanBody } from '../../../utils/whatsappMarkdown'
 import {
@@ -169,7 +248,11 @@ import {
   Strikethrough as StrikethroughIcon,
   ChevronDown as ChevronDownIcon,
   Paperclip as PaperclipIcon,
-  ArrowUp as ArrowUpIcon
+  ArrowUp as ArrowUpIcon,
+  Image as ImageIcon,
+  FileText as FileTextIcon,
+  Loader2 as LoaderIcon,
+  Send as SendIcon
 } from 'lucide-vue-next'
 
 // Lazy Load do EmojiPicker
@@ -313,12 +396,99 @@ const handleWindowClick = (e) => {
   }
 }
 
+// Estado do Modal de Pré-visualização de Mídia
+const showMediaPreview = ref(false)
+const pendingMediaFile = ref(null)
+const pendingMediaPreviewUrl = ref(null)
+const pendingMediaCaption = ref('')
+const isSendingMedia = ref(false)
+const captionInputRef = ref(null)
+
+const isImage = computed(() => {
+  if (!pendingMediaFile.value) return false
+  return pendingMediaFile.value.type.startsWith('image/')
+})
+
+const isVideo = computed(() => {
+  if (!pendingMediaFile.value) return false
+  return pendingMediaFile.value.type.startsWith('video/')
+})
+
+const isAudio = computed(() => {
+  if (!pendingMediaFile.value) return false
+  return pendingMediaFile.value.type.startsWith('audio/')
+})
+
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+const openMediaPreview = (file) => {
+  if (!file) return
+  pendingMediaFile.value = file
+  pendingMediaCaption.value = ''
+  if (pendingMediaPreviewUrl.value) {
+    URL.revokeObjectURL(pendingMediaPreviewUrl.value)
+  }
+  pendingMediaPreviewUrl.value = URL.createObjectURL(file)
+  showMediaPreview.value = true
+  nextTick(() => {
+    if (captionInputRef.value) {
+      captionInputRef.value.focus()
+    }
+  })
+}
+
+const closeMediaPreview = () => {
+  if (isSendingMedia.value) return
+  showMediaPreview.value = false
+  if (pendingMediaPreviewUrl.value) {
+    URL.revokeObjectURL(pendingMediaPreviewUrl.value)
+  }
+  pendingMediaPreviewUrl.value = null
+  pendingMediaFile.value = null
+  pendingMediaCaption.value = ''
+  focusInput()
+}
+
+const sendPendingMedia = async () => {
+  if (!pendingMediaFile.value || isSendingMedia.value) return
+  isSendingMedia.value = true
+  try {
+    await emit('sendMedia', {
+      file: pendingMediaFile.value,
+      caption: pendingMediaCaption.value
+    })
+    closeMediaPreview()
+  } catch (err) {
+    console.error("Erro ao enviar mídia:", err)
+    alert("Não foi possível enviar o arquivo: " + (err.response?.data?.error || err.message || "Erro desconhecido"))
+  } finally {
+    isSendingMedia.value = false
+  }
+}
+
+const handleGlobalKeyDown = (e) => {
+  if (e.key === 'Escape' && showMediaPreview.value && !isSendingMedia.value) {
+    closeMediaPreview()
+  }
+}
+
 onMounted(() => {
   window.addEventListener('click', handleWindowClick)
+  window.addEventListener('keydown', handleGlobalKeyDown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('click', handleWindowClick)
+  window.removeEventListener('keydown', handleGlobalKeyDown)
+  if (pendingMediaPreviewUrl.value) {
+    URL.revokeObjectURL(pendingMediaPreviewUrl.value)
+  }
 })
 
 // Auto resize textarea
@@ -347,22 +517,31 @@ const handlePaste = async (event) => {
   if (!clipboardData) return
 
   const items = clipboardData.items
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    if (item.type.indexOf('image') !== -1) {
-      const file = item.getAsFile()
-      if (file) {
-        event.preventDefault()
-        emit('sendMedia', file)
+  if (items && items.length > 0) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.kind === 'file' || item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile()
+        if (file) {
+          event.preventDefault()
+          openMediaPreview(file)
+          return
+        }
       }
     }
+  }
+
+  // Fallback para clipboardData.files
+  if (clipboardData.files && clipboardData.files.length > 0) {
+    event.preventDefault()
+    openMediaPreview(clipboardData.files[0])
   }
 }
 
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (file) {
-    emit('sendMedia', file)
+    openMediaPreview(file)
     event.target.value = ''
   }
 }
@@ -762,5 +941,281 @@ defineExpose({
   .style-divider {
     display: none !important;
   }
+}
+
+/* ==========================================================================
+   MEDIA PREVIEW MODAL STYLES (Paste / File Upload)
+   ========================================================================== */
+.media-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.media-preview-modal {
+  background: rgba(18, 22, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.7);
+  animation: scaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.media-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.header-file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.header-icon {
+  color: var(--accent, #10b981);
+  flex-shrink: 0;
+}
+
+.file-name-size {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
+}
+
+.file-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 380px;
+}
+
+.file-size {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 1px;
+}
+
+.close-preview-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-preview-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.media-preview-body {
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  min-height: 200px;
+  max-height: 400px;
+  overflow: hidden;
+}
+
+.preview-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.preview-video {
+  max-width: 100%;
+  max-height: 340px;
+  border-radius: 8px;
+}
+
+.preview-audio {
+  width: 100%;
+  max-width: 400px;
+}
+
+.doc-preview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.doc-large-icon {
+  color: var(--accent, #10b981);
+}
+
+.doc-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #f3f4f6;
+  text-align: center;
+  word-break: break-all;
+  max-width: 90%;
+}
+
+.doc-size {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.media-preview-footer {
+  padding: 16px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(18, 22, 28, 0.98);
+}
+
+.caption-input-box {
+  width: 100%;
+}
+
+.caption-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  color: #f3f4f6;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.caption-input:focus {
+  border-color: var(--accent, #10b981);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-preview-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #d1d5db;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-preview-cancel:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.btn-preview-send {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-preview-send:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.btn-preview-send:disabled,
+.btn-preview-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
 }
 </style>

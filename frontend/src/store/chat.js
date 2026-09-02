@@ -538,10 +538,13 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    async sendMedia(file) {
+    async sendMedia(file, caption = '') {
       if (!this.activeTicket) return
       const formData = new FormData()
       formData.append('file', file)
+      if (caption && caption.trim()) {
+        formData.append('caption', caption.trim())
+      }
 
       const response = await axios.post(`/api/v1/tickets/${this.activeTicket.id}/send_media/`,
         formData,
@@ -556,6 +559,7 @@ export const useChatStore = defineStore('chat', {
       if (!exists) {
         this.messages.push(response.data)
       }
+      return response.data
     },
 
     async sendMessage(body, quotedMessageId = null) {

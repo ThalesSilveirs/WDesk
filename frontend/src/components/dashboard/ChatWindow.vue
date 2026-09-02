@@ -153,8 +153,12 @@ const handleSendText = async (text) => {
   scrollToBottom()
 }
 
-const handleSendMedia = async (file) => {
-  await chatStore.sendMedia(file)
+const handleSendMedia = async (payload) => {
+  if (payload instanceof File || payload instanceof Blob) {
+    await chatStore.sendMedia(payload)
+  } else if (payload && payload.file) {
+    await chatStore.sendMedia(payload.file, payload.caption || '')
+  }
   scrollToBottom()
 }
 
