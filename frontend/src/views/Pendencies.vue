@@ -295,127 +295,239 @@
       </div>
     </main>
 
-    <!-- Modal de Criação / Edição de Pendência -->
+    <!-- Modal de Criação / Edição de Pendência Repaginado -->
     <Transition name="modal-fade">
-      <div v-if="showModal" class="modal-overlay" @click="showModal = false">
-        <div class="modal-content large-modal" @click.stop>
-          <div class="modal-header">
-            <h2>{{ editingId ? 'Editar Pendência' : 'Nova Pendência' }}</h2>
-            <button @click="showModal = false" class="close-btn-round"><XIcon :size="20" /></button>
+      <div v-if="showModal" class="modal-overlay" @click="showModal = false" @paste="handleModalPaste">
+        <div class="modal-content large-modal pendency-edit-modal" @click.stop>
+          <div class="modal-header-new">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-badge">
+                <ClipboardListIcon v-if="!editingId" :size="20" />
+                <EditIcon v-else :size="20" />
+              </div>
+              <div>
+                <h2>{{ editingId ? 'Editar Pendência' : 'Nova Pendência' }}</h2>
+                <p class="modal-subtitle">Preencha os detalhes da atividade para a sua equipe</p>
+              </div>
+            </div>
+            <button @click="showModal = false" class="close-btn-round" title="Fechar"><XIcon :size="20" /></button>
           </div>
 
           <form @submit.prevent="savePendency" class="modal-form-scrollable">
-            <div class="grid-2">
-              <div class="form-group">
-                <label>Título / Assunto *</label>
-                <input v-model="form.title" required class="input-glass" placeholder="Ex: Ajuste fiscal ou erro de suporte" />
+            <!-- SEÇÃO 1: IDENTIFICAÇÃO E CLIENTE -->
+            <div class="form-card-section glass-effect">
+              <div class="section-card-title">
+                <TagIcon :size="16" />
+                <span>Identificação & Cliente</span>
               </div>
 
-              <div class="form-group">
-                <label>Tipo de Operação *</label>
-                <select v-model="form.operation_type" required class="select-glass">
-                  <option v-for="(label, key) in operationTypes" :key="key" :value="key">{{ label }}</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Seleção de Cliente com Autocomplete -->
-            <div class="grid-2">
-              <div class="form-group customer-autocomplete" style="position: relative;">
-                <label>Vincular Cliente (Razão Social/Nome) *</label>
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label>Título / Assunto <span class="required-star">*</span></label>
                 <input 
-                  v-model="customerSearch" 
-                  @input="handleCustomerSearch"
-                  @focus="showCustomerDropdown = true"
-                  class="input-glass" 
-                  placeholder="Digite para buscar clientes..." 
+                  v-model="form.title" 
+                  required 
+                  class="input-glass highlight-input" 
+                  placeholder="Ex: Ajuste fiscal, erro de impressão, configuração TEF..." 
                 />
-                <!-- Dropdown Autocomplete -->
-                <div v-if="showCustomerDropdown && customerSearchResults.length > 0" class="autocomplete-dropdown glass-effect">
-                  <div 
-                    v-for="c in customerSearchResults" 
-                    :key="c.id" 
-                    @click="selectCustomer(c)"
-                    class="dropdown-item"
-                  >
-                    <span>{{ c.name }}</span>
-                    <span class="sub">{{ formatPhone(c.phone) }}</span>
+              </div>
+
+              <div class="grid-2">
+                <!-- Autocomplete de Cliente -->
+                <div class="form-group customer-autocomplete" style="position: relative;">
+                  <label>Cliente Vinculado <span class="required-star">*</span></label>
+                  <div class="input-with-icon" v-if="!form.customer">
+                    <SearchIcon :size="16" class="input-inner-icon" />
+                    <input 
+                      v-model="customerSearch" 
+                      @input="handleCustomerSearch"
+                      @focus="showCustomerDropdown = true"
+                      class="input-glass with-left-icon" 
+                      placeholder="Buscar por razão social ou telefone..." 
+                    />
+                  </div>
+
+                  <!-- Dropdown Autocomplete -->
+                  <div v-if="showCustomerDropdown && customerSearchResults.length > 0 && !form.customer" class="autocomplete-dropdown glass-effect">
+                    <div 
+                      v-for="c in customerSearchResults" 
+                      :key="c.id" 
+                      @click="selectCustomer(c)"
+                      class="dropdown-item"
+                    >
+                      <div class="customer-item-main">
+                        <span class="customer-name-bold">{{ c.name }}</span>
+                        <span v-if="c.document" class="customer-doc-badge">{{ c.document }}</span>
+                      </div>
+                      <span class="sub">{{ formatPhone(c.phone) }} {{ c.city?.name ? `• ${c.city.name}` : '' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Cliente Selecionado -->
+                  <div v-if="form.customer" class="selected-customer-card glass-effect animate-in">
+                    <div class="customer-selected-info">
+                      <ContactIcon :size="18" class="customer-badge-icon" />
+                      <div>
+                        <strong>{{ selectedCustomerName }}</strong>
+                        <small v-if="selectedCustomerObj?.phone">{{ formatPhone(selectedCustomerObj.phone) }}</small>
+                      </div>
+                    </div>
+                    <button type="button" @click="clearSelectedCustomer" class="btn-change-customer" title="Trocar Cliente">
+                      Trocar
+                    </button>
                   </div>
                 </div>
-                <div v-if="form.customer" class="selected-badge glass-effect">
-                  <span>Selecionado: <strong>{{ selectedCustomerName }}</strong></span>
-                  <button type="button" @click="clearSelectedCustomer" class="clear-btn">&times;</button>
+
+                <!-- Contato Específico -->
+                <div class="form-group">
+                  <label>Contato Específico <span class="optional-tag">(Opcional)</span></label>
+                  <select v-model="form.contact" class="select-glass" :disabled="!form.customer">
+                    <option :value="null">{{ form.customer ? 'Nenhum contato específico (Geral)' : 'Selecione um cliente primeiro' }}</option>
+                    <option v-for="ct in availableContacts" :key="ct.id" :value="ct.id">
+                      {{ ct.name || ct.remote_jid }} {{ ct.cellphone ? `(${formatPhone(ct.cellphone)})` : '' }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- SEÇÃO 2: ATRIBUIÇÃO, CLASSIFICAÇÃO & STATUS -->
+            <div class="form-card-section glass-effect">
+              <div class="section-card-title">
+                <UserIcon :size="16" />
+                <span>Atribuição & Classificação</span>
+              </div>
+
+              <div class="grid-2">
+                <!-- Tipo de Operação -->
+                <div class="form-group">
+                  <label>Tipo de Operação <span class="required-star">*</span></label>
+                  <select v-model="form.operation_type" required class="select-glass">
+                    <option v-for="(label, key) in operationTypes" :key="key" :value="key">{{ label }}</option>
+                  </select>
+                </div>
+
+                <!-- Responsável -->
+                <div class="form-group">
+                  <label>Responsável / Atendente <span class="required-star">*</span></label>
+                  <select v-model="form.user" required class="select-glass">
+                    <option :value="null">Selecione o responsável</option>
+                    <option v-for="u in users" :key="u.id" :value="u.id">
+                      {{ u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.username }}
+                    </option>
+                  </select>
                 </div>
               </div>
 
-              <!-- Seleção de Contato -->
-              <div class="form-group">
-                <label>Vincular Contato Específico (Opcional)</label>
-                <select v-model="form.contact" class="select-glass" :disabled="!form.customer">
-                  <option :value="null">Nenhum contato selecionado</option>
-                  <option v-for="ct in availableContacts" :key="ct.id" :value="ct.id">
-                    {{ ct.name || ct.remote_jid }}
-                  </option>
-                </select>
+              <div class="grid-2" style="margin-top: 6px;">
+                <!-- Prioridade com Seletor Visual Interativo -->
+                <div class="form-group">
+                  <label>Prioridade <span class="required-star">*</span></label>
+                  <div class="priority-pill-selector">
+                    <button 
+                      type="button" 
+                      class="priority-pill low" 
+                      :class="{ active: form.priority === 'low' }" 
+                      @click="form.priority = 'low'"
+                    >
+                      <span class="pill-dot"></span>
+                      <span>Baixa</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      class="priority-pill medium" 
+                      :class="{ active: form.priority === 'medium' }" 
+                      @click="form.priority = 'medium'"
+                    >
+                      <span class="pill-dot"></span>
+                      <span>Média</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      class="priority-pill high" 
+                      :class="{ active: form.priority === 'high' }" 
+                      @click="form.priority = 'high'"
+                    >
+                      <span class="pill-dot"></span>
+                      <span>Alta</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Status com Seletor Visual Interativo -->
+                <div class="form-group">
+                  <label>Status <span class="required-star">*</span></label>
+                  <div class="status-pill-selector">
+                    <button 
+                      type="button" 
+                      class="status-pill open" 
+                      :class="{ active: form.status === 'open' }" 
+                      @click="form.status = 'open'"
+                    >
+                      <span class="pill-dot"></span>
+                      <span>Aberta</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      class="status-pill closed" 
+                      :class="{ active: form.status === 'closed' }" 
+                      @click="form.status = 'closed'"
+                    >
+                      <CheckCircleIcon :size="14" />
+                      <span>Finalizada</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="grid-2">
-              <!-- Responsável -->
-              <div class="form-group">
-                <label>Responsável / Usuário *</label>
-                <select v-model="form.user" required class="select-glass">
-                  <option :value="null">Selecione o responsável</option>
-                  <option v-for="u in users" :key="u.id" :value="u.id">
-                    {{ u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.username }}
-                  </option>
-                </select>
+            <!-- SEÇÃO 3: PRAZOS E DATAS -->
+            <div class="form-card-section glass-effect">
+              <div class="section-card-title">
+                <CalendarIcon :size="16" />
+                <span>Prazos & Agendamento</span>
               </div>
 
-              <!-- Prioridade -->
-              <div class="form-group">
-                <label>Prioridade *</label>
-                <select v-model="form.priority" required class="select-glass">
-                  <option value="low">Baixa</option>
-                  <option value="medium">Média</option>
-                  <option value="high">Alta</option>
-                </select>
-              </div>
-            </div>
+              <div class="grid-2">
+                <!-- Horário de Abertura -->
+                <div class="form-group">
+                  <label>Data / Hora de Abertura <span class="required-star">*</span></label>
+                  <input v-model="form.opening_date" type="datetime-local" required class="input-glass" />
+                </div>
 
-            <div class="grid-3">
-              <!-- Status -->
-              <div class="form-group">
-                <label>Status *</label>
-                <select v-model="form.status" required class="select-glass">
-                  <option value="open">Aberta</option>
-                  <option value="closed">Finalizada</option>
-                </select>
-              </div>
-
-              <!-- Horário de Abertura -->
-              <div class="form-group">
-                <label>Horário de Abertura *</label>
-                <input v-model="form.opening_date" type="datetime-local" required class="input-glass" />
-              </div>
-
-              <!-- Previsão -->
-              <div class="form-group">
-                <label>Previsão de Entrega</label>
-                <input v-model="form.forecast_date" type="datetime-local" class="input-glass" />
+                <!-- Previsão -->
+                <div class="form-group">
+                  <label>Previsão de Conclusão <span class="optional-tag">(Opcional)</span></label>
+                  <input v-model="form.forecast_date" type="datetime-local" class="input-glass" />
+                </div>
               </div>
             </div>
 
-            <div class="form-group">
-              <label>Descrição dos Dados / Detalhes</label>
-              <textarea v-model="form.description" class="input-glass" placeholder="Forneça os detalhes e dados relevantes da pendência..." rows="4"></textarea>
+            <!-- SEÇÃO 4: DETALHES & DESCRIÇÃO (OPCIONAL) -->
+            <div class="form-card-section glass-effect">
+              <div class="section-card-title">
+                <FileTextIcon :size="16" />
+                <span>Descrição & Observações <span class="optional-tag-badge">Opcional</span></span>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0;">
+                <textarea 
+                  v-model="form.description" 
+                  class="input-glass textarea-modern" 
+                  placeholder="Insira detalhes técnicos, dados de acesso, observações ou orientações sobre a pendência (opcional)..." 
+                  rows="3"
+                ></textarea>
+              </div>
             </div>
 
-            <!-- Imagens / Upload -->
-            <div class="form-group">
-              <label>Imagens / Anexos</label>
+            <!-- SEÇÃO 5: ANEXOS E IMAGENS (OPCIONAL) -->
+            <div class="form-card-section glass-effect">
+              <div class="section-card-title">
+                <PaperclipIcon :size="16" />
+                <span>Anexos & Imagens <span class="optional-tag-badge">Opcional • Suporta Ctrl+V</span></span>
+              </div>
+
               <div 
-                class="drag-drop-area glass-effect" 
+                class="drag-drop-area modern-dropzone glass-effect" 
                 @dragover.prevent="dragOver = true" 
                 @dragleave="dragOver = false" 
                 @drop.prevent="handleFileDrop"
@@ -423,36 +535,41 @@
                 @click="triggerFileInput"
               >
                 <input type="file" ref="fileInput" multiple accept="image/*" class="hidden-input" @change="handleFileSelect" />
-                <UploadCloudIcon :size="32" />
-                <p>Clique ou arraste imagens aqui para anexar</p>
-                <span class="sub">PNG, JPG, GIF até 5MB</span>
+                <div class="dropzone-content">
+                  <UploadCloudIcon :size="28" class="dropzone-icon" />
+                  <div>
+                    <p class="dropzone-text">Clique, arraste ou <strong>cole imagens (Ctrl+V)</strong></p>
+                    <span class="sub">PNG, JPG, GIF até 5MB</span>
+                  </div>
+                </div>
               </div>
 
               <!-- Lista de Novas Imagens Anexadas -->
               <div v-if="newImages.length > 0" class="images-preview-list">
                 <div v-for="(img, idx) in newImages" :key="idx" class="image-preview-item">
                   <img :src="img" alt="Anexo" />
-                  <button type="button" @click="removeNewImage(idx)" class="remove-img-btn">&times;</button>
+                  <button type="button" @click.stop="removeNewImage(idx)" class="remove-img-btn" title="Remover">&times;</button>
                 </div>
               </div>
 
               <!-- Lista de Imagens Existentes no Banco -->
               <div v-if="existingImages.length > 0" class="images-preview-list existing-images-section">
-                <div class="title">Imagens já salvas:</div>
+                <div class="title">Imagens salvas:</div>
                 <div v-for="img in existingImages" :key="img.id" class="image-preview-item">
                   <img :src="img.image" alt="Salva" />
-                  <button type="button" @click="deleteExistingImage(img.id)" class="remove-img-btn">&times;</button>
+                  <button type="button" @click.stop="deleteExistingImage(img.id)" class="remove-img-btn" title="Excluir">&times;</button>
                 </div>
               </div>
             </div>
 
-            <!-- Botões de Ação -->
-            <div class="modal-actions-container">
-              <span class="required-note">* Campos obrigatórios</span>
+            <!-- Botões de Ação Finais -->
+            <div class="modal-actions-container sticky-footer">
+              <span class="required-note"><span class="required-star">*</span> Campos obrigatórios</span>
               <div class="modal-actions">
                 <button type="button" @click="showModal = false" class="btn-secondary">Cancelar</button>
-                <button type="submit" class="btn-primary" :disabled="loadingSave">
-                  {{ loadingSave ? 'Salvando...' : 'Salvar Pendência' }}
+                <button type="submit" class="btn-primary btn-save-pendency" :disabled="loadingSave">
+                  <CheckCircleIcon v-if="!loadingSave" :size="18" />
+                  <span>{{ loadingSave ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Criar Pendência') }}</span>
                 </button>
               </div>
             </div>
@@ -703,7 +820,8 @@ import {
   Activity as ActivityIcon,
   Paperclip as PaperclipIcon,
   Download as DownloadIcon,
-  Maximize2 as Maximize2Icon
+  Maximize2 as Maximize2Icon,
+  FileText as FileTextIcon
 } from 'lucide-vue-next'
 import { useChatStore } from '../store/chat'
 
@@ -808,6 +926,12 @@ const customerSearch = ref('')
 const showCustomerDropdown = ref(false)
 const customerSearchResults = ref([])
 const selectedCustomerName = ref('')
+
+const selectedCustomerObj = computed(() => {
+  if (!form.value.customer) return null
+  const targetId = Number(form.value.customer)
+  return customers.value.find(c => c.id === targetId) || null
+})
 
 // Imagens/Anexos
 const newImages = ref([]) // Array de strings base64
@@ -1095,6 +1219,27 @@ const processFiles = (files) => {
 
 const removeNewImage = (idx) => {
   newImages.value.splice(idx, 1)
+}
+
+const handleModalPaste = (e) => {
+  const items = e.clipboardData?.items
+  if (!items) return
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type && items[i].type.startsWith('image/')) {
+      const file = items[i].getAsFile()
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert('A imagem colada excede o tamanho limite de 5MB.')
+          return
+        }
+        const reader = new FileReader()
+        reader.onload = (evt) => {
+          newImages.value.push(evt.target.result)
+        }
+        reader.readAsDataURL(file)
+      }
+    }
+  }
 }
 
 const deleteExistingImage = async (imgId) => {
@@ -2194,7 +2339,308 @@ onUnmounted(() => {
 
 /* Modal extra styles */
 .large-modal {
-  max-width: 650px;
+  max-width: 680px;
+}
+
+.pendency-edit-modal {
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.modal-header-new {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.modal-icon-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-title-wrap h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modal-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 2px 0 0 0;
+}
+
+.modal-form-scrollable {
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-card-section {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.section-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 14px;
+}
+
+.highlight-input {
+  font-size: 0.98rem !important;
+  font-weight: 600;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-inner-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.with-left-icon {
+  padding-left: 36px !important;
+}
+
+.selected-customer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.customer-selected-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.customer-badge-icon {
+  color: var(--accent);
+}
+
+.customer-selected-info strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.customer-selected-info small {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.btn-change-customer {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-change-customer:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
+
+.customer-item-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.customer-name-bold {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.customer-doc-badge {
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.priority-pill-selector, .status-pill-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.status-pill-selector {
+  grid-template-columns: 1fr 1fr;
+}
+
+.priority-pill, .status-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.priority-pill.low .pill-dot { background: #3b82f6; }
+.priority-pill.medium .pill-dot { background: #f59e0b; }
+.priority-pill.high .pill-dot { background: #ef4444; }
+.status-pill.open .pill-dot { background: #f59e0b; }
+
+.priority-pill.low.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
+.priority-pill.medium.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.priority-pill.high.active {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #f87171;
+}
+
+.status-pill.open.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.status-pill.closed.active {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  color: #34d399;
+}
+
+.textarea-modern {
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.optional-tag {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.optional-tag-badge {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: auto;
+}
+
+.required-star {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.modern-dropzone {
+  padding: 16px !important;
+  border-radius: 10px !important;
+  border-width: 1.5px !important;
+}
+
+.dropzone-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dropzone-icon {
+  color: var(--accent);
+}
+
+.dropzone-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.sticky-footer {
+  position: sticky;
+  bottom: 0;
+  background: #121214;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-save-pendency {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px !important;
 }
 
 .grid-2 {
@@ -2211,6 +2657,9 @@ onUnmounted(() => {
 
 @media (max-width: 600px) {
   .grid-2, .grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .priority-pill-selector, .status-pill-selector {
     grid-template-columns: 1fr;
   }
 }
@@ -2235,11 +2684,12 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   z-index: 1010;
-  max-height: 180px;
+  max-height: 200px;
   overflow-y: auto;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
   background: #18181b;
+  border: 1px solid var(--border);
 }
 
 .dropdown-item {
@@ -2249,10 +2699,11 @@ onUnmounted(() => {
   transition: background 0.2s;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .dropdown-item:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.06);
 }
 
 .dropdown-item span {
@@ -2264,27 +2715,6 @@ onUnmounted(() => {
 .dropdown-item .sub {
   font-size: 0.75rem;
   color: var(--text-secondary);
-}
-
-.selected-badge {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(16, 185, 129, 0.05);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin-top: 6px;
-  font-size: 0.85rem;
-}
-
-.clear-btn {
-  background: transparent;
-  border: none;
-  color: #ef4444;
-  font-size: 1.2rem;
-  cursor: pointer;
-  line-height: 1;
 }
 
 /* Drag Drop styles */
