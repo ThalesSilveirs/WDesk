@@ -70,7 +70,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'role', 'company', 'department', 'status', 'whatsapp', 'avatar', 'password')
+        fields = (
+            'id', 'username', 'first_name', 'last_name', 'email', 'role',
+            'company', 'department', 'status', 'whatsapp', 'avatar', 'password',
+            'notification_time', 'notify_daily_pendencies', 'notify_daily_open_tickets'
+        )
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
     def get_status(self, obj):

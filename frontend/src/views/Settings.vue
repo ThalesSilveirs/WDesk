@@ -55,6 +55,15 @@
         </button>
 
         <button 
+          @click="activeSettingsTab = 'notifications'" 
+          :class="{ active: activeSettingsTab === 'notifications' }" 
+          class="tab-btn"
+        >
+          <BellIcon :size="18" />
+          <span>Minhas Notificações</span>
+        </button>
+
+        <button 
           v-if="chatStore.userRole === 'admin'" 
           @click="activeSettingsTab = 'danger'" 
           :class="{ active: activeSettingsTab === 'danger' }" 
@@ -534,6 +543,100 @@
           </div>
         </section>
       </div>
+
+      <!-- ABA: MINHAS NOTIFICAÇÕES WHATSAPP -->
+      <div v-if="activeSettingsTab === 'notifications'" class="tab-pane animate-fade-in">
+        <section class="settings-section glass-effect">
+          <div class="section-header">
+            <BellIcon :size="24" style="color: #10b981;" />
+            <div>
+              <h2>Preferências de Notificações Diárias</h2>
+              <p class="section-desc">Personalize o horário e quais relatórios você deseja receber no seu WhatsApp.</p>
+            </div>
+          </div>
+
+          <div class="form-container" style="margin-top: 20px;">
+            <!-- Número de WhatsApp do Usuário -->
+            <div class="setting-row-card glass-effect">
+              <div class="setting-info">
+                <label class="setting-title">📱 Seu Número de WhatsApp</label>
+                <span class="setting-desc">Número utilizado para receber os relatórios diários e alertas de conversas/pendências.</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input 
+                  v-model="userProfile.whatsapp" 
+                  type="text" 
+                  placeholder="Ex: 5511999999999" 
+                  class="input-glass premium-input"
+                  style="width: 220px;"
+                />
+              </div>
+            </div>
+
+            <!-- Horário de Envio -->
+            <div class="setting-row-card glass-effect">
+              <div class="setting-info">
+                <label class="setting-title">⏰ Horário de Envio dos Relatórios</label>
+                <span class="setting-desc">Horário em que o WDesk enviará automaticamente o resumo diário para o seu WhatsApp.</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input 
+                  v-model="userProfile.notification_time" 
+                  type="time" 
+                  class="input-glass premium-input"
+                  style="width: 140px; text-align: center;"
+                />
+              </div>
+            </div>
+
+            <!-- Relatório de Pendências -->
+            <div class="setting-row-card glass-effect">
+              <div class="setting-info">
+                <label class="setting-title">📋 Relatório Diário de Pendências</label>
+                <span class="setting-desc">Receba diariamente o resumo das suas pendências atrasadas, previstas para hoje e ativas.</span>
+              </div>
+              <label class="switch-container">
+                <input type="checkbox" v-model="userProfile.notify_daily_pendencies" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <!-- Relatório de Conversas Abertas / Pendentes -->
+            <div class="setting-row-card glass-effect">
+              <div class="setting-info">
+                <label class="setting-title">💬 Relatório Diário de Conversas Abertas</label>
+                <span class="setting-desc">Receba diariamente o resumo dos atendimentos em andamento e aguardando retorno sob sua responsabilidade.</span>
+              </div>
+              <label class="switch-container">
+                <input type="checkbox" v-model="userProfile.notify_daily_open_tickets" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <!-- Ações de Salvar e Testar -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 25px; flex-wrap: wrap; gap: 15px;">
+              <button 
+                @click="testUserNotifications" 
+                class="btn-secondary" 
+                :disabled="testingNotif || !userProfile.whatsapp"
+                title="Dispara um envio de teste imediatamente para o seu WhatsApp"
+              >
+                <SendIcon :size="16" />
+                <span>{{ testingNotif ? 'Enviando Teste...' : 'Testar Envio no Meu WhatsApp' }}</span>
+              </button>
+
+              <button 
+                @click="saveUserProfile" 
+                class="btn-primary" 
+                :disabled="savingProfile"
+              >
+                <SaveIcon :size="16" />
+                <span>{{ savingProfile ? 'Salvando...' : 'Salvar Preferências' }}</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
 
     <!-- Modal de Confirmação de Reset -->
@@ -577,6 +680,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
+import axios from 'axios'
 import { useChatStore } from '../store/chat'
 import { useRouter } from 'vue-router'
 import { 
@@ -600,7 +704,9 @@ import {
   Activity as ActivityIcon,
   Cpu as CpuIcon,
   HardDrive as HardDriveIcon,
-  Database as RamIcon
+  Database as RamIcon,
+  Bell as BellIcon,
+  Send as SendIcon
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -610,6 +716,16 @@ const saving = ref(false)
 const reseting = ref(false)
 const saveSuccess = ref(false)
 const showKey = ref(false)
+
+// === ESTADOS DE PREFERÊNCIAS DE NOTIFICAÇÃO DO USUÁRIO ===
+const userProfile = ref({
+  whatsapp: '',
+  notification_time: '08:00',
+  notify_daily_pendencies: true,
+  notify_daily_open_tickets: true
+})
+const savingProfile = ref(false)
+const testingNotif = ref(false)
 const confirmReset = ref(false)
 const resetTextConfirm = ref('')
 
@@ -992,11 +1108,57 @@ const deleteFeed = async (id) => {
   }
 }
 
+// === MÉTODOS DE NOTIFICAÇÕES DO USUÁRIO ===
+const fetchUserProfile = async () => {
+  try {
+    const res = await axios.get('/api/v1/users/me/')
+    const data = res.data
+    userProfile.value = {
+      whatsapp: data.whatsapp || '',
+      notification_time: data.notification_time ? data.notification_time.substring(0, 5) : '08:00',
+      notify_daily_pendencies: data.notify_daily_pendencies ?? true,
+      notify_daily_open_tickets: data.notify_daily_open_tickets ?? true
+    }
+  } catch (e) {
+    console.error("Erro ao buscar perfil do usuário", e)
+  }
+}
+
+const saveUserProfile = async () => {
+  savingProfile.value = true
+  try {
+    await axios.patch('/api/v1/users/me/', {
+      whatsapp: userProfile.value.whatsapp,
+      notification_time: userProfile.value.notification_time,
+      notify_daily_pendencies: userProfile.value.notify_daily_pendencies,
+      notify_daily_open_tickets: userProfile.value.notify_daily_open_tickets
+    })
+    alert("Preferências de notificação salvas com sucesso!")
+  } catch (e) {
+    alert("Erro ao salvar preferências de notificação: " + (e.response?.data?.detail || e.message))
+  } finally {
+    savingProfile.value = false
+  }
+}
+
+const testUserNotifications = async () => {
+  testingNotif.value = true
+  try {
+    const res = await axios.post('/api/v1/users/test-notifications/', { type: 'all' })
+    alert(res.data.message || "Disparo de teste executado!")
+  } catch (e) {
+    alert("Erro no teste de notificação: " + (e.response?.data?.error || e.message))
+  } finally {
+    testingNotif.value = false
+  }
+}
+
 onMounted(() => {
   fetchSettings()
   fetchQuickReplies()
   fetchAbsenceSettings()
   fetchWebcalFeeds()
+  fetchUserProfile()
 })
 
 </script>

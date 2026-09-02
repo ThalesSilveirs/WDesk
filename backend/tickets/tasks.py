@@ -1038,166 +1038,272 @@ def _maybe_send_absence_message(connection, remote_jid, ticket):
         print(f"[ABSENCE ERROR] Falha no processamento da mensagem de ausência: {str(e)}")
 
 
-@shared_task
-def send_daily_pendencies_reports(company_id=None):
-    from tickets.models import Connection, User, Pendency, Company
+def send_daily_open_tickets_report_for_user(user, company, connection, current_date):
+    """
+    Envia o relatório diário de conversas abertas e pendentes para o atendente.
+    """
+    from tickets.models import Ticket
+    from tickets.utils import get_evolution_token
+    from django.conf import settings
+    import requests
+    import re
+
+    clean_number = re.sub(r'\D', '', user.whatsapp or '')
+    if not clean_number:
+        return False
+
+    # Busca tickets em aberto ou pendentes deste atendente
+    open_tickets = Ticket.objects.filter(
+        company=company,
+        user=user,
+        status__in=['open', 'pending']
+    ).select_related('contact', 'contact__customer').order_by('-updated_at')
+
+    if not open_tickets.exists():
+        return False
+
+    user_name = (user.first_name or user.username).strip()
+    date_str = current_date.strftime('%d/%m/%Y')
+    total_count = open_tickets.count()
+
+    msg = f"💬 *Relatório Diário de Conversas - WDesk*\n\n"
+    msg += f"Olá, *{user_name}*! Você possui *{total_count}* conversa(s) em andamento / aguardando retorno hoje ({date_str}):\n\n"
+
+    for t in open_tickets[:15]: # Limita a 15 itens para formatação limpa
+        contact_name = t.contact.name if t.contact and t.contact.name else "Contato"
+        phone_raw = t.contact.remote_jid.split('@')[0] if t.contact and t.contact.remote_jid else ""
+        customer_name = t.contact.customer.name if t.contact and t.contact.customer else None
+        
+        status_label = "Em Aberto 🔴" if t.status == 'open' else "Pendente 🟡"
+        unread_info = f" | Não lidas: {t.unread_count}" if t.unread_count > 0 else ""
+        
+        display_title = f"*{contact_name}*"
+        if customer_name and customer_name != contact_name:
+            display_title += f" - {customer_name}"
+        elif phone_raw:
+            display_title += f" ({phone_raw})"
+
+        msg += f"• {display_title}\n"
+        msg += f"   ┗ _Status: {status_label}{unread_info}_\n"
+        if t.last_message:
+            snippet = t.last_message.strip()
+            if len(snippet) > 80:
+                snippet = snippet[:77] + "..."
+            msg += f"   ┗ _Última: \"{snippet}\"_\n"
+        msg += "\n"
+
+    if total_count > 15:
+        msg += f"_... e mais {total_count - 15} conversas ativas._\n\n"
+
+    msg += f"📊 *Total de Conversas:* {total_count}\n"
+    msg += "👉 Acesse o painel do WDesk para dar continuidade aos atendimentos. 🚀"
+
+    try:
+        evo_token = get_evolution_token(connection.instance_name)
+        evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+
+        url = f"{evo_url}/send/text?apikey={evo_token}&instance={connection.instance_name}"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_token,
+            "Authorization": f"Bearer {evo_token}"
+        }
+        payload = {
+            "instance": connection.instance_name,
+            "number": clean_number,
+            "text": msg
+        }
+
+        res = requests.post(url, json=payload, headers=headers, timeout=10)
+        if res.status_code in [200, 201]:
+            print(f"[DAILY TICKETS REPORT] Enviado com sucesso para {user.username} ({clean_number})")
+            return True
+        else:
+            print(f"[DAILY TICKETS REPORT] Falha ao enviar para {user.username}: {res.status_code} - {res.text}")
+            return False
+    except Exception as e:
+        print(f"[DAILY TICKETS REPORT] Erro ao enviar relatório de conversas para {user.username}: {e}")
+        return False
+
+
+def send_daily_pendencies_report_for_user(user, company, connection, current_date):
+    """
+    Envia o relatório diário de pendências para o usuário.
+    """
+    from tickets.models import Pendency
     from tickets.utils import get_evolution_token
     from django.utils import timezone
     from django.conf import settings
-    from django.core.cache import cache
     import requests
     import re
+
+    clean_number = re.sub(r'\D', '', user.whatsapp or '')
+    if not clean_number:
+        return False
+
+    # Busca pendências não finalizadas do usuário
+    user_pendencies = Pendency.objects.filter(
+        user=user,
+        company=company
+    ).exclude(status='closed').select_related('customer')
+
+    # Se a empresa tiver a opção "somente suporte" ativada, filtra pelo tipo de operação 'suporte'
+    if getattr(company, 'pendency_report_only_support', False):
+        user_pendencies = user_pendencies.filter(operation_type='suporte')
+
+    if not user_pendencies.exists():
+        return False
+
+    # Agrupa as pendências
+    overdue = []
+    today_due = []
+    other_open = []
+
+    for p in user_pendencies:
+        if p.forecast_date:
+            local_forecast = timezone.localtime(p.forecast_date)
+            forecast_date_only = local_forecast.date()
+            if forecast_date_only < current_date:
+                overdue.append((p, local_forecast))
+            elif forecast_date_only == current_date:
+                today_due.append((p, local_forecast))
+            else:
+                other_open.append((p, local_forecast))
+        else:
+            other_open.append((p, None))
+
+    date_str = current_date.strftime('%d/%m/%Y')
+    user_name = (user.first_name or user.username).strip()
+    msg = f"📋 *Relatório Diário de Pendências - WDesk*\n\n"
+    if getattr(company, 'pendency_report_only_support', False):
+        msg += f"Olá, *{user_name}*! Aqui está o resumo das suas pendências de suporte para hoje ({date_str}):\n\n"
+    else:
+        msg += f"Olá, *{user_name}*! Aqui está o resumo das suas pendências para hoje ({date_str}):\n\n"
+
+    priority_map = {
+        'high': 'Alta 🔴',
+        'medium': 'Média 🟡',
+        'low': 'Baixa 🔵'
+    }
+
+    if overdue:
+        msg += "⚠️ *PENDÊNCIAS ATRASADAS:*\n"
+        for p, local_forecast in overdue:
+            client_name = p.customer.name if p.customer else "Sem Cliente"
+            priority_label = priority_map.get(p.priority, 'Normal')
+            forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
+            msg += f"🔴 *{p.title}* - {client_name}\n"
+            msg += f"   ┗ _Previsão: {forecast_str} | Prioridade: {priority_label}_\n"
+        msg += "\n"
+
+    if today_due:
+        msg += "📅 *PREVISTAS PARA HOJE:*\n"
+        for p, local_forecast in today_due:
+            client_name = p.customer.name if p.customer else "Sem Cliente"
+            priority_label = priority_map.get(p.priority, 'Normal')
+            forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
+            msg += f"🟡 *{p.title}* - {client_name}\n"
+            msg += f"   ┗ _Previsão: {forecast_str} | Prioridade: {priority_label}_\n"
+        msg += "\n"
+
+    if other_open:
+        msg += "📝 *OUTRAS PENDÊNCIAS ATIVAS:*\n"
+        for p, local_forecast in other_open:
+            client_name = p.customer.name if p.customer else "Sem Cliente"
+            priority_label = priority_map.get(p.priority, 'Normal')
+            if local_forecast:
+                forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
+                time_info = f"Previsão: {forecast_str} | "
+            else:
+                time_info = ""
+            msg += f"🔵 *{p.title}* - {client_name}\n"
+            msg += f"   ┗ _{time_info}Prioridade: {priority_label}_\n"
+        msg += "\n"
+
+    msg += f"📊 *Total de Pendências:* {user_pendencies.count()}\n\n"
+    msg += "Tenha um excelente dia de trabalho! 🚀"
+
+    try:
+        evo_token = get_evolution_token(connection.instance_name)
+        evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+
+        url = f"{evo_url}/send/text?apikey={evo_token}&instance={connection.instance_name}"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_token,
+            "Authorization": f"Bearer {evo_token}"
+        }
+        payload = {
+            "instance": connection.instance_name,
+            "number": clean_number,
+            "text": msg
+        }
+
+        res = requests.post(url, json=payload, headers=headers, timeout=10)
+        if res.status_code in [200, 201]:
+            print(f"[DAILY PENDENCIES REPORT] Enviado com sucesso para {user.username} ({clean_number})")
+            return True
+        else:
+            print(f"[DAILY PENDENCIES REPORT] Falha ao enviar para {user.username}: {res.status_code} - {res.text}")
+            return False
+    except Exception as e:
+        print(f"[DAILY PENDENCIES REPORT] Erro ao enviar relatório para {user.username}: {e}")
+        return False
+
+
+@shared_task
+def process_daily_notifications_task(company_id=None):
+    from tickets.models import Connection, User, Company
+    from django.utils import timezone
+    from django.core.cache import cache
     from datetime import time
+    import time as time_lib
 
     current_datetime = timezone.localtime()
     current_date = current_datetime.date()
     current_time = current_datetime.time()
 
-    # 1. Filtra as empresas elegíveis
     if company_id:
         companies = Company.objects.filter(id=company_id)
     else:
         companies = Company.objects.filter(is_active=True)
 
     for company in companies:
-        # Se for um disparo automático (sem company_id específico no Beat),
-        # verifica o horário configurado na empresa e se já foi enviado hoje.
-        if not company_id:
-            cache_key = f"daily_report_sent:{company.id}:{current_date}"
-            if cache.get(cache_key):
-                continue
-            
-            report_time = company.pendency_report_time or time(8, 0)
-            if current_time < report_time:
-                continue
-                
-            # Marca como enviado hoje (com expiração de 24 horas)
-            cache.set(cache_key, True, 86400)
+        connection = Connection.objects.filter(company=company, status='connected').first() or Connection.objects.filter(company=company).first()
+        if not connection:
+            continue
 
-        # 2. Filtra usuários ativos com WhatsApp configurado nesta empresa
         users_query = User.objects.filter(company=company, is_active=True).exclude(whatsapp__isnull=True).exclude(whatsapp='')
         
         for user in users_query:
-            # 3. Busca conexão ativa do WhatsApp da empresa
-            connection = Connection.objects.filter(company=company, status='connected').first()
-            if not connection:
-                connection = Connection.objects.filter(company=company).first()
-                
-            if not connection:
-                print(f"[DAILY REPORT] Sem conexão WhatsApp para a empresa {company.name}")
+            user_time = getattr(user, 'notification_time', None) or time(8, 0)
+            
+            # Se não for disparo manual de teste, valida o horário preferencial do usuário
+            if not company_id and current_time < user_time:
                 continue
-                
-            # 4. Busca pendências não finalizadas do usuário
-            user_pendencies = Pendency.objects.filter(
-                user=user,
-                company=company
-            ).exclude(status='closed').select_related('customer')
-            
-            # Se a empresa tiver a opção "somente suporte" ativada, filtra pelo tipo de operação 'suporte'
-            if company.pendency_report_only_support:
-                user_pendencies = user_pendencies.filter(operation_type='suporte')
-                
-            if not user_pendencies.exists():
-                continue # Sem pendências ativas elegíveis
-                
-            # 5. Agrupa as pendências
-            overdue = []
-            today_due = []
-            other_open = []
-            
-            for p in user_pendencies:
-                if p.forecast_date:
-                    local_forecast = timezone.localtime(p.forecast_date)
-                    forecast_date_only = local_forecast.date()
-                    if forecast_date_only < current_date:
-                        overdue.append((p, local_forecast))
-                    elif forecast_date_only == current_date:
-                        today_due.append((p, local_forecast))
-                    else:
-                        other_open.append((p, local_forecast))
-                else:
-                    other_open.append((p, None))
-                    
-            # 6. Formata a mensagem
-            date_str = current_date.strftime('%d/%m/%Y')
-            msg = f"📋 *Relatório Diário de Pendências - WDesk*\n\n"
-            if company.pendency_report_only_support:
-                msg += f"Olá, *{user.first_name or user.username}*! Aqui está o resumo das suas pendências de suporte para hoje ({date_str}):\n\n"
-            else:
-                msg += f"Olá, *{user.first_name or user.username}*! Aqui está o resumo das suas pendências para hoje ({date_str}):\n\n"
-            
-            priority_map = {
-                'high': 'Alta',
-                'medium': 'Média',
-                'low': 'Baixa'
-            }
-            
-            if overdue:
-                msg += "⚠️ *PENDÊNCIAS ATRASADAS:*\n"
-                for p, local_forecast in overdue:
-                    client_name = p.customer.name if p.customer else "Sem Cliente"
-                    priority_label = priority_map.get(p.priority, 'Normal')
-                    forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
-                    msg += f"🔴 *{p.title}* - {client_name}\n"
-                    msg += f"   ┗ _Previsão: {forecast_str} | Prioridade: {priority_label}_\n"
-                msg += "\n"
-                
-            if today_due:
-                msg += "📅 *PREVISTAS PARA HOJE:*\n"
-                for p, local_forecast in today_due:
-                    client_name = p.customer.name if p.customer else "Sem Cliente"
-                    priority_label = priority_map.get(p.priority, 'Normal')
-                    forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
-                    msg += f"🟡 *{p.title}* - {client_name}\n"
-                    msg += f"   ┗ _Previsão: {forecast_str} | Prioridade: {priority_label}_\n"
-                msg += "\n"
-                
-            if other_open:
-                msg += "📝 *OUTRAS PENDÊNCIAS ATIVAS:*\n"
-                for p, local_forecast in other_open:
-                    client_name = p.customer.name if p.customer else "Sem Cliente"
-                    priority_label = priority_map.get(p.priority, 'Normal')
-                    if local_forecast:
-                        forecast_str = local_forecast.strftime('%d/%m/%Y às %H:%M')
-                        time_info = f"Previsão: {forecast_str} | "
-                    else:
-                        time_info = ""
-                    msg += f"🔵 *{p.title}* - {client_name}\n"
-                    msg += f"   ┗ _{time_info}Prioridade: {priority_label}_\n"
-                msg += "\n"
-                
-            msg += f"📊 *Total de Pendências:* {user_pendencies.count()}\n\n"
-            msg += "Tenha um excelente dia de trabalho! 🚀"
-            
-            # 7. Limpa o número de WhatsApp do usuário
-            clean_number = re.sub(r'\D', '', user.whatsapp)
-            if not clean_number:
-                continue
-                
-            # Envia a mensagem via Evolution API
-            try:
-                evo_token = get_evolution_token(connection.instance_name)
-                evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
-                
-                url = f"{evo_url}/send/text?apikey={evo_token}&instance={connection.instance_name}"
-                headers = {
-                    "Content-Type": "application/json",
-                    "apikey": evo_token,
-                    "Authorization": f"Bearer {evo_token}"
-                }
-                payload = {
-                    "instance": connection.instance_name,
-                    "number": clean_number,
-                    "text": msg
-                }
-                
-                res = requests.post(url, json=payload, headers=headers, timeout=10)
-                if res.status_code in [200, 201]:
-                    print(f"[DAILY REPORT] Enviado com sucesso para {user.username} ({clean_number})")
-                else:
-                    print(f"[DAILY REPORT] Falha ao enviar para {user.username}: {res.status_code} - {res.text}")
-            except Exception as e:
-                print(f"[DAILY REPORT] Erro ao enviar relatório para {user.username}: {e}")
+
+            # Envia Pendências se ativado no perfil do usuário
+            if getattr(user, 'notify_daily_pendencies', True):
+                cache_key_pend = f"daily_pend_sent_{user.id}_{current_date}"
+                if company_id or not cache.get(cache_key_pend):
+                    if not company_id:
+                        cache.set(cache_key_pend, True, 86400)
+                    send_daily_pendencies_report_for_user(user, company, connection, current_date)
+                    time_lib.sleep(1.0) # Evitar flood
+
+            # Envia Conversas Abertas se ativado no perfil do usuário
+            if getattr(user, 'notify_daily_open_tickets', True):
+                cache_key_tick = f"daily_tickets_sent_{user.id}_{current_date}"
+                if company_id or not cache.get(cache_key_tick):
+                    if not company_id:
+                        cache.set(cache_key_tick, True, 86400)
+                    send_daily_open_tickets_report_for_user(user, company, connection, current_date)
+                    time_lib.sleep(1.0)
+
+
+@shared_task
+def send_daily_pendencies_reports(company_id=None):
+    return process_daily_notifications_task(company_id=company_id)
 
 
 @shared_task

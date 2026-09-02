@@ -31,6 +31,11 @@ class User(AbstractUser):
     department = models.CharField(max_length=100, null=True, blank=True) # Área de atuação
     whatsapp = models.CharField(max_length=20, null=True, blank=True)
     avatar = models.TextField(null=True, blank=True)
+    
+    # Configurações de Notificações Diárias no WhatsApp
+    notification_time = models.TimeField(default="08:00")
+    notify_daily_pendencies = models.BooleanField(default=True)
+    notify_daily_open_tickets = models.BooleanField(default=True)
 
 
 class Connection(models.Model):

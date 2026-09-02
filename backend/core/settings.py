@@ -126,8 +126,8 @@ EVOLUTION_API_KEY = env('EVOLUTION_API_TOKEN', default='your-token-here')
 
 # Celery Beat Schedule
 CELERY_BEAT_SCHEDULE = {
-    'send-daily-pendencies-reports': {
-        'task': 'tickets.tasks.send_daily_pendencies_reports',
-        'schedule': crontab(hour=8, minute=0), # Executa uma vez ao dia às 08:00
+    'process-daily-notifications': {
+        'task': 'tickets.tasks.process_daily_notifications_task',
+        'schedule': crontab(minute='*/5'), # Checa a cada 5 minutos os horários configurados de cada usuário
     },
 }

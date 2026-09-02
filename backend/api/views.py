@@ -1845,10 +1845,47 @@ class UserViewSet(TenantModelViewSet):
         super().perform_destroy(instance)
         self._clear_cache()
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get', 'patch', 'put'])
     def me(self, request):
+        if request.method in ['PATCH', 'PUT']:
+            serializer = self.get_serializer(request.user, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            self._clear_cache()
+            return Response(serializer.data)
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='test-notifications')
+    def test_notifications(self, request):
+        from tickets.tasks import send_daily_open_tickets_report_for_user, send_daily_pendencies_report_for_user
+        from tickets.models import Connection
+        from django.utils import timezone
+        
+        user = request.user
+        company = user.company
+        if not company:
+            return Response({"error": "Usuário sem empresa vinculada."}, status=400)
+            
+        connection = Connection.objects.filter(company=company, status='connected').first() or Connection.objects.filter(company=company).first()
+        if not connection:
+            return Response({"error": "Nenhuma conexão WhatsApp configurada para a empresa."}, status=400)
+            
+        if not user.whatsapp:
+            return Response({"error": "Você precisa cadastrar um número de WhatsApp no seu perfil para receber notificações."}, status=400)
+            
+        current_date = timezone.localtime().date()
+        rep_type = request.data.get('type', 'all')
+        
+        sent = []
+        if rep_type in ['all', 'pendencies'] and user.notify_daily_pendencies:
+            send_daily_pendencies_report_for_user(user, company, connection, current_date)
+            sent.append('pendencias')
+        if rep_type in ['all', 'tickets'] and user.notify_daily_open_tickets:
+            send_daily_open_tickets_report_for_user(user, company, connection, current_date)
+            sent.append('conversas_abertas')
+            
+        return Response({"success": True, "sent": sent, "message": "Disparo de teste executado com sucesso!"})
 
 class CompanyViewSet(viewsets.ModelViewSet):
     """

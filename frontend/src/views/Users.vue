@@ -76,6 +76,31 @@
               <option value="attendant">Atendente</option>
               <option value="admin">Administrador</option>
             </select>
+
+            <!-- Configurações de Notificações Diárias no WhatsApp -->
+            <div class="user-notification-box">
+              <div class="notif-header">
+                <BellIcon :size="15" style="color: #10b981;" />
+                <span>Notificações Diárias no WhatsApp</span>
+              </div>
+              
+              <div class="notif-row">
+                <label>Horário de Envio:</label>
+                <input v-model="newUser.notification_time" type="time" class="input-glass time-input" />
+              </div>
+
+              <div class="notif-checkboxes">
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="newUser.notify_daily_pendencies" />
+                  <span>📋 Relatório Diário de Pendências</span>
+                </label>
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="newUser.notify_daily_open_tickets" />
+                  <span>💬 Relatório de Conversas Abertas / Pendentes</span>
+                </label>
+              </div>
+            </div>
+
             <div class="modal-actions">
               <button type="button" @click="closeModal" class="btn-secondary">Cancelar</button>
               <button type="submit" class="submit-btn">{{ editingId ? 'Salvar Alterações' : 'Criar Usuário' }}</button>
@@ -95,7 +120,8 @@ import {
   Trash2 as TrashIcon,
   Pencil as PencilIcon,
   MessageSquare as WhatsAppIcon,
-  Upload as UploadIcon
+  Upload as UploadIcon,
+  Bell as BellIcon
 } from 'lucide-vue-next'
 const users = ref([])
 const showAddModal = ref(false)
@@ -109,7 +135,10 @@ const newUser = ref({
   role: 'attendant',
   department: '',
   whatsapp: '',
-  avatar: ''
+  avatar: '',
+  notification_time: '08:00',
+  notify_daily_pendencies: true,
+  notify_daily_open_tickets: true
 })
 
 const handleAvatarUpload = (e) => {
@@ -133,14 +162,34 @@ const fetchUsers = async () => {
 
 const editUser = (user) => {
   editingId.value = user.id
-  newUser.value = { ...user, password: '', avatar: user.avatar || '' }
+  newUser.value = {
+    ...user,
+    password: '',
+    avatar: user.avatar || '',
+    notification_time: user.notification_time ? user.notification_time.substring(0, 5) : '08:00',
+    notify_daily_pendencies: user.notify_daily_pendencies ?? true,
+    notify_daily_open_tickets: user.notify_daily_open_tickets ?? true
+  }
   showAddModal.value = true
 }
 
 const closeModal = () => {
   showAddModal.value = false
   editingId.value = null
-  newUser.value = { username: '', first_name: '', last_name: '', email: '', password: '', role: 'attendant', department: '', whatsapp: '', avatar: '' }
+  newUser.value = {
+    username: '',
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    role: 'attendant',
+    department: '',
+    whatsapp: '',
+    avatar: '',
+    notification_time: '08:00',
+    notify_daily_pendencies: true,
+    notify_daily_open_tickets: true
+  }
 }
 
 const saveUser = async () => {
@@ -366,7 +415,61 @@ onUnmounted(() => {
 .edit-btn:hover { color: var(--accent); opacity: 1; }
 
 .user-form { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
-.form-row { display: flex; gap: 10px; }
+.user-notification-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notif-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notif-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.time-input {
+  width: 120px !important;
+  padding: 6px 10px !important;
+  font-size: 0.85rem !important;
+}
+
+.notif-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
 
 .modal-actions {
   display: flex;
