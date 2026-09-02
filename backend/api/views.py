@@ -593,10 +593,15 @@ class TicketViewSet(TenantModelViewSet):
             ticket.save()
             self.broadcast_ticket_update(ticket)
             
-            # Envia mensagem do sistema
+            # Envia mensagem do sistema para o cliente no WhatsApp
             atendente_nome = new_user.first_name.strip() or new_user.username
             msg_text = f"_Seu atendimento foi transferido para *{atendente_nome}*_"
             self.send_system_whatsapp_message(ticket, msg_text)
+            
+            # Notifica o atendente de destino via WhatsApp se for outro usuário
+            if new_user != request.user:
+                from tickets.tasks import send_ticket_transferred_whatsapp_notification
+                send_ticket_transferred_whatsapp_notification.delay(ticket.id, request.user.id)
             
             return Response(TicketSerializer(ticket).data)
         except User.DoesNotExist:

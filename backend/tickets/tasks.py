@@ -1284,4 +1284,93 @@ def send_pendency_created_whatsapp_notification(pendency_id):
         print(f"[PENDENCY NOTIFICATION] Erro ao enviar notificação para {user.username}: {e}")
 
 
+@shared_task
+def send_ticket_transferred_whatsapp_notification(ticket_id, transferred_by_user_id):
+    from tickets.models import Ticket, User, Connection
+    from tickets.utils import get_evolution_token
+    from django.utils import timezone
+    from django.conf import settings
+    import requests
+    import re
+
+    try:
+        ticket = Ticket.objects.select_related('company', 'user', 'contact', 'contact__customer').get(id=ticket_id)
+    except Ticket.DoesNotExist:
+        print(f"[TICKET TRANSFER NOTIFICATION] Ticket {ticket_id} não encontrado.")
+        return
+
+    user = ticket.user
+    if not user or not user.whatsapp:
+        print(f"[TICKET TRANSFER NOTIFICATION] Usuário destino não possui WhatsApp cadastrado.")
+        return
+
+    clean_number = re.sub(r'\D', '', user.whatsapp)
+    if not clean_number:
+        return
+
+    company = ticket.company
+    connection = Connection.objects.filter(company=company, status='connected').first()
+    if not connection:
+        connection = Connection.objects.filter(company=company).first()
+
+    if not connection:
+        print(f"[TICKET TRANSFER NOTIFICATION] Sem conexão WhatsApp para a empresa {company.name}")
+        return
+
+    try:
+        transferred_by = User.objects.get(id=transferred_by_user_id)
+        transferred_by_name = (transferred_by.first_name or transferred_by.username).strip()
+    except User.DoesNotExist:
+        transferred_by_name = "Um atendente"
+
+    user_name = (user.first_name or user.username).strip()
+
+    # Informações do contato e cliente
+    contact_name = ticket.contact.name if ticket.contact and ticket.contact.name else "Contato"
+    phone_raw = ticket.contact.remote_jid.split('@')[0] if ticket.contact and ticket.contact.remote_jid else ""
+    phone_str = f" ({phone_raw})" if phone_raw else ""
+    customer_name = ticket.contact.customer.name if ticket.contact and ticket.contact.customer else None
+
+    # Horário formatado
+    now_str = timezone.localtime().strftime('%d/%m/%Y às %H:%M')
+
+    msg = f"🔄 *Atendimento Transferido - WDesk*\n\n"
+    msg += f"Olá, *{user_name}*! Um atendimento aberto foi transferido para você por *{transferred_by_name}*:\n\n"
+    msg += f"👤 *Contato:* {contact_name}{phone_str}\n"
+    if customer_name:
+        msg += f"🏢 *Cliente:* {customer_name}\n"
+    if ticket.last_message:
+        last_msg_snippet = ticket.last_message.strip()
+        if len(last_msg_snippet) > 120:
+            last_msg_snippet = last_msg_snippet[:117] + "..."
+        msg += f"💬 *Última Mensagem:* _{last_msg_snippet}_\n"
+    msg += f"⏰ *Horário:* {now_str}\n\n"
+    msg += f"👉 Acesse o painel do WDesk para dar continuidade ao atendimento."
+
+    try:
+        evo_token = get_evolution_token(connection.instance_name)
+        evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+
+        url = f"{evo_url}/send/text?apikey={evo_token}&instance={connection.instance_name}"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_token,
+            "Authorization": f"Bearer {evo_token}"
+        }
+        payload = {
+            "instance": connection.instance_name,
+            "number": clean_number,
+            "text": msg
+        }
+
+        res = requests.post(url, json=payload, headers=headers, timeout=10)
+        if res.status_code in [200, 201]:
+            print(f"[TICKET TRANSFER NOTIFICATION] Notificação enviada para {user.username} ({clean_number})")
+        else:
+            print(f"[TICKET TRANSFER NOTIFICATION] Falha ao enviar para {user.username}: {res.status_code} - {res.text}")
+    except Exception as e:
+        print(f"[TICKET TRANSFER NOTIFICATION] Erro ao enviar notificação para {user.username}: {e}")
+
+
+
 
