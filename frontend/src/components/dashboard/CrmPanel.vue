@@ -471,11 +471,18 @@ watch(() => props.activeTabProp, (newTab) => {
 }, { immediate: true })
 
 const contactPhone = computed(() => {
-  return chatStore.activeTicket.customer_details?.phone || chatStore.activeTicket.contact_details?.remote_jid?.split('@')[0] || ''
+  return (
+    chatStore.activeTicket?.contact_details?.remote_jid?.split('@')[0] ||
+    chatStore.activeTicket?.contact_details?.whatsapp ||
+    chatStore.activeTicket?.contact_details?.cellphone ||
+    chatStore.activeTicket?.contact_details?.phone ||
+    chatStore.activeTicket?.customer_details?.phone ||
+    ''
+  )
 })
 
 const contactEmail = computed(() => {
-  return chatStore.activeTicket.customer_details?.email || ''
+  return chatStore.activeTicket?.contact_details?.email || chatStore.activeTicket?.customer_details?.email || ''
 })
 
 const contactInitials = computed(() => {
