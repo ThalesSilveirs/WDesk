@@ -73,7 +73,8 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'username', 'first_name', 'last_name', 'email', 'role',
             'company', 'department', 'status', 'whatsapp', 'avatar', 'password',
-            'notification_time', 'notify_daily_pendencies', 'notify_daily_open_tickets'
+            'notification_time', 'notify_daily_pendencies', 'notify_daily_open_tickets',
+            'notify_queue_delay', 'queue_delay_minutes'
         )
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
 

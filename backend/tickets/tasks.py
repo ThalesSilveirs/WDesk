@@ -1569,5 +1569,134 @@ def mark_ticket_messages_as_read_on_whatsapp(ticket_id):
             pass
 
 
+@shared_task
+def check_unattended_queue_task():
+    """
+    Monitora a fila de atendimento (tickets sem atendente / pendentes).
+    Identifica mensagens de clientes não atendidas que ultrapassaram o tempo configurado
+    por cada usuário/administrador e envia notificações via WhatsApp com trava anti-spam.
+    """
+    import requests
+    from django.utils import timezone
+    from tickets.models import Company, Connection, Ticket, Message, User
+    from tickets.utils import get_evolution_token
+    from django.conf import settings
+
+    now = timezone.now()
+    companies = Company.objects.filter(is_active=True)
+
+    for company in companies:
+        connection = Connection.objects.filter(company=company, status='connected').first() or Connection.objects.filter(company=company).first()
+        if not connection:
+            continue
+
+        # Busca usuários da empresa que ativaram o alerta de fila e possuem WhatsApp
+        eligible_users = User.objects.filter(
+            company=company,
+            is_active=True,
+            notify_queue_delay=True
+        ).exclude(whatsapp__isnull=True).exclude(whatsapp='')
+
+        if not eligible_users.exists():
+            continue
+
+        # Busca tickets na fila da empresa (sem atendente e com status aberto/pendente)
+        queue_tickets = Ticket.objects.filter(
+            company=company,
+            user__isnull=True,
+            status__in=['open', 'pending']
+        ).select_related('contact', 'contact__customer')
+
+        for ticket in queue_tickets:
+            # Pega a última mensagem recebida do cliente
+            last_incoming_msg = Message.objects.filter(
+                ticket=ticket,
+                from_me=False
+            ).order_by('-timestamp').first()
+
+            if not last_incoming_msg:
+                continue
+
+            # Verifica se houve alguma resposta do atendente após essa mensagem
+            has_subsequent_reply = Message.objects.filter(
+                ticket=ticket,
+                from_me=True,
+                timestamp__gt=last_incoming_msg.timestamp
+            ).exists()
+
+            if has_subsequent_reply:
+                continue
+
+            elapsed_minutes = int((now - last_incoming_msg.timestamp).total_seconds() / 60)
+            if elapsed_minutes < 1:
+                continue
+
+            # Para cada usuário elegível
+            for user in eligible_users:
+                threshold = user.queue_delay_minutes or 5
+                if elapsed_minutes < threshold:
+                    continue
+
+                # Trava anti-spam no Redis: chave única por usuário, ticket e mensagem
+                cache_key = f"queue_alert_sent_{user.id}_{ticket.id}_{last_incoming_msg.id}"
+                try:
+                    if redis_client.get(cache_key):
+                        continue
+                except Exception:
+                    pass
+
+                clean_user_phone = "".join(filter(str.isdigit, user.whatsapp or ''))
+                if not clean_user_phone:
+                    continue
+
+                contact_name = ticket.contact.name or "Sem Nome"
+                customer_name = ticket.contact.customer.name if (ticket.contact.customer and ticket.contact.customer.name) else None
+                contact_phone = ticket.contact.cellphone or ticket.contact.phone or (ticket.contact.remote_jid.split('@')[0] if ticket.contact.remote_jid else '')
+
+                msg_snippet = (last_incoming_msg.body or "").strip()
+                if len(msg_snippet) > 120:
+                    msg_snippet = msg_snippet[:117] + "..."
+                elif not msg_snippet and last_incoming_msg.media_type:
+                    msg_snippet = f"[{last_incoming_msg.media_type}]"
+
+                alert_text = f"⏳ *Alerta de Fila - WDesk*\n\n"
+                alert_text += f"Atenção, *{user.first_name or user.username}*! Há um cliente aguardando atendimento na Fila há mais de *{elapsed_minutes} minutos*:\n\n"
+                alert_text += f"👤 *Contato:* {contact_name} ({contact_phone})\n"
+                if customer_name:
+                    alert_text += f"🏢 *Cliente:* {customer_name}\n"
+                if msg_snippet:
+                    alert_text += f"💬 *Mensagem:* _{msg_snippet}_\n"
+                alert_text += f"⏰ *Tempo na Fila:* {elapsed_minutes} min\n\n"
+                alert_text += f"👉 Acesse o painel do WDesk para puxar o atendimento."
+
+                try:
+                    evo_token = get_evolution_token(connection.instance_name)
+                    evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+                    url = f"{evo_url}/send/text?apikey={evo_token}&instance={connection.instance_name}"
+                    headers = {
+                        "Content-Type": "application/json",
+                        "apikey": evo_token,
+                        "Authorization": f"Bearer {evo_token}"
+                    }
+                    payload = {
+                        "instance": connection.instance_name,
+                        "number": clean_user_phone,
+                        "text": alert_text
+                    }
+
+                    res = requests.post(url, json=payload, headers=headers, timeout=10)
+                    if res.status_code in [200, 201]:
+                        try:
+                            redis_client.set(cache_key, "1", ex=86400)
+                        except Exception:
+                            pass
+                        print(f"[QUEUE ALERT SUCCESS] Alerta de fila do ticket {ticket.id} ({elapsed_minutes} min) enviado para {user.username} ({clean_user_phone})")
+                    else:
+                        print(f"[QUEUE ALERT FAIL] Falha ao enviar alerta para {user.username}: {res.status_code} - {res.text}")
+                except Exception as e:
+                    print(f"[QUEUE ALERT ERROR] Erro ao enviar alerta para {user.username}: {e}")
+
+
+
 
 

@@ -98,6 +98,20 @@
                   <input type="checkbox" v-model="newUser.notify_daily_open_tickets" />
                   <span>💬 Relatório de Conversas Abertas / Pendentes</span>
                 </label>
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="newUser.notify_queue_delay" />
+                  <span>⏳ Alerta de Fila Sem Atendimento</span>
+                </label>
+                <div v-if="newUser.notify_queue_delay" style="margin-left: 22px; display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 0.78rem; color: var(--text-secondary);">Tolerância na fila:</span>
+                  <select v-model="newUser.queue_delay_minutes" class="select-glass" style="width: auto; padding: 2px 8px; font-size: 0.78rem;">
+                    <option :value="3">3 min</option>
+                    <option :value="5">5 min (Padrão)</option>
+                    <option :value="10">10 min</option>
+                    <option :value="15">15 min</option>
+                    <option :value="30">30 min</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -138,7 +152,9 @@ const newUser = ref({
   avatar: '',
   notification_time: '08:00',
   notify_daily_pendencies: true,
-  notify_daily_open_tickets: true
+  notify_daily_open_tickets: true,
+  notify_queue_delay: false,
+  queue_delay_minutes: 5
 })
 
 const handleAvatarUpload = (e) => {
@@ -168,7 +184,9 @@ const editUser = (user) => {
     avatar: user.avatar || '',
     notification_time: user.notification_time ? user.notification_time.substring(0, 5) : '08:00',
     notify_daily_pendencies: user.notify_daily_pendencies ?? true,
-    notify_daily_open_tickets: user.notify_daily_open_tickets ?? true
+    notify_daily_open_tickets: user.notify_daily_open_tickets ?? true,
+    notify_queue_delay: user.notify_queue_delay ?? false,
+    queue_delay_minutes: user.queue_delay_minutes ?? 5
   }
   showAddModal.value = true
 }
@@ -188,7 +206,9 @@ const closeModal = () => {
     avatar: '',
     notification_time: '08:00',
     notify_daily_pendencies: true,
-    notify_daily_open_tickets: true
+    notify_daily_open_tickets: true,
+    notify_queue_delay: false,
+    queue_delay_minutes: 5
   }
 }
 

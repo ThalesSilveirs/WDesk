@@ -32,10 +32,12 @@ class User(AbstractUser):
     whatsapp = models.CharField(max_length=20, null=True, blank=True)
     avatar = models.TextField(null=True, blank=True)
     
-    # Configurações de Notificações Diárias no WhatsApp
+    # Configurações de Notificações no WhatsApp
     notification_time = models.TimeField(default="08:00")
     notify_daily_pendencies = models.BooleanField(default=True)
     notify_daily_open_tickets = models.BooleanField(default=True)
+    notify_queue_delay = models.BooleanField(default=False)
+    queue_delay_minutes = models.IntegerField(default=5)
 
 
 class Connection(models.Model):

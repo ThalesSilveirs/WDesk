@@ -130,4 +130,8 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'tickets.tasks.process_daily_notifications_task',
         'schedule': crontab(minute='*/5'), # Checa a cada 5 minutos os horários configurados de cada usuário
     },
+    'check-unattended-queue': {
+        'task': 'tickets.tasks.check_unattended_queue_task',
+        'schedule': crontab(minute='*'), # Checa a cada 1 minuto se há mensagens paradas na fila
+    },
 }

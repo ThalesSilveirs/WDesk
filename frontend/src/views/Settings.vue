@@ -613,6 +613,28 @@
               </label>
             </div>
 
+            <!-- Alerta de Fila sem Atendimento -->
+            <div class="setting-row-card glass-effect">
+              <div class="setting-info">
+                <label class="setting-title">⏳ Alerta de Fila sem Atendimento</label>
+                <span class="setting-desc">Seja alertado no WhatsApp se um cliente ficar aguardando atendimento na Fila por mais tempo que o tolerado.</span>
+                <div v-if="userProfile.notify_queue_delay" style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 0.85rem; color: var(--text-secondary);">Tempo de tolerância na fila:</span>
+                  <select v-model="userProfile.queue_delay_minutes" class="select-glass" style="width: auto; padding: 4px 10px; font-size: 0.85rem;">
+                    <option :value="3">3 minutos</option>
+                    <option :value="5">5 minutos (Padrão)</option>
+                    <option :value="10">10 minutos</option>
+                    <option :value="15">15 minutos</option>
+                    <option :value="30">30 minutos</option>
+                  </select>
+                </div>
+              </div>
+              <label class="switch-container">
+                <input type="checkbox" v-model="userProfile.notify_queue_delay" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
             <!-- Ações de Salvar e Testar -->
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 25px; flex-wrap: wrap; gap: 15px;">
               <button 
@@ -716,18 +738,6 @@ const saving = ref(false)
 const reseting = ref(false)
 const saveSuccess = ref(false)
 const showKey = ref(false)
-
-// === ESTADOS DE PREFERÊNCIAS DE NOTIFICAÇÃO DO USUÁRIO ===
-const userProfile = ref({
-  whatsapp: '',
-  notification_time: '08:00',
-  notify_daily_pendencies: true,
-  notify_daily_open_tickets: true
-})
-const savingProfile = ref(false)
-const testingNotif = ref(false)
-const confirmReset = ref(false)
-const resetTextConfirm = ref('')
 
 const performanceMode = ref(localStorage.getItem('performanceMode') === 'true')
 
@@ -1108,6 +1118,20 @@ const deleteFeed = async (id) => {
   }
 }
 
+// === ESTADOS DE PREFERÊNCIAS DE NOTIFICAÇÃO DO USUÁRIO ===
+const userProfile = ref({
+  whatsapp: '',
+  notification_time: '08:00',
+  notify_daily_pendencies: true,
+  notify_daily_open_tickets: true,
+  notify_queue_delay: false,
+  queue_delay_minutes: 5
+})
+const savingProfile = ref(false)
+const testingNotif = ref(false)
+const confirmReset = ref(false)
+const resetTextConfirm = ref('')
+
 // === MÉTODOS DE NOTIFICAÇÕES DO USUÁRIO ===
 const fetchUserProfile = async () => {
   try {
@@ -1117,7 +1141,9 @@ const fetchUserProfile = async () => {
       whatsapp: data.whatsapp || '',
       notification_time: data.notification_time ? data.notification_time.substring(0, 5) : '08:00',
       notify_daily_pendencies: data.notify_daily_pendencies ?? true,
-      notify_daily_open_tickets: data.notify_daily_open_tickets ?? true
+      notify_daily_open_tickets: data.notify_daily_open_tickets ?? true,
+      notify_queue_delay: data.notify_queue_delay ?? false,
+      queue_delay_minutes: data.queue_delay_minutes ?? 5
     }
   } catch (e) {
     console.error("Erro ao buscar perfil do usuário", e)
@@ -1131,7 +1157,9 @@ const saveUserProfile = async () => {
       whatsapp: userProfile.value.whatsapp,
       notification_time: userProfile.value.notification_time,
       notify_daily_pendencies: userProfile.value.notify_daily_pendencies,
-      notify_daily_open_tickets: userProfile.value.notify_daily_open_tickets
+      notify_daily_open_tickets: userProfile.value.notify_daily_open_tickets,
+      notify_queue_delay: userProfile.value.notify_queue_delay,
+      queue_delay_minutes: userProfile.value.queue_delay_minutes
     })
     alert("Preferências de notificação salvas com sucesso!")
   } catch (e) {
