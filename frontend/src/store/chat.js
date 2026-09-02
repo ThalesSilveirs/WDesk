@@ -133,6 +133,9 @@ export const useChatStore = defineStore('chat', {
       // Update active ticket
       if (isCurrentActive) {
         updateTicketFields(this.activeTicket)
+        if (!message.from_me) {
+          axios.post(`/api/v1/tickets/${ticketId}/reset_unread/`, {}).catch(() => {})
+        }
       }
 
       // Find indices
@@ -479,11 +482,9 @@ export const useChatStore = defineStore('chat', {
       this.loadingMore = false
       this.loadingMessages = true
 
-      // Reseta contador no backend
-      if (ticket.unread_count > 0) {
-        axios.post(`/api/v1/tickets/${ticket.id}/reset_unread/`, {}).catch(() => {})
-        ticket.unread_count = 0
-      }
+      // Reseta contador no backend e sincroniza status de lido com o WhatsApp
+      axios.post(`/api/v1/tickets/${ticket.id}/reset_unread/`, {}).catch(() => {})
+      ticket.unread_count = 0
 
       try {
         // Concorrência via Promise.all para carregar detalhes e mensagens em paralelo

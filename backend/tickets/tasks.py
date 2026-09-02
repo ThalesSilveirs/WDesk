@@ -1478,5 +1478,96 @@ def send_ticket_transferred_whatsapp_notification(ticket_id, transferred_by_user
         print(f"[TICKET TRANSFER NOTIFICATION] Erro ao enviar notificação para {user.username}: {e}")
 
 
+@shared_task
+def mark_ticket_messages_as_read_on_whatsapp(ticket_id):
+    """
+    Marca as mensagens do ticket como lidas no WhatsApp através da Evolution API.
+    Isso remove os avisos de mensagens não lidas no aparelho/WhatsApp físico conectado.
+    """
+    import requests
+    from tickets.models import Ticket, Message, Connection
+    from tickets.utils import get_evolution_token
+    from django.conf import settings
+
+    try:
+        ticket = Ticket.objects.select_related('contact', 'company').get(id=ticket_id)
+    except Ticket.DoesNotExist:
+        return
+
+    contact = ticket.contact
+    if not contact or not contact.remote_jid:
+        return
+
+    company = ticket.company
+    connection = Connection.objects.filter(company=company, status='connected').first() or Connection.objects.filter(company=company).first()
+    if not connection:
+        return
+
+    # Buscar as últimas mensagens recebidas do cliente (from_me=False)
+    incoming_msgs = Message.objects.filter(
+        ticket=ticket,
+        from_me=False
+    ).exclude(message_id__isnull=True).exclude(message_id='').exclude(message_id__startswith='pending_').exclude(message_id__startswith='system_').order_by('-timestamp')[:30]
+
+    read_messages_payload = []
+    for m in incoming_msgs:
+        read_messages_payload.append({
+            "id": m.message_id,
+            "fromMe": False,
+            "remoteJid": contact.remote_jid
+        })
+
+    if not read_messages_payload:
+        read_messages_payload.append({
+            "id": "0",
+            "fromMe": False,
+            "remoteJid": contact.remote_jid
+        })
+
+    evo_token = get_evolution_token(connection.instance_name)
+    evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+
+    headers = {
+        "Content-Type": "application/json",
+        "apikey": evo_token,
+        "ApiKey": evo_token,
+        "api-key": evo_token,
+        "Authorization": f"Bearer {evo_token}",
+        "instance": connection.instance_name
+    }
+
+    endpoints_and_payloads = [
+        (
+            f"{evo_url}/chat/markMessageAsRead?apikey={evo_token}&instance={connection.instance_name}",
+            {"instance": connection.instance_name, "readMessages": read_messages_payload}
+        ),
+        (
+            f"{evo_url}/chat/markMessageAsRead/{connection.instance_name}",
+            {"readMessages": read_messages_payload}
+        ),
+        (
+            f"{evo_url}/chat/readMessages?apikey={evo_token}&instance={connection.instance_name}",
+            {"instance": connection.instance_name, "readMessages": read_messages_payload}
+        ),
+        (
+            f"{evo_url}/chat/readMessages/{connection.instance_name}",
+            {"readMessages": read_messages_payload}
+        ),
+        (
+            f"{evo_url}/chat/markChatUnread?apikey={evo_token}&instance={connection.instance_name}",
+            {"instance": connection.instance_name, "chat": contact.remote_jid, "unread": False}
+        ),
+    ]
+
+    for url, payload in endpoints_and_payloads:
+        try:
+            res = requests.post(url, json=payload, headers=headers, timeout=5)
+            if res.status_code in [200, 201]:
+                print(f"[MARK READ SUCCESS] Ticket {ticket.id} ({contact.remote_jid}) marcado como lido na Evolution API via {url}")
+                break
+        except Exception as e:
+            pass
+
+
 
 

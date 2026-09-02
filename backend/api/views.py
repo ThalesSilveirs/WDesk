@@ -516,11 +516,22 @@ class TicketViewSet(TenantModelViewSet):
         ticket = self.get_object()
         ticket.unread_count = 0
         ticket.save()
+
+        # Marca como lida no WhatsApp conectado via Evolution API
+        from tickets.tasks import mark_ticket_messages_as_read_on_whatsapp
+        mark_ticket_messages_as_read_on_whatsapp.delay(ticket.id)
+
         return Response({'status': 'unread count reset'})
 
     @action(detail=True, methods=['get'])
     def messages(self, request, pk=None):
         ticket = self.get_object()
+        if ticket.unread_count > 0:
+            ticket.unread_count = 0
+            ticket.save()
+            from tickets.tasks import mark_ticket_messages_as_read_on_whatsapp
+            mark_ticket_messages_as_read_on_whatsapp.delay(ticket.id)
+
         before_id = request.query_params.get('before')
         limit = int(request.query_params.get('limit', 50))
         
@@ -718,6 +729,10 @@ class TicketViewSet(TenantModelViewSet):
                 ticket.last_message = caption or f"📷 Foto" if evo_type == 'image' else (f"🎵 Áudio" if evo_type == 'audio' else f"📄 Documento")
                 ticket.save()
                 
+                # Marca como lida no WhatsApp
+                from tickets.tasks import mark_ticket_messages_as_read_on_whatsapp
+                mark_ticket_messages_as_read_on_whatsapp.delay(ticket.id)
+                
                 return Response(MessageSerializer(message).data)
             else:
                 return Response({"error": f"Erro Evolution: {response.text}"}, status=status.HTTP_400_BAD_REQUEST)
@@ -776,8 +791,9 @@ class TicketViewSet(TenantModelViewSet):
         redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
 
         # 4. Dispara a tarefa assíncrona no Celery para chamar a Evolution API em background
-        from tickets.tasks import send_wa_message_task
+        from tickets.tasks import send_wa_message_task, mark_ticket_messages_as_read_on_whatsapp
         send_wa_message_task.delay(message.id, quoted_msg.id if quoted_msg else None)
+        mark_ticket_messages_as_read_on_whatsapp.delay(ticket.id)
 
         return Response(MessageSerializer(message).data)
 
