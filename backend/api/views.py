@@ -2178,6 +2178,14 @@ class PendencyViewSet(TenantModelViewSet):
         if end_date:
             qs = qs.filter(opening_date__date__lte=end_date)
 
+        forecast_start_date = self.request.query_params.get('forecast_start_date')
+        if forecast_start_date:
+            qs = qs.filter(forecast_date__date__gte=forecast_start_date)
+            
+        forecast_end_date = self.request.query_params.get('forecast_end_date')
+        if forecast_end_date:
+            qs = qs.filter(forecast_date__date__lte=forecast_end_date)
+
         # Ordenação customizada: Prioridade (Alta > Média > Baixa) e Data de Previsão
         qs = qs.annotate(
             priority_order=Case(

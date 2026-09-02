@@ -84,6 +84,16 @@
                 <label>Abertura Fim</label>
                 <input v-model="filterEndDate" type="date" class="input-glass" />
               </div>
+
+              <div class="filter-group">
+                <label>Previsão Início</label>
+                <input v-model="filterForecastStartDate" type="date" class="input-glass" />
+              </div>
+
+              <div class="filter-group">
+                <label>Previsão Fim</label>
+                <input v-model="filterForecastEndDate" type="date" class="input-glass" />
+              </div>
             </div>
 
             <div class="filter-actions-row">
@@ -738,6 +748,8 @@ const filterOperation = ref('all')
 const filterStatus = ref('open')
 const filterStartDate = ref('')
 const filterEndDate = ref('')
+const filterForecastStartDate = ref('')
+const filterForecastEndDate = ref('')
 
 watch(() => chatStore.user, (newVal) => {
   if (newVal && (filterUser.value === 'all' || !filterUser.value)) {
@@ -812,6 +824,8 @@ const activeFiltersCount = computed(() => {
   if (filterStatus.value !== 'all') count++
   if (filterStartDate.value) count++
   if (filterEndDate.value) count++
+  if (filterForecastStartDate.value) count++
+  if (filterForecastEndDate.value) count++
   return count
 })
 
@@ -863,12 +877,26 @@ const filteredPendencies = computed(() => {
 
     // Filtro de Período (Abertura)
     if (filterStartDate.value) {
+      if (!item.opening_date) return false
       const openDate = new Date(item.opening_date).toISOString().split('T')[0]
       if (openDate < filterStartDate.value) return false
     }
     if (filterEndDate.value) {
+      if (!item.opening_date) return false
       const openDate = new Date(item.opening_date).toISOString().split('T')[0]
       if (openDate > filterEndDate.value) return false
+    }
+
+    // Filtro de Período (Previsão)
+    if (filterForecastStartDate.value) {
+      if (!item.forecast_date) return false
+      const forecastDate = new Date(item.forecast_date).toISOString().split('T')[0]
+      if (forecastDate < filterForecastStartDate.value) return false
+    }
+    if (filterForecastEndDate.value) {
+      if (!item.forecast_date) return false
+      const forecastDate = new Date(item.forecast_date).toISOString().split('T')[0]
+      if (forecastDate > filterForecastEndDate.value) return false
     }
 
     return true
@@ -884,7 +912,7 @@ const displayedPendencies = computed(() => {
 })
 
 watch(
-  [search, filterCustomer, filterUser, filterOperation, filterStatus, filterStartDate, filterEndDate],
+  [search, filterCustomer, filterUser, filterOperation, filterStatus, filterStartDate, filterEndDate, filterForecastStartDate, filterForecastEndDate],
   () => {
     visibleItemsLimit.value = 20
   }
@@ -959,6 +987,8 @@ const clearFilters = () => {
   filterStatus.value = 'all'
   filterStartDate.value = ''
   filterEndDate.value = ''
+  filterForecastStartDate.value = ''
+  filterForecastEndDate.value = ''
 }
 
 const clearFiltersAndSearch = () => {
