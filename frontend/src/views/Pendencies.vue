@@ -315,7 +315,7 @@
 
           <form @submit.prevent="savePendency" class="modal-form-scrollable">
             <!-- SEÇÃO 1: IDENTIFICAÇÃO E CLIENTE -->
-            <div class="form-card-section glass-effect">
+            <div class="form-card-section client-section">
               <div class="section-card-title">
                 <TagIcon :size="16" />
                 <span>Identificação & Cliente</span>
@@ -333,7 +333,7 @@
 
               <div class="grid-2">
                 <!-- Autocomplete de Cliente -->
-                <div class="form-group customer-autocomplete" style="position: relative;">
+                <div class="form-group customer-autocomplete">
                   <label>Cliente Vinculado <span class="required-star">*</span></label>
                   <div class="input-with-icon" v-if="!form.customer">
                     <SearchIcon :size="16" class="input-inner-icon" />
@@ -347,7 +347,7 @@
                   </div>
 
                   <!-- Dropdown Autocomplete -->
-                  <div v-if="showCustomerDropdown && customerSearchResults.length > 0 && !form.customer" class="autocomplete-dropdown glass-effect">
+                  <div v-if="showCustomerDropdown && customerSearchResults.length > 0 && !form.customer" class="autocomplete-dropdown">
                     <div 
                       v-for="c in customerSearchResults" 
                       :key="c.id" 
@@ -363,7 +363,7 @@
                   </div>
 
                   <!-- Cliente Selecionado -->
-                  <div v-if="form.customer" class="selected-customer-card glass-effect animate-in">
+                  <div v-if="form.customer" class="selected-customer-card animate-in">
                     <div class="customer-selected-info">
                       <ContactIcon :size="18" class="customer-badge-icon" />
                       <div>
@@ -391,7 +391,7 @@
             </div>
 
             <!-- SEÇÃO 2: ATRIBUIÇÃO, CLASSIFICAÇÃO & STATUS -->
-            <div class="form-card-section glass-effect">
+            <div class="form-card-section">
               <div class="section-card-title">
                 <UserIcon :size="16" />
                 <span>Atribuição & Classificação</span>
@@ -481,7 +481,7 @@
             </div>
 
             <!-- SEÇÃO 3: PRAZOS E DATAS -->
-            <div class="form-card-section glass-effect">
+            <div class="form-card-section">
               <div class="section-card-title">
                 <CalendarIcon :size="16" />
                 <span>Prazos & Agendamento</span>
@@ -503,7 +503,7 @@
             </div>
 
             <!-- SEÇÃO 4: DETALHES & DESCRIÇÃO (OPCIONAL) -->
-            <div class="form-card-section glass-effect">
+            <div class="form-card-section">
               <div class="section-card-title">
                 <FileTextIcon :size="16" />
                 <span>Descrição & Observações <span class="optional-tag-badge">Opcional</span></span>
@@ -520,14 +520,14 @@
             </div>
 
             <!-- SEÇÃO 5: ANEXOS E IMAGENS (OPCIONAL) -->
-            <div class="form-card-section glass-effect">
+            <div class="form-card-section">
               <div class="section-card-title">
                 <PaperclipIcon :size="16" />
                 <span>Anexos & Imagens <span class="optional-tag-badge">Opcional • Suporta Ctrl+V</span></span>
               </div>
 
               <div 
-                class="drag-drop-area modern-dropzone glass-effect" 
+                class="drag-drop-area modern-dropzone" 
                 @dragover.prevent="dragOver = true" 
                 @dragleave="dragOver = false" 
                 @drop.prevent="handleFileDrop"
@@ -2348,15 +2348,19 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   max-height: 90vh;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  padding: 0 !important;
 }
 
 .modal-header-new {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
+  padding: 18px 24px;
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-tinted);
 }
 
 .modal-title-wrap {
@@ -2369,7 +2373,7 @@ onUnmounted(() => {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(34, 181, 95, 0.15);
   color: var(--accent);
   display: flex;
   align-items: center;
@@ -2380,6 +2384,7 @@ onUnmounted(() => {
   font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
+  color: var(--text-primary);
 }
 
 .modal-subtitle {
@@ -2394,6 +2399,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background: var(--bg-card);
 }
 
 .form-card-section {
@@ -2402,7 +2408,13 @@ onUnmounted(() => {
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-tinted);
+  position: relative;
+  z-index: 1;
+}
+
+.form-card-section.client-section {
+  z-index: 30;
 }
 
 .section-card-title {
@@ -2418,9 +2430,8 @@ onUnmounted(() => {
 }
 
 .highlight-input {
-  font-size: 0.98rem !important;
-  font-weight: 600;
-  border-color: rgba(16, 185, 129, 0.25) !important;
+  font-size: 0.95rem !important;
+  font-weight: 500;
 }
 
 .input-with-icon {
@@ -2440,14 +2451,80 @@ onUnmounted(() => {
   padding-left: 36px !important;
 }
 
+.customer-autocomplete {
+  position: relative;
+  z-index: 40;
+}
+
+/* Dropdown Autocomplete com cores adaptáveis ao tema */
+.autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  max-height: 220px;
+  overflow-y: auto;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  background: var(--empty-bg-inner, var(--bg-sidebar));
+  border: 1px solid var(--border);
+}
+
+.dropdown-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: transparent;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background: var(--hover-bg);
+}
+
+.dropdown-item .customer-item-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dropdown-item .customer-name-bold {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dropdown-item .customer-doc-badge {
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.dropdown-item .sub {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
 .selected-customer-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
   border-radius: 10px;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(34, 181, 95, 0.08);
+  border: 1px solid rgba(34, 181, 95, 0.3);
 }
 
 .customer-selected-info {
@@ -2473,7 +2550,7 @@ onUnmounted(() => {
 }
 
 .btn-change-customer {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--hover-bg);
   border: 1px solid var(--border);
   color: var(--text-primary);
   font-size: 0.78rem;
@@ -2485,29 +2562,9 @@ onUnmounted(() => {
 }
 
 .btn-change-customer:hover {
-  background: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
   border-color: #ef4444;
-  color: white;
-}
-
-.customer-item-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.customer-name-bold {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.customer-doc-badge {
-  font-size: 0.72rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-secondary);
+  color: #ef4444;
 }
 
 .priority-pill-selector, .status-pill-selector {
@@ -2528,12 +2585,17 @@ onUnmounted(() => {
   padding: 9px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-tinted);
   color: var(--text-secondary);
   font-size: 0.83rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.priority-pill:hover, .status-pill:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
 }
 
 .pill-dot {
@@ -2548,33 +2610,33 @@ onUnmounted(() => {
 .status-pill.open .pill-dot { background: #f59e0b; }
 
 .priority-pill.low.active {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: #3b82f6;
-  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #2563eb;
 }
 
 .priority-pill.medium.active {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: #f59e0b;
-  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #d97706;
 }
 
 .priority-pill.high.active {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: #ef4444;
-  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #dc2626;
 }
 
 .status-pill.open.active {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: #f59e0b;
-  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #d97706;
 }
 
 .status-pill.closed.active {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: #10b981;
-  color: #34d399;
+  background: rgba(34, 181, 95, 0.12);
+  border-color: rgba(34, 181, 95, 0.6);
+  color: #16a34a;
 }
 
 .textarea-modern {
@@ -2628,12 +2690,14 @@ onUnmounted(() => {
 .sticky-footer {
   position: sticky;
   bottom: 0;
-  background: #121214;
-  padding-top: 14px;
+  background: var(--bg-card);
+  padding: 14px 24px;
+  margin: 0 -24px -20px -24px;
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  z-index: 5;
 }
 
 .btn-save-pendency {
@@ -2674,46 +2738,6 @@ onUnmounted(() => {
 .form-group label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-secondary);
-}
-
-/* Autocomplete styling */
-.autocomplete-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 1010;
-  max-height: 200px;
-  overflow-y: auto;
-  border-radius: 10px;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
-  background: #18181b;
-  border: 1px solid var(--border);
-}
-
-.dropdown-item {
-  padding: 10px 14px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.2s;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.dropdown-item:hover {
-  background: rgba(255,255,255,0.06);
-}
-
-.dropdown-item span {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.dropdown-item .sub {
-  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
