@@ -519,11 +519,11 @@
               </div>
             </div>
 
-            <!-- SEÇÃO 5: ANEXOS E IMAGENS (OPCIONAL) -->
+            <!-- SEÇÃO 5: ANEXOS E DOCUMENTOS (OPCIONAL) -->
             <div class="form-card-section">
               <div class="section-card-title">
                 <PaperclipIcon :size="16" />
-                <span>Anexos & Imagens <span class="optional-tag-badge">Opcional • Suporta Ctrl+V</span></span>
+                <span>Anexos & Documentos <span class="optional-tag-badge">Opcional • Todos os formatos</span></span>
               </div>
 
               <div 
@@ -534,30 +534,72 @@
                 :class="{ 'drag-over': dragOver }"
                 @click="triggerFileInput"
               >
-                <input type="file" ref="fileInput" multiple accept="image/*" class="hidden-input" @change="handleFileSelect" />
+                <input type="file" ref="fileInput" multiple class="hidden-input" @change="handleFileSelect" />
                 <div class="dropzone-content">
                   <UploadCloudIcon :size="28" class="dropzone-icon" />
                   <div>
-                    <p class="dropzone-text">Clique, arraste ou <strong>cole imagens (Ctrl+V)</strong></p>
-                    <span class="sub">PNG, JPG, GIF até 5MB</span>
+                    <p class="dropzone-text">Clique, arraste ou <strong>cole arquivos / prints (Ctrl+V)</strong></p>
+                    <span class="sub">PDFs, planilhas, documentos Word, imagens, ZIP e outros (até 20MB)</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Lista de Novas Imagens Anexadas -->
-              <div v-if="newImages.length > 0" class="images-preview-list">
-                <div v-for="(img, idx) in newImages" :key="idx" class="image-preview-item">
-                  <img :src="img" alt="Anexo" />
-                  <button type="button" @click.stop="removeNewImage(idx)" class="remove-img-btn" title="Remover">&times;</button>
+              <!-- Lista de Novos Anexos -->
+              <div v-if="newImages.length > 0" class="attachments-preview-list">
+                <div 
+                  v-for="(fileItem, idx) in newImages" 
+                  :key="idx" 
+                  class="attachment-preview-item" 
+                  :class="{ 'is-doc': !isImageAttachment(fileItem) }"
+                  @click="!isImageAttachment(fileItem) ? openAttachment(fileItem) : openLightbox(fileItem)"
+                >
+                  <template v-if="isImageAttachment(fileItem)">
+                    <img :src="fileItem" alt="Anexo" />
+                    <button type="button" @click.stop="removeNewImage(idx)" class="remove-attachment-btn" title="Remover">&times;</button>
+                  </template>
+                  <template v-else>
+                    <div class="doc-icon-badge" :style="{ color: getAttachmentInfo(fileItem).type === 'pdf' ? '#ef4444' : getAttachmentInfo(fileItem).type === 'sheet' ? '#10b981' : getAttachmentInfo(fileItem).type === 'doc' ? '#3b82f6' : '#f59e0b' }">
+                      <FileTextIcon v-if="getAttachmentInfo(fileItem).type === 'pdf' || getAttachmentInfo(fileItem).type === 'doc' || getAttachmentInfo(fileItem).type === 'text'" :size="22" />
+                      <ArchiveIcon v-else-if="getAttachmentInfo(fileItem).type === 'archive'" :size="22" />
+                      <FileIcon v-else :size="22" />
+                    </div>
+                    <div class="doc-name-info" :title="getAttachmentInfo(fileItem).name">
+                      <span class="doc-name-text">{{ getAttachmentInfo(fileItem).name }}</span>
+                      <span class="doc-type-tag">{{ getAttachmentInfo(fileItem).ext }}</span>
+                    </div>
+                    <button type="button" @click.stop="removeNewImage(idx)" class="remove-attachment-btn" title="Remover">&times;</button>
+                  </template>
                 </div>
               </div>
 
-              <!-- Lista de Imagens Existentes no Banco -->
-              <div v-if="existingImages.length > 0" class="images-preview-list existing-images-section">
-                <div class="title">Imagens salvas:</div>
-                <div v-for="img in existingImages" :key="img.id" class="image-preview-item">
-                  <img :src="img.image" alt="Salva" />
-                  <button type="button" @click.stop="deleteExistingImage(img.id)" class="remove-img-btn" title="Excluir">&times;</button>
+              <!-- Lista de Anexos Existentes no Banco -->
+              <div v-if="existingImages.length > 0" class="attachments-preview-list existing-attachments-section">
+                <div class="title">Anexos salvos:</div>
+                <div class="existing-attachments-grid">
+                  <div 
+                    v-for="img in existingImages" 
+                    :key="img.id" 
+                    class="attachment-preview-item" 
+                    :class="{ 'is-doc': !isImageAttachment(img.image) }"
+                    @click="!isImageAttachment(img.image) ? openAttachment(img.image) : openLightbox(img.image)"
+                  >
+                    <template v-if="isImageAttachment(img.image)">
+                      <img :src="img.image" alt="Salva" />
+                      <button type="button" @click.stop="deleteExistingImage(img.id)" class="remove-attachment-btn" title="Excluir">&times;</button>
+                    </template>
+                    <template v-else>
+                      <div class="doc-icon-badge" :style="{ color: getAttachmentInfo(img.image).type === 'pdf' ? '#ef4444' : getAttachmentInfo(img.image).type === 'sheet' ? '#10b981' : getAttachmentInfo(img.image).type === 'doc' ? '#3b82f6' : '#f59e0b' }">
+                        <FileTextIcon v-if="getAttachmentInfo(img.image).type === 'pdf' || getAttachmentInfo(img.image).type === 'doc' || getAttachmentInfo(img.image).type === 'text'" :size="22" />
+                        <ArchiveIcon v-else-if="getAttachmentInfo(img.image).type === 'archive'" :size="22" />
+                        <FileIcon v-else :size="22" />
+                      </div>
+                      <div class="doc-name-info" :title="getAttachmentInfo(img.image, img.id).name">
+                        <span class="doc-name-text">{{ getAttachmentInfo(img.image, img.id).name }}</span>
+                        <span class="doc-type-tag">{{ getAttachmentInfo(img.image, img.id).ext }}</span>
+                      </div>
+                      <button type="button" @click.stop="deleteExistingImage(img.id)" class="remove-attachment-btn" title="Excluir">&times;</button>
+                    </template>
+                  </div>
                 </div>
               </div>
             </div>
@@ -686,18 +728,39 @@
 
             <!-- Galeria de Anexos -->
             <div v-else class="attachments-gallery-grid">
-              <div v-for="img in selectedPendencyForAttachments.images" :key="img.id" class="attachment-card glass-effect">
-                <div class="attachment-preview" @click="openLightbox(img.image)">
+              <div v-for="img in selectedPendencyForAttachments.images" :key="img.id" class="attachment-card glass-effect" :class="{ 'is-doc-card': !isImageAttachment(img.image) }">
+                <!-- Preview para Imagens -->
+                <div v-if="isImageAttachment(img.image)" class="attachment-preview" @click="openLightbox(img.image)">
                   <img :src="img.image" alt="Anexo da Pendência" />
                   <div class="attachment-hover-overlay">
                     <Maximize2Icon :size="20" />
                     <span>Ampliar</span>
                   </div>
                 </div>
+                <!-- Preview para Documentos / Arquivos -->
+                <div v-else class="attachment-doc-preview" @click="openAttachment(img.image)">
+                  <div class="doc-icon-large" :style="{ color: getAttachmentInfo(img.image).type === 'pdf' ? '#ef4444' : getAttachmentInfo(img.image).type === 'sheet' ? '#10b981' : getAttachmentInfo(img.image).type === 'doc' ? '#3b82f6' : '#f59e0b' }">
+                    <FileTextIcon v-if="getAttachmentInfo(img.image).type === 'pdf' || getAttachmentInfo(img.image).type === 'doc' || getAttachmentInfo(img.image).type === 'text'" :size="36" />
+                    <ArchiveIcon v-else-if="getAttachmentInfo(img.image).type === 'archive'" :size="36" />
+                    <FileIcon v-else :size="36" />
+                  </div>
+                  <div class="doc-details">
+                    <span class="doc-filename" :title="getAttachmentInfo(img.image, img.id).name">{{ getAttachmentInfo(img.image, img.id).name }}</span>
+                    <span class="doc-type-badge">{{ getAttachmentInfo(img.image, img.id).label }}</span>
+                  </div>
+                  <div class="attachment-hover-overlay">
+                    <EyeIcon :size="20" />
+                    <span>Visualizar / Abrir</span>
+                  </div>
+                </div>
+
                 <div class="attachment-card-footer">
                   <span class="attachment-date">{{ formatDateTime(img.created_at) }}</span>
                   <div class="attachment-actions">
-                    <a :href="img.image" :download="'anexo_pendencia_' + img.id" class="attachment-action-btn" title="Baixar Anexo" target="_blank">
+                    <button type="button" @click="openAttachment(img.image)" class="attachment-action-btn" title="Abrir / Visualizar">
+                      <ExternalLinkIcon :size="14" />
+                    </button>
+                    <a :href="img.image" :download="getAttachmentFileName(img)" class="attachment-action-btn" title="Baixar Anexo" target="_blank">
                       <DownloadIcon :size="14" />
                     </a>
                     <button type="button" @click="deleteAttachmentInModal(img.id)" class="attachment-action-btn delete" title="Excluir Anexo">
@@ -721,17 +784,23 @@
                 :class="{ 'drag-over': modalDragOver }"
                 @click="triggerModalFileInput"
               >
-                <input type="file" ref="modalFileInput" multiple accept="image/*" class="hidden-input" @change="handleModalFileSelect" />
+                <input type="file" ref="modalFileInput" multiple class="hidden-input" @change="handleModalFileSelect" />
                 <UploadCloudIcon :size="24" />
-                <p>Arraste ou clique para selecionar imagens</p>
-                <span class="sub">PNG, JPG, GIF até 5MB</span>
+                <p>Arraste ou clique para selecionar arquivos</p>
+                <span class="sub">Suporta PDFs, planilhas, documentos Word, imagens e arquivos compactados (até 20MB)</span>
               </div>
 
-              <!-- Preview de Imagens Selecionadas no Modal -->
+              <!-- Preview de Anexos Selecionados no Modal -->
               <div v-if="modalNewImages.length > 0" class="modal-new-images-row">
-                <div v-for="(img, idx) in modalNewImages" :key="idx" class="modal-img-preview">
-                  <img :src="img" alt="Novo anexo" />
-                  <button type="button" @click="modalNewImages.splice(idx, 1)" class="remove-btn">&times;</button>
+                <div v-for="(fileItem, idx) in modalNewImages" :key="idx" class="modal-file-preview-chip">
+                  <div v-if="isImageAttachment(fileItem)" class="modal-img-thumb">
+                    <img :src="fileItem" alt="Novo anexo" />
+                  </div>
+                  <div v-else class="modal-doc-thumb" :style="{ color: getAttachmentInfo(fileItem).type === 'pdf' ? '#ef4444' : getAttachmentInfo(fileItem).type === 'sheet' ? '#10b981' : '#3b82f6' }">
+                    <FileTextIcon :size="16" />
+                  </div>
+                  <span class="modal-file-name" :title="getAttachmentInfo(fileItem).name">{{ getAttachmentInfo(fileItem).name }}</span>
+                  <button type="button" @click="modalNewImages.splice(idx, 1)" class="remove-btn" title="Remover">&times;</button>
                 </div>
                 <button type="button" @click="uploadModalAttachments" class="btn-primary btn-upload-now" :disabled="uploadingModalImages">
                   {{ uploadingModalImages ? 'Enviando...' : `Salvar Anexos (${modalNewImages.length})` }}
@@ -821,7 +890,11 @@ import {
   Paperclip as PaperclipIcon,
   Download as DownloadIcon,
   Maximize2 as Maximize2Icon,
-  FileText as FileTextIcon
+  FileText as FileTextIcon,
+  File as FileIcon,
+  Archive as ArchiveIcon,
+  Eye as EyeIcon,
+  ExternalLink as ExternalLinkIcon
 } from 'lucide-vue-next'
 import { useChatStore } from '../store/chat'
 
@@ -1181,6 +1254,146 @@ const handleClickOutsideAutocomplete = (e) => {
   }
 }
 
+// Helpers para manipulação e identificação de anexos (todos os formatos)
+const isImageAttachment = (src) => {
+  if (!src || typeof src !== 'string') return false
+  if (src.startsWith('data:image/')) return true
+  if (/\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)(\?.*)?$/i.test(src)) return true
+  return false
+}
+
+const getAttachmentInfo = (src, fallbackId = '') => {
+  if (!src || typeof src !== 'string') {
+    return { name: `anexo_${fallbackId || 'arquivo'}`, ext: 'FILE', type: 'file', label: 'Arquivo' }
+  }
+
+  let fileName = ''
+  const nameMatch = src.match(/;name=([^;,]+)/i) || src.match(/;filename=([^;,]+)/i)
+  if (nameMatch) {
+    try {
+      fileName = decodeURIComponent(nameMatch[1])
+    } catch (e) {
+      fileName = nameMatch[1]
+    }
+  }
+
+  const mimeMatch = src.match(/^data:([^;,]+)/)
+  const mime = (mimeMatch ? mimeMatch[1] : '').toLowerCase()
+
+  if (isImageAttachment(src)) {
+    const ext = (mime.split('/')[1]?.split('+')[0] || 'jpg').toUpperCase()
+    return {
+      name: fileName || `imagem_${fallbackId || Date.now()}.${ext.toLowerCase()}`,
+      ext: ext,
+      type: 'image',
+      label: 'Imagem'
+    }
+  }
+
+  if (mime === 'application/pdf' || /\.pdf$/i.test(fileName)) {
+    return {
+      name: fileName || `documento_${fallbackId || Date.now()}.pdf`,
+      ext: 'PDF',
+      type: 'pdf',
+      label: 'Documento PDF'
+    }
+  }
+
+  if (mime.includes('word') || mime.includes('officedocument.wordprocessingml') || /\.(docx?|rtf|odt)$/i.test(fileName)) {
+    return {
+      name: fileName || `documento_${fallbackId || Date.now()}.docx`,
+      ext: 'DOC',
+      type: 'doc',
+      label: 'Documento Word'
+    }
+  }
+
+  if (mime.includes('sheet') || mime.includes('excel') || mime.includes('csv') || /\.(xlsx?|csv|ods)$/i.test(fileName)) {
+    const isCsv = mime.includes('csv') || /\.csv$/i.test(fileName)
+    return {
+      name: fileName || `planilha_${fallbackId || Date.now()}.${isCsv ? 'csv' : 'xlsx'}`,
+      ext: isCsv ? 'CSV' : 'XLS',
+      type: 'sheet',
+      label: isCsv ? 'Planilha CSV' : 'Planilha Excel'
+    }
+  }
+
+  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('tar') || mime.includes('7z') || mime.includes('rar') || /\.(zip|rar|7z|tar|gz)$/i.test(fileName)) {
+    return {
+      name: fileName || `arquivo_${fallbackId || Date.now()}.zip`,
+      ext: 'ZIP',
+      type: 'archive',
+      label: 'Arquivo Compactado'
+    }
+  }
+
+  if (mime.startsWith('text/') || /\.(txt|json|xml|log|md|html|css|js|py)$/i.test(fileName)) {
+    return {
+      name: fileName || `texto_${fallbackId || Date.now()}.txt`,
+      ext: 'TXT',
+      type: 'text',
+      label: 'Documento de Texto'
+    }
+  }
+
+  if (mime.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac)$/i.test(fileName)) {
+    return {
+      name: fileName || `audio_${fallbackId || Date.now()}.mp3`,
+      ext: 'AUDIO',
+      type: 'audio',
+      label: 'Áudio'
+    }
+  }
+
+  if (mime.startsWith('video/') || /\.(mp4|webm|avi|mov|mkv)$/i.test(fileName)) {
+    return {
+      name: fileName || `video_${fallbackId || Date.now()}.mp4`,
+      ext: 'VIDEO',
+      type: 'video',
+      label: 'Vídeo'
+    }
+  }
+
+  return {
+    name: fileName || `anexo_${fallbackId || Date.now()}`,
+    ext: fileName ? fileName.split('.').pop()?.toUpperCase() || 'FILE' : 'FILE',
+    type: 'file',
+    label: 'Arquivo'
+  }
+}
+
+const getAttachmentFileName = (img) => {
+  const src = typeof img === 'string' ? img : (img?.image || '')
+  const info = getAttachmentInfo(src, img?.id || '')
+  return info.name
+}
+
+const openAttachment = (src) => {
+  if (!src) return
+  if (isImageAttachment(src)) {
+    openLightbox(src)
+    return
+  }
+  // Para PDFs e outros documentos, abrir em nova janela ou disparar download
+  const mimeMatch = src.match(/^data:([^;,]+)/)
+  const mime = (mimeMatch ? mimeMatch[1] : '').toLowerCase()
+  if (mime === 'application/pdf') {
+    const newWin = window.open()
+    if (newWin) {
+      newWin.document.write(`<iframe src="${src}" style="width:100%; height:100vh; border:none; margin:0; padding:0;"></iframe>`)
+      newWin.document.title = "Visualizar Documento PDF"
+      return
+    }
+  }
+  const a = document.createElement('a')
+  a.href = src
+  a.target = '_blank'
+  a.download = getAttachmentFileName(src)
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+
 // Upload e manipulação de arquivos
 const triggerFileInput = () => {
   fileInput.value.click()
@@ -1189,6 +1402,7 @@ const triggerFileInput = () => {
 const handleFileSelect = (e) => {
   const files = e.target.files
   processFiles(files)
+  e.target.value = ''
 }
 
 const handleFileDrop = (e) => {
@@ -1200,18 +1414,20 @@ const handleFileDrop = (e) => {
 const processFiles = (files) => {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    if (!file.type.startsWith('image/')) {
-      alert('Apenas imagens são permitidas.')
-      continue
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem excede o tamanho limite de 5MB.')
+    if (file.size > 20 * 1024 * 1024) {
+      alert(`O arquivo "${file.name}" excede o tamanho limite de 20MB.`)
       continue
     }
 
     const reader = new FileReader()
     reader.onload = (e) => {
-      newImages.value.push(e.target.result)
+      const rawDataUrl = e.target.result
+      const mimeType = file.type || 'application/octet-stream'
+      const dataUrlWithMeta = rawDataUrl.replace(
+        /^data:[^;]*;base64,/,
+        `data:${mimeType};name=${encodeURIComponent(file.name)};base64,`
+      )
+      newImages.value.push(dataUrlWithMeta)
     }
     reader.readAsDataURL(file)
   }
@@ -1225,16 +1441,24 @@ const handleModalPaste = (e) => {
   const items = e.clipboardData?.items
   if (!items) return
   for (let i = 0; i < items.length; i++) {
-    if (items[i].type && items[i].type.startsWith('image/')) {
-      const file = items[i].getAsFile()
+    const item = items[i]
+    if (item.kind === 'file') {
+      const file = item.getAsFile()
       if (file) {
-        if (file.size > 5 * 1024 * 1024) {
-          alert('A imagem colada excede o tamanho limite de 5MB.')
+        if (file.size > 20 * 1024 * 1024) {
+          alert('O arquivo colado excede o tamanho limite de 20MB.')
           return
         }
         const reader = new FileReader()
         reader.onload = (evt) => {
-          newImages.value.push(evt.target.result)
+          const rawDataUrl = evt.target.result
+          const mimeType = file.type || 'image/png'
+          const fileName = file.name || `colado_${Date.now()}.png`
+          const dataUrlWithMeta = rawDataUrl.replace(
+            /^data:[^;]*;base64,/,
+            `data:${mimeType};name=${encodeURIComponent(fileName)};base64,`
+          )
+          newImages.value.push(dataUrlWithMeta)
         }
         reader.readAsDataURL(file)
       }
@@ -1506,18 +1730,20 @@ const handleModalFileDrop = (e) => {
 const processModalFiles = (files) => {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    if (!file.type.startsWith('image/')) {
-      alert('Apenas imagens são permitidas.')
-      continue
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem excede o tamanho limite de 5MB.')
+    if (file.size > 20 * 1024 * 1024) {
+      alert(`O arquivo "${file.name}" excede o tamanho limite de 20MB.`)
       continue
     }
 
     const reader = new FileReader()
     reader.onload = (ev) => {
-      modalNewImages.value.push(ev.target.result)
+      const rawDataUrl = ev.target.result
+      const mimeType = file.type || 'application/octet-stream'
+      const dataUrlWithMeta = rawDataUrl.replace(
+        /^data:[^;]*;base64,/,
+        `data:${mimeType};name=${encodeURIComponent(file.name)};base64,`
+      )
+      modalNewImages.value.push(dataUrlWithMeta)
     }
     reader.readAsDataURL(file)
   }
@@ -2785,36 +3011,90 @@ onUnmounted(() => {
   display: none;
 }
 
-.images-preview-list {
+.images-preview-list,
+.attachments-preview-list {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 15px;
 }
 
-.image-preview-item {
-  width: 70px;
-  height: 70px;
+.image-preview-item,
+.attachment-preview-item {
+  width: 76px;
+  height: 76px;
   border-radius: 8px;
   overflow: hidden;
   position: relative;
   border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.1);
 }
 
+.attachment-preview-item img,
 .image-preview-item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.remove-img-btn {
+.attachment-preview-item.is-doc {
+  width: 140px;
+  height: 76px;
+  padding: 8px;
+  background: var(--surface-tinted);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.attachment-preview-item.is-doc:hover {
+  border-color: var(--accent);
+  background: var(--hover-bg);
+}
+
+.doc-icon-badge {
+  display: flex;
+  align-items: center;
+}
+
+.doc-name-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.doc-name-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.doc-type-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--glass);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.remove-img-btn,
+.remove-attachment-btn {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 3px;
+  right: 3px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.85);
+  background: rgba(239, 68, 68, 0.9);
   color: white;
   border: none;
   display: flex;
@@ -2822,20 +3102,32 @@ onUnmounted(() => {
   justify-content: center;
   font-size: 0.75rem;
   cursor: pointer;
+  z-index: 2;
+  transition: background 0.2s;
 }
 
-.remove-img-btn:hover {
-  background: #ef4444;
+.remove-img-btn:hover,
+.remove-attachment-btn:hover {
+  background: #dc2626;
 }
 
-.existing-images-section {
+.existing-images-section,
+.existing-attachments-section {
   flex-direction: column;
   width: 100%;
   align-items: flex-start;
   gap: 8px;
 }
 
-.existing-images-section .title {
+.existing-attachments-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+}
+
+.existing-images-section .title,
+.existing-attachments-section .title {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -3355,10 +3647,69 @@ onUnmounted(() => {
   transform: scale(1.06);
 }
 
+.attachment-doc-preview {
+  position: relative;
+  height: 120px;
+  background: var(--surface-tinted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.2s ease;
+}
+
+.attachment-doc-preview:hover {
+  background: var(--hover-bg);
+}
+
+.doc-icon-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  transition: transform 0.2s ease;
+}
+
+.attachment-doc-preview:hover .doc-icon-large {
+  transform: scale(1.1);
+}
+
+.doc-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+.doc-filename {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-type-badge {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  background: var(--glass);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+  border: 1px solid var(--border);
+}
+
 .attachment-hover-overlay {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3371,7 +3722,8 @@ onUnmounted(() => {
   transition: opacity 0.2s ease;
 }
 
-.attachment-preview:hover .attachment-hover-overlay {
+.attachment-preview:hover .attachment-hover-overlay,
+.attachment-doc-preview:hover .attachment-hover-overlay {
   opacity: 1;
 }
 
@@ -3441,34 +3793,68 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
-.modal-img-preview {
-  position: relative;
-  width: 50px;
-  height: 50px;
+.modal-file-preview-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
   border-radius: 6px;
-  overflow: hidden;
+  background: var(--surface-tinted);
   border: 1px solid var(--border);
+  max-width: 180px;
+  position: relative;
 }
 
-.modal-img-preview img {
+.modal-img-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-img-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.modal-img-preview .remove-btn {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
+.modal-doc-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-file-name {
+  font-size: 0.72rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.modal-file-preview-chip .remove-btn {
+  background: transparent;
+  color: var(--text-secondary);
   border: none;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+  transition: all 0.2s;
+}
+
+.modal-file-preview-chip .remove-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
 .btn-upload-now {

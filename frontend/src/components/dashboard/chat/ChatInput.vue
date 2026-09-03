@@ -443,8 +443,8 @@ const openMediaPreview = (file) => {
   })
 }
 
-const closeMediaPreview = () => {
-  if (isSendingMedia.value) return
+const closeMediaPreview = (force = false) => {
+  if (isSendingMedia.value && !force) return
   showMediaPreview.value = false
   if (pendingMediaPreviewUrl.value) {
     URL.revokeObjectURL(pendingMediaPreviewUrl.value)
@@ -458,12 +458,14 @@ const closeMediaPreview = () => {
 const sendPendingMedia = async () => {
   if (!pendingMediaFile.value || isSendingMedia.value) return
   isSendingMedia.value = true
+  const fileToSend = pendingMediaFile.value
+  const captionToSend = pendingMediaCaption.value
   try {
-    await emit('sendMedia', {
-      file: pendingMediaFile.value,
-      caption: pendingMediaCaption.value
+    emit('sendMedia', {
+      file: fileToSend,
+      caption: captionToSend
     })
-    closeMediaPreview()
+    closeMediaPreview(true)
   } catch (err) {
     console.error("Erro ao enviar mídia:", err)
     alert("Não foi possível enviar o arquivo: " + (err.response?.data?.error || err.message || "Erro desconhecido"))
