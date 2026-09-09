@@ -619,9 +619,26 @@ onUnmounted(() => {
   window.removeEventListener('scroll', closeContextMenu, true)
 })
 
-const myTicketsCount = computed(() => chatStore.myTickets.length)
+const myTicketsCount = computed(() => {
+  const seenIds = new Set()
+  return (chatStore.myTickets || []).filter(t => {
+    if (!t || !t.id) return false
+    const idKey = String(t.id)
+    if (seenIds.has(idKey)) return false
+    seenIds.add(idKey)
+    return true
+  }).length
+})
+
 const unassignedCount = computed(() => {
-  return chatStore.tickets.filter(t => !t.user && t.status !== 'closed').length
+  const seenIds = new Set()
+  return (chatStore.tickets || []).filter(t => {
+    if (!t || !t.id || t.user || t.status === 'closed') return false
+    const idKey = String(t.id)
+    if (seenIds.has(idKey)) return false
+    seenIds.add(idKey)
+    return true
+  }).length
 })
 
 const selectFilter = async (filter) => {
@@ -640,7 +657,17 @@ const baseTicketsList = computed(() => {
 
 // 2. Active list computed based on query filter and advanced filters
 const activeTabTickets = computed(() => {
-  let list = baseTicketsList.value
+  let list = baseTicketsList.value || []
+
+  // Defensive deduplication by ticket.id
+  const seenIds = new Set()
+  list = list.filter(ticket => {
+    if (!ticket || !ticket.id) return false
+    const idKey = String(ticket.id)
+    if (seenIds.has(idKey)) return false
+    seenIds.add(idKey)
+    return true
+  })
 
   // Search Query filter
   const query = (chatStore.searchQuery || '').toLowerCase().trim()

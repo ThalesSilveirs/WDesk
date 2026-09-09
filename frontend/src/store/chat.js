@@ -108,15 +108,18 @@ export const useChatStore = defineStore('chat', {
     },
 
     _processOrUpdateTicket(ticket) {
-      if (!ticket) return
+      if (!ticket || !ticket.id) return
       
+      const ticketIdStr = String(ticket.id)
+
       // Update myTickets list
-      const myTicketsIndex = this.myTickets.findIndex(t => t.id === ticket.id)
+      const myTicketsIndex = this.myTickets.findIndex(t => String(t.id) === ticketIdStr)
       const belongsToMine = this._shouldIncludeTicket(ticket, 'mine')
       if (belongsToMine) {
         if (myTicketsIndex !== -1) {
           this.myTickets[myTicketsIndex] = { ...this.myTickets[myTicketsIndex], ...ticket }
         } else {
+          this.myTickets = this.myTickets.filter(t => String(t.id) !== ticketIdStr)
           this.myTickets.unshift(ticket)
         }
         this._sortTicketsByDate(this.myTickets)
@@ -127,12 +130,13 @@ export const useChatStore = defineStore('chat', {
       }
 
       // Update tickets list based on currentFilter
-      const ticketsIndex = this.tickets.findIndex(t => t.id === ticket.id)
+      const ticketsIndex = this.tickets.findIndex(t => String(t.id) === ticketIdStr)
       const belongsToFiltered = this._shouldIncludeTicket(ticket, this.currentFilter)
       if (belongsToFiltered) {
         if (ticketsIndex !== -1) {
           this.tickets[ticketsIndex] = { ...this.tickets[ticketsIndex], ...ticket }
         } else {
+          this.tickets = this.tickets.filter(t => String(t.id) !== ticketIdStr)
           this.tickets.unshift(ticket)
         }
         this._sortTicketsByDate(this.tickets)
@@ -144,8 +148,10 @@ export const useChatStore = defineStore('chat', {
     },
 
     _handleIncomingMessage(message) {
+      if (!message || !message.ticket) return
       const ticketId = message.ticket
-      const isCurrentActive = this.activeTicket && this.activeTicket.id === ticketId
+      const ticketIdStr = String(ticketId)
+      const isCurrentActive = this.activeTicket && String(this.activeTicket.id) === ticketIdStr
       
       const updateTicketFields = (ticket) => {
         let preview = message.body
@@ -168,9 +174,9 @@ export const useChatStore = defineStore('chat', {
         }
       }
 
-      // Find indices
-      const myIdx = this.myTickets.findIndex(t => t.id === ticketId)
-      const tIdx = this.tickets.findIndex(t => t.id === ticketId)
+      // Find indices with normalized String comparison
+      const myIdx = this.myTickets.findIndex(t => String(t.id) === ticketIdStr)
+      const tIdx = this.tickets.findIndex(t => String(t.id) === ticketIdStr)
 
       // If not in either list, it's a new ticket (e.g. brand new contact) or we need to sync
       if (myIdx === -1 && tIdx === -1) {
@@ -477,7 +483,15 @@ export const useChatStore = defineStore('chat', {
         const response = await axios.get(`/api/v1/tickets/`, {
           params: { status_filter: this.currentFilter }
         })
-        this.tickets = response.data
+        const uniqueTickets = []
+        const seen = new Set()
+        for (const t of response.data || []) {
+          if (t && t.id && !seen.has(String(t.id))) {
+            seen.add(String(t.id))
+            uniqueTickets.push(t)
+          }
+        }
+        this.tickets = uniqueTickets
       } catch (e) {
         console.error("Erro ao buscar tickets:", e)
         this.fetchError = "Falha ao carregar lista de conversas."
@@ -491,7 +505,15 @@ export const useChatStore = defineStore('chat', {
         const response = await axios.get(`/api/v1/tickets/`, {
           params: { status_filter: 'mine' }
         })
-        this.myTickets = response.data
+        const uniqueTickets = []
+        const seen = new Set()
+        for (const t of response.data || []) {
+          if (t && t.id && !seen.has(String(t.id))) {
+            seen.add(String(t.id))
+            uniqueTickets.push(t)
+          }
+        }
+        this.myTickets = uniqueTickets
       } catch (e) {
         console.error("Erro ao buscar meus tickets", e)
       }
