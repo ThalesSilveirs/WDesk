@@ -7,10 +7,38 @@
         <span>Carregando mensagens anteriores...</span>
       </div>
 
-      <!-- Loader de troca de conversa -->
-      <div v-if="chatStore.loadingMessages && messages.length === 0" class="loading-more-spinner">
-        <span class="spinner-dot"></span>
-        <span>Carregando conversa...</span>
+      <!-- Skeleton de mensagens durante o carregamento inicial da conversa (P0 UI/UX) -->
+      <div v-if="chatStore.loadingMessages && messages.length === 0" class="chat-skeleton-container">
+        <div class="skeleton-bubble received">
+          <div class="skeleton-shimmer skeleton-avatar" style="width: 32px; height: 32px;"></div>
+          <div class="skeleton-bubble-content">
+            <div class="skeleton-shimmer skeleton-text" style="width: 120px; margin-bottom: 6px;"></div>
+            <div class="skeleton-shimmer skeleton-text" style="width: 240px; margin-bottom: 6px;"></div>
+            <div class="skeleton-shimmer skeleton-text" style="width: 180px;"></div>
+          </div>
+        </div>
+
+        <div class="skeleton-bubble sent">
+          <div class="skeleton-bubble-content">
+            <div class="skeleton-shimmer skeleton-text" style="width: 200px; margin-bottom: 6px;"></div>
+            <div class="skeleton-shimmer skeleton-text" style="width: 130px;"></div>
+          </div>
+        </div>
+
+        <div class="skeleton-bubble received">
+          <div class="skeleton-shimmer skeleton-avatar" style="width: 32px; height: 32px;"></div>
+          <div class="skeleton-bubble-content">
+            <div class="skeleton-shimmer skeleton-text" style="width: 100px; margin-bottom: 6px;"></div>
+            <div class="skeleton-shimmer skeleton-text" style="width: 280px; margin-bottom: 6px;"></div>
+            <div class="skeleton-shimmer skeleton-text" style="width: 210px;"></div>
+          </div>
+        </div>
+
+        <div class="skeleton-bubble sent">
+          <div class="skeleton-bubble-content">
+            <div class="skeleton-shimmer skeleton-text" style="width: 160px;"></div>
+          </div>
+        </div>
       </div>
 
       <template v-for="msg in messages" :key="msg.id">
@@ -197,5 +225,50 @@ defineExpose({
   .messages-container {
     padding: 15px;
   }
+}
+
+/* Chat Skeleton Bubbles (P0 UI/UX) */
+.chat-skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px 20px;
+  width: 100%;
+}
+
+.skeleton-bubble {
+  display: flex;
+  gap: 10px;
+  max-width: 70%;
+  align-items: flex-start;
+}
+
+.skeleton-bubble.received {
+  align-self: flex-start;
+}
+
+.skeleton-bubble.sent {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.skeleton-bubble-content {
+  background: var(--surface-tinted);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: 14px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-bubble.received .skeleton-bubble-content {
+  border-bottom-left-radius: 2px;
+}
+
+.skeleton-bubble.sent .skeleton-bubble-content {
+  border-bottom-right-radius: 2px;
+  background: rgba(34, 181, 95, 0.08);
+  border-color: rgba(34, 181, 95, 0.2);
 }
 </style>

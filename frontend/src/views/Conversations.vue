@@ -47,16 +47,21 @@
           
           <div class="form-group">
             <textarea 
+              ref="resolutionInputRef"
               v-model="resolutionSummary" 
               placeholder="Ex: O cliente foi orientado a reiniciar o roteador e o sinal voltou ao normal."
               rows="5"
               class="input-glass"
               style="width: 100%; resize: vertical;"
+              @keydown.ctrl.enter.prevent="confirmClose"
             ></textarea>
+            <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px; display: inline-block;">
+              Dica: Pressione <kbd class="kbd-badge">Ctrl</kbd> + <kbd class="kbd-badge">Enter</kbd> para finalizar
+            </span>
           </div>
 
           <div class="modal-actions" style="margin-top: 20px;">
-            <button @click="showCloseModal = false" class="btn-secondary" :disabled="isClosing">Cancelar</button>
+            <button @click="showCloseModal = false" class="btn-secondary" :disabled="isClosing">Cancelar (Esc)</button>
             <button @click="confirmClose" class="btn-success-sm" :disabled="!resolutionSummary.trim() || isClosing">
               {{ isClosing ? 'Finalizando...' : 'Confirmar e Fechar' }}
             </button>
@@ -293,6 +298,92 @@
       </div>
     </Transition>
 
+    <!-- Modal de Guia de Atalhos de Teclado (P0 UI/UX) -->
+    <Transition name="modal-fade">
+      <div v-if="showShortcutsModal" class="modal-overlay" @click="showShortcutsModal = false">
+        <div class="modal-content" style="max-width: 520px;" @click.stop>
+          <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="display: flex; align-items: center; gap: 8px; font-size: 1.25rem;">
+              <KeyboardIcon :size="22" />
+              Atalhos de Teclado
+            </h2>
+            <button @click="showShortcutsModal = false" class="close-btn-round" title="Fechar (Esc)">
+              <XIcon :size="18" />
+            </button>
+          </div>
+
+          <div class="shortcuts-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Alternar conversas na lista</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Alt</kbd> + <kbd class="kbd-badge">↓</kbd> / <kbd class="kbd-badge">↑</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Finalizar atendimento ativo</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Alt</kbd> + <kbd class="kbd-badge">F</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Transferir conversa</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Alt</kbd> + <kbd class="kbd-badge">T</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Definir prioridade</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Alt</kbd> + <kbd class="kbd-badge">P</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Criar pendência do chat</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Alt</kbd> + <kbd class="kbd-badge">N</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Alternar painel CRM / Copilot</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Alt</kbd> + <kbd class="kbd-badge">C</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Focar busca de conversas</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Ctrl</kbd> + <kbd class="kbd-badge">K</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Confirmar finalização no modal</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Ctrl</kbd> + <kbd class="kbd-badge">Enter</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem;">Fechar modais ou painel lateral</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Esc</kbd>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 20px;">
+            <button @click="showShortcutsModal = false" class="btn-primary" style="width: 100%;">Fechar Atalhos</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Modal de Histórico de Atendimento -->
     <HistoryModal
       :show="showHistoryModal"
@@ -307,10 +398,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { useChatStore } from '../store/chat'
-import { X as XIcon, Trash2 as TrashIcon, ClipboardList as ClipboardListIcon } from 'lucide-vue-next'
+import { X as XIcon, Trash2 as TrashIcon, ClipboardList as ClipboardListIcon, Keyboard as KeyboardIcon } from 'lucide-vue-next'
 import TicketSidebar from '../components/dashboard/TicketSidebar.vue'
 import ChatWindow from '../components/dashboard/ChatWindow.vue'
 import CrmPanel from '../components/dashboard/CrmPanel.vue'
@@ -324,12 +415,23 @@ const showPriorityModal = ref(false)
 const showCloseModal = ref(false)
 const showDeleteModal = ref(false)
 const showHistoryModal = ref(false)
+const showShortcutsModal = ref(false)
+const resolutionInputRef = ref(null)
 const selectedImage = ref(null)
 const selectedVideo = ref(null)
 const showCRM = ref(window.innerWidth > 768)
 const resolutionSummary = ref('')
 const isDeleting = ref(false)
 const isClosing = ref(false)
+
+// Auto-foco imediato no campo de resolução ao abrir modal de finalização
+watch(showCloseModal, (isOpen) => {
+  if (isOpen) {
+    nextTick(() => {
+      resolutionInputRef.value?.focus()
+    })
+  }
+})
 
 const historyParams = ref({
   contactId: null,
@@ -368,14 +470,77 @@ const operationTypes = {
   reforma_tributaria: 'Reforma Tributária'
 }
 
-function handleModalEsc(e) {
+// Global Keyboard Shortcuts (P0 UI/UX)
+function handleGlobalShortcuts(e) {
+  // ESC: fecha modais abertos, visualizadores ou painel CRM
   if (e.key === 'Escape') {
-    if (showCloseModal.value) showCloseModal.value = false
-    else if (showTransferModal.value) showTransferModal.value = false
-    else if (showPriorityModal.value) showPriorityModal.value = false
-    else if (showDeleteModal.value) showDeleteModal.value = false
-    else if (selectedImage.value) selectedImage.value = null
-    else if (selectedVideo.value) selectedVideo.value = null
+    if (showCloseModal.value) { showCloseModal.value = false; return }
+    if (showTransferModal.value) { showTransferModal.value = false; return }
+    if (showPriorityModal.value) { showPriorityModal.value = false; return }
+    if (showDeleteModal.value) { showDeleteModal.value = false; return }
+    if (showCreatePendencyModal.value) { showCreatePendencyModal.value = false; return }
+    if (showHistoryModal.value) { showHistoryModal.value = false; return }
+    if (showShortcutsModal.value) { showShortcutsModal.value = false; return }
+    if (selectedImage.value) { selectedImage.value = null; return }
+    if (selectedVideo.value) { selectedVideo.value = null; return }
+    if (showCRM.value) { showCRM.value = false; return }
+  }
+
+  // Atalhos operacionais com Alt
+  if (e.altKey && !e.ctrlKey && !e.metaKey) {
+    const key = e.key.toLowerCase()
+
+    // Alt + F: Finalizar Atendimento ativo
+    if (key === 'f') {
+      if (chatStore.activeTicket && chatStore.activeTicket.status !== 'closed' && chatStore.activeTicket.user) {
+        e.preventDefault()
+        showCloseModal.value = true
+      }
+      return
+    }
+
+    // Alt + T: Transferir Atendimento
+    if (key === 't') {
+      if (chatStore.activeTicket && chatStore.activeTicket.status !== 'closed') {
+        e.preventDefault()
+        openTransfer()
+      }
+      return
+    }
+
+    // Alt + P: Definir Prioridade
+    if (key === 'p') {
+      if (chatStore.activeTicket && chatStore.activeTicket.status !== 'closed') {
+        e.preventDefault()
+        showPriorityModal.value = true
+      }
+      return
+    }
+
+    // Alt + N: Criar Pendência a partir do Chat
+    if (key === 'n') {
+      if (chatStore.activeTicket) {
+        e.preventDefault()
+        openCreatePendencyModal()
+      }
+      return
+    }
+
+    // Alt + C: Alternar painel CRM / Copilot
+    if (key === 'c') {
+      if (chatStore.activeTicket) {
+        e.preventDefault()
+        showCRM.value = !showCRM.value
+      }
+      return
+    }
+
+    // Alt + H: Exibir Guia de Atalhos de Teclado
+    if (key === 'h') {
+      e.preventDefault()
+      showShortcutsModal.value = !showShortcutsModal.value
+      return
+    }
   }
 }
 
@@ -572,14 +737,14 @@ async function savePendencyFromChat() {
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleModalEsc)
+  window.addEventListener('keydown', handleGlobalShortcuts)
   chatStore.fetchTickets()
   chatStore.fetchMyTickets()
   chatStore.initSocket()
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleModalEsc)
+  window.removeEventListener('keydown', handleGlobalShortcuts)
 })
 </script>
 

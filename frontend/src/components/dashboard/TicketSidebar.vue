@@ -75,7 +75,7 @@
           ref="searchInputRef"
           type="text" 
           v-model="localSearchQuery" 
-          placeholder="Buscar por conversas..." 
+          placeholder="Buscar conversas... (Alt+↓/↑ navegar)" 
           class="search-input"
         />
         <span class="shortcut-badge">{{ isMac ? '⌘K' : 'Ctrl K' }}</span>
@@ -184,7 +184,12 @@
               <span v-if="ticket.priority === 'medium'" class="priority-dot medium"></span>
               {{ ticket.last_message || 'Nenhuma mensagem' }}
             </p>
-            <span v-if="ticket.unread_count > 0" class="unread-badge">{{ ticket.unread_count }}</span>
+            <div class="ticket-badges-group" style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+              <span v-if="hasDraft(ticket.id)" class="ticket-draft-badge" title="Rascunho salvo não enviado">
+                <PencilIcon :size="10" /> Rascunho
+              </span>
+              <span v-if="ticket.unread_count > 0" class="unread-badge">{{ ticket.unread_count }}</span>
+            </div>
           </div>
 
           <span v-if="ticket.attendant_details && chatStore.currentFilter !== 'mine'" class="attendant-label">
@@ -230,10 +235,13 @@ import {
   Sun as SunIcon,
   Moon as MoonIcon,
   LogOut as LogOutIcon,
-  Lock as LockIcon
+  Lock as LockIcon,
+  Pencil as PencilIcon
 } from 'lucide-vue-next'
+import { useChatDrafts } from '../../composables/useChatDrafts'
 
 const chatStore = useChatStore()
+const { hasDraft } = useChatDrafts()
 const localSearchQuery = ref(chatStore.searchQuery)
 const searchInputRef = ref(null)
 
@@ -269,12 +277,36 @@ watch(() => chatStore.searchQuery, (newVal) => {
   }
 })
 
-// Handle Global Keyboard Shortcut Ctrl+K / Cmd+K to focus search input
+// Handle Global Keyboard Shortcuts (Ctrl+K para busca, Alt+↓ / Alt+↑ para navegação entre conversas)
 const handleGlobalKeydown = (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault()
     if (searchInputRef.value) {
       searchInputRef.value.focus()
+    }
+    return
+  }
+
+  // Alt + ArrowDown / Alt + ArrowUp para alternar tickets rapidamente
+  if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    const list = activeTabTickets.value
+    if (!list || list.length === 0) return
+
+    e.preventDefault()
+    const currentIndex = list.findIndex(t => t.id === chatStore.activeTicket?.id)
+
+    if (e.key === 'ArrowDown') {
+      if (currentIndex === -1 || currentIndex >= list.length - 1) {
+        chatStore.selectTicket(list[0])
+      } else {
+        chatStore.selectTicket(list[currentIndex + 1])
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (currentIndex <= 0) {
+        chatStore.selectTicket(list[list.length - 1])
+      } else {
+        chatStore.selectTicket(list[currentIndex - 1])
+      }
     }
   }
 }

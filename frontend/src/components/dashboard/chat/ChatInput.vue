@@ -233,6 +233,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useAudioRecorder } from '../../../composables/useAudioRecorder'
+import { useChatDrafts } from '../../../composables/useChatDrafts'
 import { cleanBody } from '../../../utils/whatsappMarkdown'
 import {
   Mic as MicIcon,
@@ -282,6 +283,40 @@ const fileInput = ref(null)
 const showEmojiPicker = ref(false)
 const pickerContainerRef = ref(null)
 const isSending = ref(false)
+
+// Gerenciador de Rascunhos por Ticket (P0 UI/UX)
+const { getDraft, setDraft, clearDraft } = useChatDrafts()
+
+// Watch ticket change to load/save draft
+watch(
+  () => props.ticket?.id,
+  (newId, oldId) => {
+    if (oldId && newMessage.value && !props.editingMessage) {
+      setDraft(oldId, newMessage.value)
+    }
+    if (newId) {
+      const draft = getDraft(newId)
+      if (!props.editingMessage) {
+        newMessage.value = draft || ''
+      }
+      autoResize()
+    } else {
+      newMessage.value = ''
+    }
+  },
+  { immediate: true }
+)
+
+// Auto-save draft on typing
+let draftSaveTimeout = null
+watch(newMessage, (val) => {
+  if (draftSaveTimeout) clearTimeout(draftSaveTimeout)
+  draftSaveTimeout = setTimeout(() => {
+    if (props.ticket?.id && !props.editingMessage) {
+      setDraft(props.ticket.id, val)
+    }
+  }, 250)
+})
 
 // Hook de áudio
 const {
@@ -486,6 +521,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (props.ticket?.id && newMessage.value && !props.editingMessage) {
+    setDraft(props.ticket.id, newMessage.value)
+  }
   window.removeEventListener('click', handleWindowClick)
   window.removeEventListener('keydown', handleGlobalKeyDown)
   if (pendingMediaPreviewUrl.value) {
@@ -551,6 +589,9 @@ const handleFileUpload = async (event) => {
 const send = () => {
   if (!newMessage.value.trim()) return
   const text = newMessage.value
+  if (props.ticket?.id && !props.editingMessage) {
+    clearDraft(props.ticket.id)
+  }
   newMessage.value = ''
   if (messageInput.value) {
     messageInput.value.style.height = 'auto'

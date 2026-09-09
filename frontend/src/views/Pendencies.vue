@@ -104,10 +104,75 @@
           </div>
         </Transition>
 
-        <!-- Loading State -->
-        <div v-if="loadingList" class="loading-state glass-effect animate-in">
-          <div class="spinner"></div>
-          <p>Carregando pendências...</p>
+        <!-- Loading State: Skeletons estruturados (P0 UI/UX) -->
+        <div v-if="loadingList && viewMode === 'grid'" class="pendencies-grid">
+          <div v-for="n in 6" :key="'pend-skel-' + n" class="pendency-card glass-effect" style="min-height: 220px;">
+            <div class="card-header-new" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div class="skeleton-shimmer skeleton-text" style="width: 55%; height: 16px;"></div>
+                <div style="display: flex; gap: 6px;">
+                  <div class="skeleton-shimmer" style="width: 28px; height: 28px; border-radius: 6px;"></div>
+                  <div class="skeleton-shimmer" style="width: 28px; height: 28px; border-radius: 6px;"></div>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div class="skeleton-shimmer skeleton-text" style="width: 80%; height: 16px;"></div>
+              <div class="skeleton-shimmer skeleton-pill" style="width: 90px;"></div>
+              <div class="skeleton-shimmer skeleton-text" style="width: 65%;"></div>
+              <div class="skeleton-shimmer skeleton-text" style="width: 45%;"></div>
+            </div>
+            <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div class="skeleton-shimmer skeleton-pill" style="width: 80px;"></div>
+              <div class="skeleton-shimmer skeleton-pill" style="width: 70px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="loadingList && viewMode === 'list'" class="pendencies-table-view glass-effect">
+          <table class="pendencies-table">
+            <thead>
+              <tr>
+                <th>Título / Operação</th>
+                <th>Cliente</th>
+                <th>Responsável</th>
+                <th>Abertura</th>
+                <th>Previsão</th>
+                <th>Prioridade</th>
+                <th>Status</th>
+                <th>Anexos</th>
+                <th class="actions-col">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="n in 6" :key="'pend-skel-row-' + n">
+                <td>
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div class="skeleton-shimmer skeleton-text" style="width: 150px; height: 14px;"></div>
+                    <div class="skeleton-shimmer skeleton-pill" style="width: 80px; height: 18px;"></div>
+                  </div>
+                </td>
+                <td>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div class="skeleton-shimmer skeleton-text" style="width: 120px;"></div>
+                    <div class="skeleton-shimmer skeleton-text" style="width: 80px; height: 10px;"></div>
+                  </div>
+                </td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="skeleton-shimmer skeleton-avatar" style="width: 24px; height: 24px;"></div>
+                    <div class="skeleton-shimmer skeleton-text" style="width: 80px;"></div>
+                  </div>
+                </td>
+                <td><div class="skeleton-shimmer skeleton-text" style="width: 70px;"></div></td>
+                <td><div class="skeleton-shimmer skeleton-text" style="width: 70px;"></div></td>
+                <td><div class="skeleton-shimmer skeleton-pill" style="width: 65px;"></div></td>
+                <td><div class="skeleton-shimmer skeleton-pill" style="width: 65px;"></div></td>
+                <td><div class="skeleton-shimmer" style="width: 24px; height: 24px; border-radius: 4px; margin: 0 auto;"></div></td>
+                <td class="actions-col"><div class="skeleton-shimmer" style="width: 75px; height: 28px; border-radius: 6px; margin: 0 auto;"></div></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Empty State -->

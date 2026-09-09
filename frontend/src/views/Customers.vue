@@ -66,10 +66,61 @@
           </div>
         </Transition>
 
-        <!-- Loading State -->
-        <div v-if="loadingList" class="loading-state glass-effect animate-in">
-          <div class="spinner"></div>
-          <p>Carregando clientes...</p>
+        <!-- Loading State: Skeletons estruturados (P0 UI/UX) -->
+        <div v-if="loadingList && viewMode === 'grid'" class="customers-grid">
+          <div v-for="n in 6" :key="'cust-skel-' + n" class="customer-card glass-effect">
+            <div class="card-header">
+              <div class="skeleton-shimmer skeleton-avatar"></div>
+              <div style="display: flex; gap: 8px;">
+                <div class="skeleton-shimmer" style="width: 32px; height: 32px; border-radius: 8px;"></div>
+                <div class="skeleton-shimmer" style="width: 32px; height: 32px; border-radius: 8px;"></div>
+              </div>
+            </div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+              <div class="skeleton-shimmer skeleton-text" style="width: 70%; height: 16px;"></div>
+              <div class="skeleton-shimmer skeleton-text" style="width: 45%;"></div>
+              <div class="skeleton-shimmer skeleton-text" style="width: 80%;"></div>
+              <div class="skeleton-shimmer skeleton-text" style="width: 55%;"></div>
+            </div>
+            <div class="card-footer" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; display: flex; justify-content: space-between;">
+              <div class="skeleton-shimmer skeleton-pill" style="width: 65px;"></div>
+              <div class="skeleton-shimmer skeleton-pill" style="width: 75px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="loadingList && viewMode === 'list'" class="customers-list-view glass-effect">
+          <table class="customers-table">
+            <thead>
+              <tr>
+                <th>Nome / Razão Social</th>
+                <th>Nome Fantasia</th>
+                <th>Documento</th>
+                <th>Telefone</th>
+                <th>Cidade/UF</th>
+                <th>E-mail</th>
+                <th>Status</th>
+                <th class="actions-col">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="n in 6" :key="'cust-skel-row-' + n">
+                <td>
+                  <div class="table-name-cell">
+                    <div class="skeleton-shimmer skeleton-avatar" style="width: 32px; height: 32px;"></div>
+                    <div class="skeleton-shimmer skeleton-text" style="width: 140px;"></div>
+                  </div>
+                </td>
+                <td><div class="skeleton-shimmer skeleton-text" style="width: 90px;"></div></td>
+                <td><div class="skeleton-shimmer skeleton-text" style="width: 110px;"></div></td>
+                <td><div class="skeleton-shimmer skeleton-text" style="width: 100px;"></div></td>
+                <td><div class="skeleton-shimmer skeleton-text" style="width: 80px;"></div></td>
+                <td><div class="skeleton-shimmer skeleton-text" style="width: 120px;"></div></td>
+                <td><div class="skeleton-shimmer skeleton-pill" style="width: 60px;"></div></td>
+                <td class="actions-col"><div class="skeleton-shimmer" style="width: 70px; height: 28px; border-radius: 6px; margin: 0 auto;"></div></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Empty State -->
