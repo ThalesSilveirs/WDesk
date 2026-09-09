@@ -8,8 +8,8 @@
   --text-secondary: #a1a1aa;
   --border: rgba(255, 255, 255, 0.08);
   --glass: rgba(255, 255, 255, 0.02);
-  --pattern-opacity: 0.02;
-  --pattern-filter: grayscale(1) brightness(0.5);
+  --pattern-opacity: 0.04;
+  --pattern-filter: grayscale(1) brightness(0.6);
   --empty-bg-inner: #18181b;
   --empty-bg-outer: #09090b;
   --sidebar-width: 350px;
@@ -41,8 +41,8 @@
   --text-secondary: #71717a;
   --border: rgba(0, 0, 0, 0.08);
   --glass: rgba(0, 0, 0, 0.02);
-  --pattern-opacity: 0.03;
-  --pattern-filter: grayscale(1) brightness(0.4);
+  --pattern-opacity: 0.06;
+  --pattern-filter: grayscale(1) brightness(0.35);
   --empty-bg-inner: #ffffff;
   --empty-bg-outer: #e4e4e7;
   --chat-bg: #efeae2;
