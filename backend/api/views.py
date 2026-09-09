@@ -13,7 +13,8 @@ from .serializers import (
     UserSerializer,
     TicketSerializer, 
     TicketListSerializer,
-    ConnectionSerializer, 
+    ConnectionSerializer,
+    ConnectionListSerializer,
     MessageSerializer,
     MyTokenObtainPairSerializer,
     CustomerSerializer,
@@ -320,6 +321,9 @@ class TicketViewSet(TenantModelViewSet):
                 pass
         elif status_filter == 'closed':
             queryset = queryset[:100]
+        else:
+            # Teto defensivo de 200 tickets abertos/pendentes para proteger memória
+            queryset = queryset[:200]
             
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
@@ -1451,6 +1455,40 @@ class ConnectionViewSet(TenantModelViewSet):
     queryset = Connection.objects.all()
     serializer_class = ConnectionSerializer
 
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ConnectionListSerializer
+        return ConnectionSerializer
+
+    def list(self, request, *args, **kwargs):
+        company_id = getattr(request.user, 'company_id', None)
+        cache_key = f"connections_list_{company_id}" if company_id else None
+        if cache_key:
+            cached_data = cache.get(cache_key)
+            if cached_data is not None:
+                return Response(cached_data)
+        response = super().list(request, *args, **kwargs)
+        if cache_key:
+            cache.set(cache_key, response.data, timeout=120)
+        return response
+
+    def _clear_cache(self):
+        company_id = getattr(self.request.user, 'company_id', None)
+        if company_id:
+            cache.delete(f"connections_list_{company_id}")
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        self._clear_cache()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._clear_cache()
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        self._clear_cache()
+
     def get_evo_creds(self, company):
         return {
             "url": company.evolution_api_url or settings.EVOLUTION_API_URL,
@@ -1545,6 +1583,7 @@ class ConnectionViewSet(TenantModelViewSet):
                         connection.qrcode = qrcode
                         connection.status = 'connecting'
                         connection.save()
+                        self._clear_cache()
                         return Response({"qrcode": qrcode, "status": connection.status})
                 
                 return Response({"error": "QR Code ainda não disponível. Tente novamente em instantes.", "data": data}, status=400)
@@ -1620,6 +1659,7 @@ class ConnectionViewSet(TenantModelViewSet):
                     connection.status = 'disconnected'
                 
                 connection.save()
+                self._clear_cache()
 
                 # --- FORÇAR CONFIGURAÇÃO DE WEBHOOK ---
                 webhook_url = f"http://backend:8000/api/v1/webhooks/evolution"
@@ -1920,8 +1960,13 @@ class CompanyViewSet(viewsets.ModelViewSet):
         if not company:
             return Response({"error": "Usuário não vinculado a uma empresa"}, status=400)
             
+        cache_key = f"company_mine_{company.id}"
         if request.method == 'GET':
+            cached_data = cache.get(cache_key)
+            if cached_data is not None:
+                return Response(cached_data)
             serializer = self.get_serializer(company)
+            cache.set(cache_key, serializer.data, timeout=600)
             return Response(serializer.data)
         
         if request.user.role != 'admin':
@@ -1930,6 +1975,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(company, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        cache.delete(cache_key)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
@@ -2020,6 +2066,12 @@ class AbsenceScheduleViewSet(viewsets.ModelViewSet):
         if not company:
             return Response({"error": "Usuário não vinculado a uma empresa"}, status=400)
             
+        cache_key = f"absence_mine_{company.id}"
+        if request.method == 'GET':
+            cached_data = cache.get(cache_key)
+            if cached_data is not None:
+                return Response(cached_data)
+
         schedule_obj, created = AbsenceSchedule.objects.get_or_create(
             company=company,
             defaults={
@@ -2039,6 +2091,7 @@ class AbsenceScheduleViewSet(viewsets.ModelViewSet):
         
         if request.method == 'GET':
             serializer = self.get_serializer(schedule_obj)
+            cache.set(cache_key, serializer.data, timeout=600)
             return Response(serializer.data)
             
         if request.user.role != 'admin':
@@ -2047,6 +2100,7 @@ class AbsenceScheduleViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(schedule_obj, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        cache.delete(cache_key)
         return Response(serializer.data)
 
 
