@@ -85,6 +85,21 @@
         <SparklesIcon :size="16" />
       </button>
 
+      <!-- Follow-up / Lembrete Button -->
+      <button 
+        v-if="activeTicket.status !== 'closed'"
+        class="reminder-action-btn"
+        :class="{ 'has-active-reminder': activeReminder }"
+        @click="showReminderModal = true"
+        :title="activeReminder ? `Lembrete agendado para ${formatReminderTime(activeReminder.scheduled_for)}` : 'Agendar Lembrete de Retorno / Follow-up'"
+      >
+        <AlarmClockIcon :size="16" />
+        <span class="btn-text" v-if="!activeReminder">Follow-up</span>
+        <span v-else class="reminder-time-badge">
+          {{ formatShortReminderTime(activeReminder.scheduled_for) }}
+        </span>
+      </button>
+
       <!-- In-Chat Search Button -->
       <button 
         class="chat-action-icon-btn" 
@@ -121,6 +136,10 @@
               <span class="priority-dot-indicator" :class="activeTicket.priority"></span>
               <span>Prioridade {{ activeTicket.priority === 'high' ? 'Alta' : (activeTicket.priority === 'medium' ? 'Média' : 'Baixa') }}</span>
             </button>
+            <button v-if="activeTicket.status !== 'closed'" @click="showReminderModal = true; showMenu = false" class="menu-item">
+              <AlarmClockIcon :size="15" />
+              <span>{{ activeReminder ? 'Editar Lembrete / Follow-up' : 'Agendar Follow-up' }}</span>
+            </button>
             <div class="divider"></div>
             <button @click="triggerAction('openDeleteModal')" class="menu-item danger-item">
               <TrashIcon :size="15" />
@@ -134,12 +153,20 @@
         </Transition>
       </div>
     </div>
+
+    <!-- Modal de Lembrete / Follow-up -->
+    <TicketReminderModal 
+      :show="showReminderModal" 
+      :ticket="activeTicket" 
+      @close="showReminderModal = false" 
+    />
   </header>
 </template>
 
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../../../store/chat'
+import TicketReminderModal from './TicketReminderModal.vue'
 import {
   ChevronLeft as ChevronLeftIcon,
   Sparkles as SparklesIcon,
@@ -153,7 +180,8 @@ import {
   Lock as LockIcon,
   Search as SearchIcon,
   Printer as PrinterIcon,
-  Clock as ClockIcon
+  Clock as ClockIcon,
+  AlarmClock as AlarmClockIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -176,6 +204,36 @@ const emit = defineEmits([
 
 const chatStore = useChatStore()
 const activeTicket = computed(() => chatStore.activeTicket || {})
+const showReminderModal = ref(false)
+
+const activeReminder = computed(() => {
+  return activeTicket.value?.active_reminder || null
+})
+
+const formatReminderTime = (dateStr) => {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return dateStr
+  }
+}
+
+const formatShortReminderTime = (dateStr) => {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    const today = new Date()
+    const isToday = d.toDateString() === today.toDateString()
+    const hours = String(d.getHours()).padStart(2, '0')
+    const mins = String(d.getMinutes()).padStart(2, '0')
+    if (isToday) return `${hours}:${mins}`
+    return `${d.getDate()}/${d.getMonth() + 1} ${hours}:${mins}`
+  } catch {
+    return ''
+  }
+}
 
 // SLA Calculation
 const getWaitingMinutes = (ticket) => {
@@ -718,4 +776,58 @@ onUnmounted(() => {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.8; transform: scale(1.03); }
 }
+
+.reminder-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.78rem;
+  font-weight: 500;
+  height: 34px;
+}
+
+.reminder-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main, #f8fafc);
+  transform: translateY(-1px);
+}
+
+.reminder-action-btn.has-active-reminder {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+  animation: reminderPulse 2s infinite ease-in-out;
+}
+
+.reminder-action-btn.has-active-reminder:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+}
+
+.reminder-time-badge {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #fbbf24;
+  letter-spacing: 0.3px;
+}
+
+@keyframes reminderPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.45); }
+}
+
+@media (max-width: 768px) {
+  .reminder-action-btn .btn-text {
+    display: none;
+  }
+}
 </style>
+

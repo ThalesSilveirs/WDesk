@@ -261,6 +261,13 @@
               {{ ticket.last_message || 'Nenhuma mensagem' }}
             </p>
             <div class="ticket-badges-group" style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+              <span 
+                v-if="ticket.active_reminder" 
+                class="ticket-reminder-badge" 
+                :title="`Lembrete agendado para ${formatReminderTime(ticket.active_reminder.scheduled_for)}`"
+              >
+                <AlarmClockIcon :size="11" />
+              </span>
               <span v-if="hasDraft(ticket.id)" class="ticket-draft-badge" title="Rascunho salvo não enviado">
                 <PencilIcon :size="10" /> Rascunho
               </span>
@@ -388,9 +395,20 @@ import {
   Clock as ClockIcon,
   Copy as CopyIcon,
   Hash as HashIcon,
-  UserCheck as UserCheckIcon
+  UserCheck as UserCheckIcon,
+  AlarmClock as AlarmClockIcon
 } from 'lucide-vue-next'
 import { useChatDrafts } from '../../composables/useChatDrafts'
+
+const formatReminderTime = (dateStr) => {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return dateStr
+  }
+}
 
 const chatStore = useChatStore()
 const { hasDraft } = useChatDrafts()
@@ -1758,5 +1776,24 @@ const activeTabTickets = computed(() => {
 .fade-fast-enter-from,
 .fade-fast-leave-to {
   opacity: 0;
+}
+
+.ticket-reminder-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
+  animation: reminderGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes reminderGlow {
+  from { box-shadow: 0 0 4px rgba(245, 158, 11, 0.2); }
+  to { box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); }
 }
 </style>

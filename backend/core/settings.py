@@ -136,4 +136,9 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'tickets.tasks.check_unattended_queue_task',
         'schedule': crontab(minute='*'), # Checa a cada 1 minuto se há mensagens paradas na fila
     },
+    'check-due-ticket-reminders': {
+        'task': 'tickets.tasks.check_due_ticket_reminders_task',
+        'schedule': crontab(minute='*'), # Checa a cada 1 minuto se há lembretes de follow-up vencidos
+    },
 }
+

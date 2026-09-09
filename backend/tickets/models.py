@@ -390,6 +390,31 @@ class WebcalFeed(models.Model):
         return f"{self.name} ({self.company.name})"
 
 
+class TicketReminder(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='ticket_reminders')
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='reminders')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ticket_reminders')
+    scheduled_for = models.DateTimeField(db_index=True)
+    note = models.TextField(null=True, blank=True)
+    is_sent = models.BooleanField(default=False, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['scheduled_for']
+        indexes = [
+            models.Index(fields=['is_sent', 'scheduled_for']),
+            models.Index(fields=['ticket', 'is_sent']),
+            models.Index(fields=['company', 'is_sent']),
+            models.Index(fields=['user', 'is_sent']),
+        ]
+
+    def __str__(self):
+        return f"Lembrete #{self.id} Ticket #{self.ticket_id} para {self.user.username} às {self.scheduled_for}"
+
+
+
 
 
 

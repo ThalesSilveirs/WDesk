@@ -1720,6 +1720,119 @@ def check_unattended_queue_task():
                     print(f"[QUEUE ALERT ERROR] Erro ao enviar alerta para {user.username}: {e}")
 
 
+@shared_task
+def check_due_ticket_reminders_task():
+    from tickets.models import TicketReminder, Connection
+    from tickets.utils import get_evolution_token, redis_client
+    from django.utils import timezone
+    from django.conf import settings
+    import requests
+    import re
+    import json
+    from django.core.serializers.json import DjangoJSONEncoder
+
+    now = timezone.now()
+    due_reminders = TicketReminder.objects.filter(
+        is_sent=False,
+        scheduled_for__lte=now
+    ).select_related(
+        'ticket', 'ticket__company', 'ticket__contact', 'ticket__contact__customer', 'user'
+    )
+
+    if not due_reminders.exists():
+        return
+
+    for reminder in due_reminders:
+        ticket = reminder.ticket
+        user = reminder.user
+        company = reminder.company or ticket.company
+        contact = ticket.contact
+        customer = contact.customer if contact else None
+
+        contact_name = (contact.name or contact.phone or "Cliente") if contact else "Cliente"
+        contact_phone = (contact.phone or contact.whatsapp or "") if contact else ""
+        customer_name = customer.name if customer else None
+
+        # 1. Notificação em tempo real no app (Redis -> Socket.IO)
+        try:
+            event_payload = {
+                "company_id": str(company.id),
+                "type": "reminder_triggered",
+                "payload": {
+                    "reminder_id": reminder.id,
+                    "ticket_id": ticket.id,
+                    "user_id": user.id,
+                    "customer_name": contact_name,
+                    "customer_phone": contact_phone,
+                    "note": reminder.note or "",
+                    "scheduled_for": reminder.scheduled_for.isoformat()
+                }
+            }
+            redis_client.publish('company_events', json.dumps(event_payload, cls=DjangoJSONEncoder))
+        except Exception as e:
+            print(f"[REMINDER REALTIME ERROR] Erro ao publicar evento de lembrete no Redis: {e}")
+
+        # 2. Notificação via WhatsApp para o atendente
+        if user.whatsapp:
+            clean_user_phone = re.sub(r'\D', '', user.whatsapp)
+            if clean_user_phone:
+                connection = Connection.objects.filter(company=company, status='connected').first()
+                if not connection:
+                    connection = Connection.objects.filter(company=company).first()
+
+                if connection:
+                    user_name = user.first_name or user.username
+                    scheduled_time_str = timezone.localtime(reminder.scheduled_for).strftime('%d/%m/%Y às %H:%M')
+
+                    msg = f"⏰ *Lembrete de Retorno / Follow-up - WDesk*\n\n"
+                    msg += f"Olá, *{user_name}*! Chegou o momento agendado para o seu retorno com este cliente:\n\n"
+                    msg += f"👤 *Contato:* {contact_name}\n"
+                    if contact_phone:
+                        msg += f"📱 *WhatsApp:* {contact_phone}\n"
+                    if customer_name:
+                        msg += f"🏢 *Razão Social:* {customer_name}\n"
+                    msg += f"🏷️ *Protocolo:* #{ticket.id}\n"
+                    msg += f"📅 *Agendado para:* {scheduled_time_str}\n"
+                    if reminder.note:
+                        msg += f"📝 *Anotação:* {reminder.note}\n"
+                    msg += f"\n🔗 *Acessar Atendimento:* https://desk.wadm.inf.br/conversations?ticket_id={ticket.id}"
+
+                    try:
+                        evo_token = get_evolution_token(connection.instance_name)
+                        evo_url = company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution-go:8080')
+                        url = f"{evo_url}/send/text?apikey={evo_token}&instance={connection.instance_name}"
+                        headers = {
+                            "Content-Type": "application/json",
+                            "apikey": evo_token,
+                            "Authorization": f"Bearer {evo_token}"
+                        }
+                        payload = {
+                            "instance": connection.instance_name,
+                            "number": clean_user_phone,
+                            "text": msg
+                        }
+
+                        res = requests.post(url, json=payload, headers=headers, timeout=10)
+                        if res.status_code in [200, 201]:
+                            print(f"[REMINDER WHATSAPP] Notificação de follow-up do ticket {ticket.id} enviada para {user.username} ({clean_user_phone})")
+                        else:
+                            print(f"[REMINDER WHATSAPP FAIL] Falha ao enviar para {user.username}: {res.status_code} - {res.text}")
+                    except Exception as e:
+                        print(f"[REMINDER WHATSAPP ERROR] Erro na requisição para {user.username}: {e}")
+                else:
+                    print(f"[REMINDER WHATSAPP WARN] Nenhuma conexão de WhatsApp encontrada para a empresa {company.name}")
+            else:
+                print(f"[REMINDER WHATSAPP WARN] WhatsApp do atendente {user.username} é inválido: {user.whatsapp}")
+        else:
+            print(f"[REMINDER WHATSAPP INFO] Atendente {user.username} não possui WhatsApp cadastrado.")
+
+        # 3. Marca como enviado
+        reminder.is_sent = True
+        reminder.sent_at = timezone.now()
+        reminder.save(update_fields=['is_sent', 'sent_at'])
+
+
+
 
 
 

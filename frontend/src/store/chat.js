@@ -454,6 +454,28 @@ export const useChatStore = defineStore('chat', {
         window.dispatchEvent(new CustomEvent('connection-updated', { detail: payload }))
       })
 
+      this.socket.on('reminder_triggered', (payload) => {
+        const isMyReminder = this.user && Number(payload.user_id) === Number(this.user.id)
+        if (isMyReminder || (this.userRole === 'admin' && this.notifyAll)) {
+          this.playNotificationSound()
+          const title = `⏰ Follow-up: ${payload.customer_name}`
+          const body = payload.note ? `Nota: ${payload.note}` : 'Horário de retorno agendado com o cliente atingido!'
+          this.showNotification(title, body, '/favicon.png')
+          this.addNotification({
+            title,
+            body,
+            ticket_id: payload.ticket_id
+          })
+        }
+        if (this.activeTicket && Number(this.activeTicket.id) === Number(payload.ticket_id)) {
+          this.activeTicket.active_reminder = null
+        }
+        const t1 = this.tickets.find(t => Number(t.id) === Number(payload.ticket_id))
+        if (t1) t1.active_reminder = null
+        const t2 = this.myTickets.find(t => Number(t.id) === Number(payload.ticket_id))
+        if (t2) t2.active_reminder = null
+      })
+
       this.socket.on('reset_conversations', () => {
         this.tickets = []
         this.myTickets = []
@@ -879,7 +901,66 @@ export const useChatStore = defineStore('chat', {
         alert(errMsg)
         throw e
       }
+    },
+
+    // Lembretes de Retorno / Follow-up
+    async fetchTicketReminders(ticketId) {
+      try {
+        const response = await axios.get(`/api/v1/tickets/${ticketId}/reminders/`)
+        return response.data
+      } catch (e) {
+        console.error("Erro ao buscar lembretes do ticket:", e)
+        return []
+      }
+    },
+
+    async createTicketReminder(ticketId, { scheduled_for, note }) {
+      try {
+        const response = await axios.post(`/api/v1/tickets/${ticketId}/create_reminder/`, {
+          scheduled_for,
+          note
+        })
+        const reminder = response.data
+        if (this.activeTicket && Number(this.activeTicket.id) === Number(ticketId)) {
+          this.activeTicket.active_reminder = {
+            id: reminder.id,
+            scheduled_for: reminder.scheduled_for,
+            note: reminder.note,
+            user_id: reminder.user,
+            user_name: reminder.user_details?.first_name || reminder.user_details?.username,
+            user_whatsapp: reminder.user_details?.whatsapp
+          }
+        }
+        const t1 = this.tickets.find(t => Number(t.id) === Number(ticketId))
+        if (t1) t1.active_reminder = this.activeTicket?.active_reminder
+        const t2 = this.myTickets.find(t => Number(t.id) === Number(ticketId))
+        if (t2) t2.active_reminder = this.activeTicket?.active_reminder
+        return reminder
+      } catch (e) {
+        console.error("Erro ao agendar lembrete:", e)
+        throw e
+      }
+    },
+
+    async cancelTicketReminder(ticketId, reminderId = null) {
+      try {
+        const response = await axios.post(`/api/v1/tickets/${ticketId}/cancel_reminder/`, {
+          reminder_id: reminderId
+        })
+        if (this.activeTicket && Number(this.activeTicket.id) === Number(ticketId)) {
+          this.activeTicket.active_reminder = null
+        }
+        const t1 = this.tickets.find(t => Number(t.id) === Number(ticketId))
+        if (t1) t1.active_reminder = null
+        const t2 = this.myTickets.find(t => Number(t.id) === Number(ticketId))
+        if (t2) t2.active_reminder = null
+        return response.data
+      } catch (e) {
+        console.error("Erro ao cancelar lembrete:", e)
+        throw e
+      }
     }
   }
 })
+
 

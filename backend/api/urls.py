@@ -4,7 +4,7 @@ from .views import (
     TicketViewSet, ConnectionViewSet, WebhookView, UserViewSet, CustomerViewSet, 
     CustomerContactViewSet, ContactViewSet, CompanyViewSet, QuickReplyViewSet, 
     AbsenceScheduleViewSet, CityViewSet, PendencyViewSet, PendencyMovementViewSet,
-    WebcalFeedViewSet, SystemMetricsView
+    WebcalFeedViewSet, SystemMetricsView, TicketReminderViewSet
 )
 
 router = DefaultRouter()
@@ -21,6 +21,7 @@ router.register(r'cities', CityViewSet, basename='city')
 router.register(r'pendencies', PendencyViewSet, basename='pendency')
 router.register(r'pendency-movements', PendencyMovementViewSet, basename='pendency-movement')
 router.register(r'webcal-feeds', WebcalFeedViewSet, basename='webcal-feed')
+router.register(r'reminders', TicketReminderViewSet, basename='reminder')
 
 urlpatterns = [
     path('', include(router.urls)),

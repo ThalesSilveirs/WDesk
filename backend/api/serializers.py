@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement, WebcalFeed
+from tickets.models import Company, User, Connection, Contact, Ticket, Message, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement, WebcalFeed, TicketReminder
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -248,6 +248,7 @@ class TicketSerializer(serializers.ModelSerializer):
     attendant_details = UserSerializer(source='user', read_only=True)
     last_messages = serializers.SerializerMethodField()
     customer_details = CustomerSerializer(source='contact.customer', read_only=True)
+    active_reminder = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
@@ -258,14 +259,40 @@ class TicketSerializer(serializers.ModelSerializer):
         messages = obj.messages.select_related('user', 'ticket', 'ticket__contact').prefetch_related('reactions').order_by('-timestamp')[:10]
         return MessageSerializer(reversed(messages), many=True, context=self.context).data
 
+    def get_active_reminder(self, obj):
+        rem = obj.reminders.filter(is_sent=False).order_by('scheduled_for').first()
+        if rem:
+            return {
+                'id': rem.id,
+                'scheduled_for': rem.scheduled_for,
+                'note': rem.note,
+                'user_id': rem.user_id,
+                'user_name': rem.user.first_name or rem.user.username,
+                'user_whatsapp': rem.user.whatsapp,
+            }
+        return None
+
 class TicketListSerializer(serializers.ModelSerializer):
     contact_details = ContactListSerializer(source='contact', read_only=True)
     attendant_details = UserLightSerializer(source='user', read_only=True)
     customer_details = CustomerLightSerializer(source='contact.customer', read_only=True)
+    active_reminder = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
         fields = '__all__'
+
+    def get_active_reminder(self, obj):
+        rem = obj.reminders.filter(is_sent=False).order_by('scheduled_for').first()
+        if rem:
+            return {
+                'id': rem.id,
+                'scheduled_for': rem.scheduled_for,
+                'note': rem.note,
+                'user_id': rem.user_id,
+                'user_name': rem.user.first_name or rem.user.username,
+            }
+        return None
 
 
 class QuickReplySerializer(serializers.ModelSerializer):
@@ -363,6 +390,24 @@ class WebcalFeedSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'company': {'read_only': True},
             'user': {'read_only': True}
+        }
+
+
+class TicketReminderSerializer(serializers.ModelSerializer):
+    user_details = UserLightSerializer(source='user', read_only=True)
+    ticket_id = serializers.IntegerField(source='ticket.id', read_only=True)
+    customer_name = serializers.CharField(source='ticket.contact.name', read_only=True)
+    customer_phone = serializers.CharField(source='ticket.contact.phone', read_only=True)
+
+    class Meta:
+        model = TicketReminder
+        fields = '__all__'
+        extra_kwargs = {
+            'company': {'read_only': True},
+            'user': {'read_only': True},
+            'ticket': {'read_only': True},
+            'is_sent': {'read_only': True},
+            'sent_at': {'read_only': True},
         }
 
 

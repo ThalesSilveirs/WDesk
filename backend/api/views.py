@@ -8,7 +8,7 @@ try:
 except ImportError:
     psutil = None
 
-from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement, WebcalFeed
+from tickets.models import Company, Connection, Ticket, Message, Contact, User, Customer, CustomerContact, MessageReaction, QuickReply, AbsenceSchedule, City, Pendency, PendencyImage, PendencyMovement, WebcalFeed, TicketReminder
 from .serializers import (
     UserSerializer,
     TicketSerializer, 
@@ -30,7 +30,8 @@ from .serializers import (
     PendencySerializer,
     PendencyListSerializer,
     PendencyMovementSerializer,
-    WebcalFeedSerializer
+    WebcalFeedSerializer,
+    TicketReminderSerializer
 )
 from tickets.utils import fetch_and_parse_webcal
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -1456,6 +1457,60 @@ class TicketViewSet(TenantModelViewSet):
         
         return Response({"status": "Broadcast iniciado", "target_count": len(customer_phones)})
 
+    @action(detail=True, methods=['get'])
+    def reminders(self, request, pk=None):
+        ticket = self.get_object()
+        reminders = ticket.reminders.all().order_by('-scheduled_for')
+        return Response(TicketReminderSerializer(reminders, many=True).data)
+
+    @action(detail=True, methods=['post'])
+    def create_reminder(self, request, pk=None):
+        ticket = self.get_object()
+        scheduled_for = request.data.get('scheduled_for')
+        note = request.data.get('note', '')
+
+        if not scheduled_for:
+            return Response({"error": "O campo 'scheduled_for' é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.utils.dateparse import parse_datetime
+        dt = parse_datetime(scheduled_for)
+        if not dt:
+            import datetime
+            try:
+                dt = datetime.datetime.fromisoformat(scheduled_for.replace('Z', '+00:00'))
+            except Exception:
+                return Response({"error": "Formato de data inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Remove lembretes pendentes anteriores do mesmo ticket
+        ticket.reminders.filter(is_sent=False).delete()
+
+        reminder = TicketReminder.objects.create(
+            company=ticket.company,
+            ticket=ticket,
+            user=request.user,
+            scheduled_for=dt,
+            note=note
+        )
+
+        self.broadcast_ticket_update(ticket)
+        return Response(TicketReminderSerializer(reminder).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def cancel_reminder(self, request, pk=None):
+        ticket = self.get_object()
+        reminder_id = request.data.get('reminder_id')
+        if reminder_id:
+            reminders = ticket.reminders.filter(id=reminder_id, is_sent=False)
+        else:
+            reminders = ticket.reminders.filter(is_sent=False)
+
+        count = reminders.count()
+        reminders.delete()
+        self.broadcast_ticket_update(ticket)
+        return Response({"status": "cancelled", "deleted_count": count})
+
+
+
 
 
 class ConnectionViewSet(TenantModelViewSet):
@@ -2491,6 +2546,21 @@ class SystemMetricsView(APIView):
                 pass
 
         return Response(metrics, status=status.HTTP_200_OK)
+
+
+class TicketReminderViewSet(TenantModelViewSet):
+    queryset = TicketReminder.objects.all().order_by('scheduled_for')
+    serializer_class = TicketReminderSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        status_filter = self.request.query_params.get('status')
+        if status_filter == 'pending':
+            qs = qs.filter(is_sent=False)
+        elif status_filter == 'sent':
+            qs = qs.filter(is_sent=True)
+        return qs
+
 
 
 
