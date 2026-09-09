@@ -1,5 +1,5 @@
 <template>
-  <div class="message-actions-trigger">
+  <div class="message-actions-trigger" :class="{ 'from-me': msg.from_me }">
     <button class="reaction-trigger-btn" @click.stop="emit('toggle-picker', msg.id)" title="Reagir">
       <SmileIcon :size="16" />
     </button>
@@ -98,21 +98,21 @@ const hasAttendantReactedWith = (reactions, emoji) => {
 /* Reactions Emoji Picker Dropdown */
 .reactions-picker {
   position: absolute;
-  bottom: 100%;
+  bottom: calc(100% + 6px);
   left: 0;
-  margin-bottom: 8px;
   display: flex;
   gap: 6px;
-  padding: 6px;
+  padding: 6px 8px;
   border-radius: 30px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 50;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 1001;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.message.me .reactions-picker {
+.message-actions-trigger.from-me .reactions-picker {
   left: auto;
   right: 0;
 }

@@ -3,7 +3,7 @@
     :id="'msg-' + msg.message_id"
     ref="bubbleRef"
     class="message"
-    :class="{ 'me': msg.from_me, 'highlight-msg': highlighted }"
+    :class="{ 'me': msg.from_me, 'highlight-msg': highlighted, 'has-active-picker': activeReactionPickerId === msg.id }"
     v-memo="[msg.body, msg.reactions?.length, msg.is_edited, highlighted, activeReactionPickerId === msg.id, resolvedUrl]"
   >
     <div class="message-bubble-wrapper">
@@ -280,6 +280,21 @@ const getGroupedReactions = (reactions) => {
   z-index: 1;
   content-visibility: auto;
   contain-intrinsic-size: 58px;
+}
+
+.message:hover {
+  z-index: 10;
+}
+
+.message.has-active-picker {
+  z-index: 1000 !important;
+  content-visibility: visible !important;
+  contain: none !important;
+}
+
+.message.has-active-picker .message-bubble-wrapper :deep(.message-actions-trigger) {
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 .message.me {
