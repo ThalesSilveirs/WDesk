@@ -1,6 +1,7 @@
 <template>
-  <div v-if="show" class="modal-overlay animate-fade-in" @click="closeModal">
-    <div class="modal-content glass-effect reminder-modal" @click.stop>
+  <Teleport to="body">
+    <div v-if="show" class="modal-overlay animate-fade-in" @click="closeModal">
+      <div class="modal-content glass-effect reminder-modal" @click.stop>
       <!-- Header -->
       <div class="modal-header">
         <div class="header-icon-wrapper">
@@ -165,6 +166,7 @@
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -344,15 +346,21 @@ const handleCancelReminder = async () => {
 <style scoped>
 .modal-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 99999;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .reminder-modal {
