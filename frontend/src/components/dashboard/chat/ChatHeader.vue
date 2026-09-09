@@ -95,17 +95,6 @@
         <SearchIcon :size="16" />
       </button>
 
-      <!-- Density Mode Toggle Button -->
-      <button 
-        class="chat-action-icon-btn" 
-        :class="{ active: chatStore.densityMode === 'compact' }" 
-        @click="chatStore.toggleDensityMode" 
-        :title="chatStore.densityMode === 'compact' ? 'Modo de Densidade: Compacto Ativo (Clique para Confortável)' : 'Modo de Densidade: Confortável (Clique para Compacto)'"
-      >
-        <Minimize2Icon v-if="chatStore.densityMode === 'compact'" :size="16" />
-        <Maximize2Icon v-else :size="16" />
-      </button>
-
       <!-- More vertical menu popover container -->
       <div class="dropdown-wrapper" ref="dropdownRef">
         <button @click.stop="toggleMenu" class="more-btn" title="Opções">
@@ -126,10 +115,6 @@
             <button @click="handlePrintConversation" class="menu-item">
               <PrinterIcon :size="15" />
               <span>Imprimir / Exportar Histórico</span>
-            </button>
-            <button @click="chatStore.toggleDensityMode(); showMenu = false" class="menu-item">
-              <component :is="chatStore.densityMode === 'compact' ? Maximize2Icon : Minimize2Icon" :size="15" />
-              <span>{{ chatStore.densityMode === 'compact' ? 'Visualização Confortável' : 'Visualização Compacta' }}</span>
             </button>
             <div class="divider" v-if="activeTicket.status !== 'closed'"></div>
             <button v-if="activeTicket.status !== 'closed'" @click="triggerAction('openPriorityModal')" class="menu-item">
@@ -168,9 +153,7 @@ import {
   Lock as LockIcon,
   Search as SearchIcon,
   Printer as PrinterIcon,
-  Clock as ClockIcon,
-  Minimize2 as Minimize2Icon,
-  Maximize2 as Maximize2Icon
+  Clock as ClockIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
