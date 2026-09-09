@@ -254,6 +254,23 @@ defineExpose({
   z-index: 1;
 }
 
+.messages-wrapper::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url('/favicon.png');
+  background-repeat: repeat;
+  background-size: 80px;
+  opacity: var(--pattern-opacity);
+  filter: var(--pattern-filter);
+  transform: rotate(-15deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* Smart Daily Date Dividers */
 .date-divider-center {
   display: flex;
