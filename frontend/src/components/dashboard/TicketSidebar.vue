@@ -61,9 +61,72 @@
           <LayoutListIcon v-if="chatStore.layoutMode === 'grid'" :size="18" />
           <LayoutGridIcon v-else :size="18" />
         </button>
-        <button class="action-btn" title="Filtrar Conversas">
-          <FilterIcon :size="18" />
-        </button>
+        <div class="filter-dropdown-wrapper" ref="filterDropdownRef">
+          <button 
+            class="action-btn" 
+            :class="{ active: hasActiveAdvancedFilters || showFilterPopover }" 
+            @click.stop="showFilterPopover = !showFilterPopover" 
+            title="Filtros Avançados de Conversas"
+          >
+            <FilterIcon :size="18" />
+            <span v-if="hasActiveAdvancedFilters" class="active-filter-indicator"></span>
+          </button>
+
+          <!-- Filter Popover -->
+          <Transition name="fade">
+            <div v-if="showFilterPopover" class="filter-popover glass-effect" @click.stop>
+              <div class="filter-popover-header">
+                <h4>Filtros Rápidos</h4>
+                <button v-if="hasActiveAdvancedFilters" @click="clearAdvancedFilters" class="clear-filters-btn">Limpar</button>
+              </div>
+
+              <div class="filter-options-list">
+                <label class="filter-checkbox-row">
+                  <input type="checkbox" v-model="advancedFilters.onlyUnread" />
+                  <span class="checkbox-label">Apenas Não Lidas</span>
+                </label>
+                <label class="filter-checkbox-row">
+                  <input type="checkbox" v-model="advancedFilters.onlyDrafts" />
+                  <span class="checkbox-label">Com Rascunho Salvo</span>
+                </label>
+                <label class="filter-checkbox-row">
+                  <input type="checkbox" v-model="advancedFilters.onlyBlocked" />
+                  <span class="checkbox-label">Clientes Bloqueados</span>
+                </label>
+              </div>
+
+              <div class="filter-priority-section">
+                <span class="priority-label-heading">Prioridade:</span>
+                <div class="priority-pills-row">
+                  <button 
+                    type="button"
+                    class="priority-pill-btn" 
+                    :class="{ active: advancedFilters.priority === 'all' }" 
+                    @click="advancedFilters.priority = 'all'"
+                  >Todas</button>
+                  <button 
+                    type="button"
+                    class="priority-pill-btn high" 
+                    :class="{ active: advancedFilters.priority === 'high' }" 
+                    @click="advancedFilters.priority = 'high'"
+                  >Alta</button>
+                  <button 
+                    type="button"
+                    class="priority-pill-btn medium" 
+                    :class="{ active: advancedFilters.priority === 'medium' }" 
+                    @click="advancedFilters.priority = 'medium'"
+                  >Média</button>
+                  <button 
+                    type="button"
+                    class="priority-pill-btn low" 
+                    :class="{ active: advancedFilters.priority === 'low' }" 
+                    @click="advancedFilters.priority = 'low'"
+                  >Baixa</button>
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </div>
       </div>
     </div>
 
@@ -143,6 +206,7 @@
           'blocked-ticket': ticket.customer_details?.is_blocked || ticket.contact_details?.customer_details?.is_blocked
         }"
         @click="chatStore.selectTicket(ticket)"
+        @contextmenu.prevent="handleContextMenu($event, ticket)"
       >
         <!-- Left vertical active bar indicators -->
         <span class="active-indicator"></span>
@@ -175,7 +239,19 @@
                 <LockIcon :size="10" /> Bloqueado
               </span>
             </span>
-            <span class="time">{{ formatDateOrTime(ticket.updated_at) }}</span>
+            <div class="top-row-meta">
+              <!-- SLA Waiting Badge -->
+              <span 
+                v-if="ticket.status !== 'closed' && (ticket.unread_count > 0 || !ticket.user)" 
+                class="sla-sidebar-badge"
+                :class="getSlaClass(ticket)"
+                :title="`Tempo de espera do cliente: ${formatSlaTime(ticket)}`"
+              >
+                <ClockIcon :size="10" />
+                {{ formatSlaTime(ticket) }}
+              </span>
+              <span class="time">{{ formatDateOrTime(ticket.updated_at) }}</span>
+            </div>
           </div>
           
           <div class="bottom-row">
@@ -204,6 +280,7 @@
       <MessageSquareIcon :size="32" class="empty-icon" />
       <span>{{ chatStore.fetchError || 'Nenhuma conversa encontrada' }}</span>
     </div>
+
     <!-- Logout Confirmation Modal -->
     <Transition name="modal-fade">
       <div v-if="showLogoutModal" class="modal-overlay" @click="showLogoutModal = false">
@@ -217,6 +294,77 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Teleported Context Menu (Right-Click on Ticket) -->
+    <Teleport to="body">
+      <Transition name="fade-fast">
+        <div 
+          v-if="contextMenu.show" 
+          class="ticket-context-menu glass-effect" 
+          :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+          @click.stop
+        >
+          <div class="context-menu-header">
+            <span class="ctx-id">#{{ contextMenu.ticket?.id }}</span>
+            <strong class="ctx-name">{{ contextMenu.ticket?.contact_details?.name || 'Cliente' }}</strong>
+          </div>
+
+          <div class="ctx-divider"></div>
+
+          <!-- Assumir Atendimento -->
+          <button 
+            v-if="!contextMenu.ticket?.user && contextMenu.ticket?.status !== 'closed'" 
+            @click="contextTakeOver" 
+            class="ctx-menu-item primary"
+          >
+            <UserCheckIcon :size="14" />
+            <span>Assumir Atendimento</span>
+          </button>
+
+          <!-- Abrir Conversa -->
+          <button @click="contextOpenTicket" class="ctx-menu-item">
+            <MessageSquareIcon :size="14" />
+            <span>Abrir Conversa</span>
+          </button>
+
+          <div class="ctx-divider"></div>
+
+          <!-- Definir Prioridade -->
+          <div class="ctx-submenu">
+            <span class="ctx-submenu-title">Definir Prioridade:</span>
+            <div class="ctx-priority-btns">
+              <button 
+                @click="contextSetPriority('high')" 
+                class="ctx-priority-btn high" 
+                :class="{ selected: contextMenu.ticket?.priority === 'high' }"
+              >🔴 Alta</button>
+              <button 
+                @click="contextSetPriority('medium')" 
+                class="ctx-priority-btn medium" 
+                :class="{ selected: contextMenu.ticket?.priority === 'medium' }"
+              >🟡 Média</button>
+              <button 
+                @click="contextSetPriority('low')" 
+                class="ctx-priority-btn low" 
+                :class="{ selected: contextMenu.ticket?.priority === 'low' }"
+              >⚪ Baixa</button>
+            </div>
+          </div>
+
+          <div class="ctx-divider"></div>
+
+          <!-- Copiar Dados -->
+          <button @click="contextCopyPhone" class="ctx-menu-item">
+            <CopyIcon :size="14" />
+            <span>{{ copyPhoneSuccess ? 'Telefone Copiado!' : 'Copiar Telefone' }}</span>
+          </button>
+          <button @click="contextCopyProtocol" class="ctx-menu-item">
+            <HashIcon :size="14" />
+            <span>{{ copyProtocolSuccess ? 'Protocolo Copiado!' : 'Copiar Protocolo' }}</span>
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
   </aside>
 </template>
 
@@ -236,7 +384,11 @@ import {
   Moon as MoonIcon,
   LogOut as LogOutIcon,
   Lock as LockIcon,
-  Pencil as PencilIcon
+  Pencil as PencilIcon,
+  Clock as ClockIcon,
+  Copy as CopyIcon,
+  Hash as HashIcon,
+  UserCheck as UserCheckIcon
 } from 'lucide-vue-next'
 import { useChatDrafts } from '../../composables/useChatDrafts'
 
@@ -244,6 +396,128 @@ const chatStore = useChatStore()
 const { hasDraft } = useChatDrafts()
 const localSearchQuery = ref(chatStore.searchQuery)
 const searchInputRef = ref(null)
+
+// Advanced Filters State
+const showFilterPopover = ref(false)
+const filterDropdownRef = ref(null)
+const advancedFilters = ref({
+  onlyUnread: false,
+  onlyDrafts: false,
+  onlyBlocked: false,
+  priority: 'all' // 'all', 'high', 'medium', 'low'
+})
+
+const hasActiveAdvancedFilters = computed(() => {
+  return advancedFilters.value.onlyUnread ||
+         advancedFilters.value.onlyDrafts ||
+         advancedFilters.value.onlyBlocked ||
+         advancedFilters.value.priority !== 'all'
+})
+
+const clearAdvancedFilters = () => {
+  advancedFilters.value.onlyUnread = false
+  advancedFilters.value.onlyDrafts = false
+  advancedFilters.value.onlyBlocked = false
+  advancedFilters.value.priority = 'all'
+}
+
+// Right-Click Context Menu State
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  ticket: null
+})
+const copyPhoneSuccess = ref(false)
+const copyProtocolSuccess = ref(false)
+
+const handleContextMenu = (e, ticket) => {
+  const menuWidth = 230
+  const menuHeight = 270
+  let x = e.clientX
+  let y = e.clientY
+
+  if (x + menuWidth > window.innerWidth) {
+    x = window.innerWidth - menuWidth - 12
+  }
+  if (y + menuHeight > window.innerHeight) {
+    y = window.innerHeight - menuHeight - 12
+  }
+
+  contextMenu.value = {
+    show: true,
+    x,
+    y,
+    ticket
+  }
+  copyPhoneSuccess.value = false
+  copyProtocolSuccess.value = false
+}
+
+const closeContextMenu = () => {
+  contextMenu.value.show = false
+}
+
+const contextOpenTicket = () => {
+  if (contextMenu.value.ticket) {
+    chatStore.selectTicket(contextMenu.value.ticket)
+  }
+  closeContextMenu()
+}
+
+const contextTakeOver = async () => {
+  if (contextMenu.value.ticket) {
+    await chatStore.acceptTicket(contextMenu.value.ticket.id)
+    chatStore.selectTicket(contextMenu.value.ticket)
+  }
+  closeContextMenu()
+}
+
+const contextSetPriority = async (priorityLevel) => {
+  if (contextMenu.value.ticket) {
+    contextMenu.value.ticket.priority = priorityLevel
+    await chatStore.updateTicket(contextMenu.value.ticket.id, { priority: priorityLevel })
+  }
+  closeContextMenu()
+}
+
+const contextCopyPhone = () => {
+  const phone = contextMenu.value.ticket?.contact_details?.remote_jid || contextMenu.value.ticket?.contact_details?.cellphone || ''
+  const clean = phone.replace(/[^0-9]/g, '')
+  navigator.clipboard.writeText(clean || phone)
+  copyPhoneSuccess.value = true
+  setTimeout(closeContextMenu, 800)
+}
+
+const contextCopyProtocol = () => {
+  const protocol = String(contextMenu.value.ticket?.id || '')
+  navigator.clipboard.writeText(protocol)
+  copyProtocolSuccess.value = true
+  setTimeout(closeContextMenu, 800)
+}
+
+// SLA Calculation
+const getWaitingMinutes = (ticket) => {
+  if (!ticket || ticket.status === 'closed') return 0
+  const lastDate = new Date(ticket.updated_at || ticket.created_at)
+  const diffMs = Date.now() - lastDate.getTime()
+  return Math.max(0, Math.floor(diffMs / 60000))
+}
+
+const getSlaClass = (ticket) => {
+  const mins = getWaitingMinutes(ticket)
+  if (mins >= 15) return 'sla-critical'
+  if (mins >= 5) return 'sla-warning'
+  return 'sla-ok'
+}
+
+const formatSlaTime = (ticket) => {
+  const mins = getWaitingMinutes(ticket)
+  if (mins < 60) return `${mins}m`
+  const hours = Math.floor(mins / 60)
+  const rem = mins % 60
+  return `${hours}h ${rem}m`
+}
 
 const {
   showProfileMenu,
@@ -309,10 +583,27 @@ const handleGlobalKeydown = (e) => {
       }
     }
   }
+
+  if (e.key === 'Escape') {
+    if (showFilterPopover.value) showFilterPopover.value = false
+    if (contextMenu.value.show) closeContextMenu()
+  }
+}
+
+const handleGlobalClick = (e) => {
+  if (showFilterPopover.value && filterDropdownRef.value && !filterDropdownRef.value.contains(e.target)) {
+    showFilterPopover.value = false
+  }
+  if (contextMenu.value.show) {
+    closeContextMenu()
+  }
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalKeydown)
+  window.addEventListener('click', handleGlobalClick)
+  window.addEventListener('scroll', closeContextMenu, true)
+
   // Fetch initial data if lists are empty
   if (chatStore.myTickets.length === 0) {
     chatStore.fetchMyTickets()
@@ -324,6 +615,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
+  window.removeEventListener('click', handleGlobalClick)
+  window.removeEventListener('scroll', closeContextMenu, true)
 })
 
 const myTicketsCount = computed(() => chatStore.myTickets.length)
@@ -345,31 +638,50 @@ const baseTicketsList = computed(() => {
   return chatStore.currentFilter === 'mine' ? chatStore.myTickets : chatStore.tickets
 })
 
-// 2. Active list computed based on query filter
+// 2. Active list computed based on query filter and advanced filters
 const activeTabTickets = computed(() => {
-  const query = (chatStore.searchQuery || '').toLowerCase().trim()
-  if (!query) return baseTicketsList.value
-  return baseTicketsList.value.filter(ticket => {
-    const contactName = (ticket.contact_details?.name || '').toLowerCase()
-    const remoteJid = (ticket.contact_details?.remote_jid || '').toLowerCase()
-    const lastMsg = (ticket.last_message || '').toLowerCase()
-    const subject = (ticket.subject || '').toLowerCase()
-    
-    // Customer details
-    const customerName = (ticket.customer_details?.name || '').toLowerCase()
-    const customerPhone = (ticket.customer_details?.phone || '').toLowerCase()
-    const customerEmail = (ticket.customer_details?.email || '').toLowerCase()
-    const customerDoc = (ticket.customer_details?.document || '').toLowerCase()
+  let list = baseTicketsList.value
 
-    return contactName.includes(query) || 
-           remoteJid.includes(query) || 
-           lastMsg.includes(query) || 
-           subject.includes(query) ||
-           customerName.includes(query) || 
-           customerPhone.includes(query) || 
-           customerEmail.includes(query) || 
-           customerDoc.includes(query)
-  })
+  // Search Query filter
+  const query = (chatStore.searchQuery || '').toLowerCase().trim()
+  if (query) {
+    list = list.filter(ticket => {
+      const contactName = (ticket.contact_details?.name || '').toLowerCase()
+      const remoteJid = (ticket.contact_details?.remote_jid || '').toLowerCase()
+      const lastMsg = (ticket.last_message || '').toLowerCase()
+      const subject = (ticket.subject || '').toLowerCase()
+      
+      const customerName = (ticket.customer_details?.name || '').toLowerCase()
+      const customerPhone = (ticket.customer_details?.phone || '').toLowerCase()
+      const customerEmail = (ticket.customer_details?.email || '').toLowerCase()
+      const customerDoc = (ticket.customer_details?.document || '').toLowerCase()
+
+      return contactName.includes(query) || 
+             remoteJid.includes(query) || 
+             lastMsg.includes(query) || 
+             subject.includes(query) ||
+             customerName.includes(query) || 
+             customerPhone.includes(query) || 
+             customerEmail.includes(query) || 
+             customerDoc.includes(query)
+    })
+  }
+
+  // Advanced Filters
+  if (advancedFilters.value.onlyUnread) {
+    list = list.filter(t => (t.unread_count || 0) > 0)
+  }
+  if (advancedFilters.value.onlyDrafts) {
+    list = list.filter(t => hasDraft(t.id))
+  }
+  if (advancedFilters.value.onlyBlocked) {
+    list = list.filter(t => t.customer_details?.is_blocked || t.contact_details?.customer_details?.is_blocked)
+  }
+  if (advancedFilters.value.priority !== 'all') {
+    list = list.filter(t => t.priority === advancedFilters.value.priority)
+  }
+
+  return list
 })
 </script>
 
@@ -1120,5 +1432,304 @@ const activeTabTickets = computed(() => {
   .mobile-theme-toggle {
     display: flex !important;
   }
+}
+
+/* Filter Dropdown Popover */
+.filter-dropdown-wrapper {
+  position: relative;
+}
+
+.active-filter-indicator {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.filter-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 250px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+}
+
+.filter-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-popover-header h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.clear-filters-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.clear-filters-btn:hover {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.filter-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.filter-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.filter-checkbox-row input {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.filter-priority-section {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.priority-label-heading {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.priority-pills-row {
+  display: flex;
+  gap: 4px;
+}
+
+.priority-pill-btn {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.priority-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.priority-pill-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.priority-pill-btn.high.active {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.priority-pill-btn.medium.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+
+.priority-pill-btn.low.active {
+  background: #71717a;
+  border-color: #71717a;
+}
+
+/* SLA Waiting Time Badge */
+.sla-sidebar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.sla-sidebar-badge.sla-ok {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.sla-sidebar-badge.sla-warning {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+}
+
+.sla-sidebar-badge.sla-critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  animation: pulse-sla 1.8s infinite ease-in-out;
+}
+
+/* Ticket Context Menu */
+.ticket-context-menu {
+  position: fixed;
+  width: 220px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 6px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  animation: ctx-pop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ctx-pop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.context-menu-header {
+  padding: 6px 10px 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.ctx-id {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ctx-name {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ctx-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.ctx-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.ctx-menu-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.ctx-menu-item.primary {
+  color: var(--accent);
+}
+
+.ctx-menu-item.primary:hover {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.ctx-submenu {
+  padding: 4px 8px;
+}
+
+.ctx-submenu-title {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.ctx-priority-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.ctx-priority-btn {
+  flex: 1;
+  padding: 3px 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.ctx-priority-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.ctx-priority-btn.selected {
+  border-color: var(--accent);
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent);
+}
+
+.fade-fast-enter-active,
+.fade-fast-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-fast-enter-from,
+.fade-fast-leave-to {
+  opacity: 0;
 }
 </style>

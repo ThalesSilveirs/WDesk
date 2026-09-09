@@ -31,6 +31,15 @@
           <span v-if="isCustomerBlocked" class="blocked-header-badge" title="Este cliente está bloqueado no cadastro">
             <LockIcon :size="12" /> BLOQUEADO
           </span>
+          <span 
+            v-if="activeTicket.status !== 'closed' && (activeTicket.unread_count > 0 || !activeTicket.user)"
+            class="sla-header-badge"
+            :class="getSlaClass(activeTicket)"
+            :title="`Tempo de espera do cliente: ${formatSlaTime(activeTicket)}`"
+          >
+            <ClockIcon :size="11" />
+            <span>Espera: {{ formatSlaTime(activeTicket) }}</span>
+          </span>
           <span class="status-dot-indicator" :class="activeTicket.status" :title="activeTicket.status === 'open' ? 'Em aberto' : (activeTicket.status === 'pending' ? 'Pendente' : 'Finalizado')"></span>
         </div>
         <p class="ticket-subject">{{ activeTicket.subject || 'Sem assunto definido' }}</p>
@@ -143,7 +152,8 @@ import {
   ClipboardList as ClipboardListIcon,
   Lock as LockIcon,
   Search as SearchIcon,
-  Printer as PrinterIcon
+  Printer as PrinterIcon,
+  Clock as ClockIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -166,6 +176,29 @@ const emit = defineEmits([
 
 const chatStore = useChatStore()
 const activeTicket = computed(() => chatStore.activeTicket || {})
+
+// SLA Calculation
+const getWaitingMinutes = (ticket) => {
+  if (!ticket || ticket.status === 'closed') return 0
+  const lastDate = new Date(ticket.updated_at || ticket.created_at)
+  const diffMs = Date.now() - lastDate.getTime()
+  return Math.max(0, Math.floor(diffMs / 60000))
+}
+
+const getSlaClass = (ticket) => {
+  const mins = getWaitingMinutes(ticket)
+  if (mins >= 15) return 'sla-critical'
+  if (mins >= 5) return 'sla-warning'
+  return 'sla-ok'
+}
+
+const formatSlaTime = (ticket) => {
+  const mins = getWaitingMinutes(ticket)
+  if (mins < 60) return `${mins}m`
+  const hours = Math.floor(mins / 60)
+  const rem = mins % 60
+  return `${hours}h ${rem}m`
+}
 
 const handlePrintConversation = () => {
   showMenu.value = false
@@ -649,5 +682,40 @@ onUnmounted(() => {
   padding: 2px 8px;
   border-radius: 6px;
   text-transform: uppercase;
+}
+
+.sla-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.sla-header-badge.sla-ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.sla-header-badge.sla-warning {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.sla-header-badge.sla-critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  animation: pulse-sla 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-sla {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.03); }
 }
 </style>
