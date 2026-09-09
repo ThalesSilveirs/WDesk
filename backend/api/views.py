@@ -719,12 +719,19 @@ class TicketViewSet(TenantModelViewSet):
                     evolution_data.get('key', {}).get('id') or 
                     f"pending_media_{int(time.time())}"
                 )
+                from tickets.utils import save_media_file
+                saved_url = save_media_file(
+                    media_data=base64_data,
+                    mimetype=mime_type,
+                    company_id=ticket.company_id,
+                    original_filename=file_obj.name if evo_type == 'document' else None
+                )
                 message = Message.objects.create(
                     ticket=ticket,
                     user=request.user,
                     from_me=True,
                     body=caption or f"Enviou um {evo_type}",
-                    media_url=f"data:{mime_type};base64,{base64_data}", 
+                    media_url=saved_url or f"data:{mime_type};base64,{base64_data}", 
                     media_type=evo_type,
                     message_id=real_id,
                     file_name=file_obj.name if evo_type == 'document' else None

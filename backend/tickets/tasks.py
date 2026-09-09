@@ -490,9 +490,19 @@ def process_webhook_event(self, connection_id, payload):
                 except Exception as media_err:
                     print(f"[WEBHOOK TASK MEDIA] Falha na chamada da Evolution API: {str(media_err)}")
             
-            if media_url and not str(media_url).startswith('http') and not str(media_url).startswith('data:'):
-                clean_base64 = str(media_url).replace('\n', '').replace('\r', '').strip()
-                media_url = f"data:{mimetype};base64,{clean_base64}"
+            if media_url and not str(media_url).startswith('http') and not str(media_url).startswith('/media/'):
+                from tickets.utils import save_media_file
+                saved_media_url = save_media_file(
+                    media_data=media_url,
+                    mimetype=mimetype,
+                    company_id=connection.company_id,
+                    original_filename=file_name
+                )
+                if saved_media_url:
+                    media_url = saved_media_url
+                elif not str(media_url).startswith('data:'):
+                    clean_base64 = str(media_url).replace('\n', '').replace('\r', '').strip()
+                    media_url = f"data:{mimetype};base64,{clean_base64}"
             
             if not body and not media_url:
                 continue

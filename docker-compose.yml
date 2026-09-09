@@ -84,9 +84,10 @@ services:
     restart: unless-stopped
     command: >
       sh -c "python manage.py migrate &&
-             gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 2 --worker-class gthread --threads 4 --max-requests 1000 --max-requests-jitter 100 --timeout 60"
+             gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class gthread --threads 4 --max-requests 2000 --max-requests-jitter 200 --timeout 60"
     volumes:
       - ./backend:/app
+      - media_data:/app/media
     env_file:
       - .env
     environment:
@@ -111,9 +112,37 @@ services:
   worker:
     build: ./backend
     restart: unless-stopped
-    command: celery -A core worker -l info -B --concurrency=2 --max-tasks-per-child=100 --max-memory-per-child=250000 --pidfile=/tmp/celerybeat.pid --schedule=/tmp/celerybeat-schedule
+    command: celery -A core worker -l info --concurrency=4 --max-tasks-per-child=200 --max-memory-per-child=300000
     volumes:
       - ./backend:/app
+      - media_data:/app/media
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-go:8080}
+      - EVOLUTION_API_TOKEN=${EVOLUTION_API_TOKEN:-0f00f38b042ada23b3437e74b0141dd4d40ac50daf2afd9c8c524b79958a54cd}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - app-network
+
+  celery-beat:
+    build: ./backend
+    restart: unless-stopped
+    command: celery -A core beat -l info --pidfile=/tmp/celerybeat.pid --schedule=/tmp/celerybeat-schedule
+    volumes:
+      - ./backend:/app
+      - media_data:/app/media
     env_file:
       - .env
     environment:
@@ -181,6 +210,7 @@ services:
       - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
+      - media_data:/var/www/media:ro
     logging:
       driver: "json-file"
       options:
@@ -216,3 +246,4 @@ volumes:
   postgres_data:
   redis_data:
   evolution_instances:
+  media_data:

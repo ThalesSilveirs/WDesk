@@ -1,6 +1,9 @@
 import os
 import psycopg2
 import redis
+import base64
+import mimetypes
+import uuid
 from django.conf import settings
 
 # Setup shared Redis connection pool using celery broker url
@@ -196,4 +199,96 @@ def fetch_and_parse_webcal(url):
     except Exception as e:
         print(f"[WEBCAL FETCH ERR] {url} -> {clean_url}: {e}")
         return []
+
+def save_media_file(media_data, mimetype=None, company_id=None, original_filename=None):
+    """
+    Salva uma mídia (recebida em Base64 ou bytes) diretamente no sistema de arquivos (MEDIA_ROOT)
+    em vez de armazenar o Base64 massivo no banco de dados.
+    Retorna a URL relativa do arquivo (ex: '/media/1/uuid.jpg').
+    """
+    if not media_data:
+        return None
+
+    # Se já for uma URL HTTP ou relativa, não precisa converter
+    if isinstance(media_data, str) and (media_data.startswith('http://') or media_data.startswith('https://') or media_data.startswith('/media/')):
+        return media_data
+
+    # Se for string JSON (ex: contato vcard), não é arquivo de mídia
+    if isinstance(media_data, str) and (media_data.startswith('{') or media_data.startswith('[')):
+        return media_data
+
+    try:
+        raw_bytes = None
+        detected_ext = None
+
+        if isinstance(media_data, bytes):
+            raw_bytes = media_data
+        elif isinstance(media_data, str):
+            clean_str = media_data.strip()
+            # Extrair MIME type se estiver no formato data:mimetype;base64,xxxx
+            if clean_str.startswith('data:'):
+                try:
+                    header, base64_content = clean_str.split(',', 1)
+                    if ';base64' in header:
+                        header_mime = header[5:].split(';')[0]
+                        if header_mime:
+                            mimetype = header_mime
+                    raw_bytes = base64.b64decode(base64_content)
+                except Exception:
+                    raw_bytes = base64.b64decode(clean_str)
+            else:
+                raw_bytes = base64.b64decode(clean_str)
+
+        if not raw_bytes:
+            return media_data
+
+        # Detectar extensão do arquivo
+        if mimetype:
+            mime_clean = mimetype.split(';')[0].strip().lower()
+            if mime_clean in ['audio/ogg', 'audio/ogg; codecs=opus']:
+                detected_ext = '.ogg'
+            elif mime_clean == 'audio/mp4':
+                detected_ext = '.m4a'
+            elif mime_clean == 'audio/mpeg':
+                detected_ext = '.mp3'
+            elif mime_clean == 'image/jpeg':
+                detected_ext = '.jpg'
+            elif mime_clean == 'image/png':
+                detected_ext = '.png'
+            elif mime_clean == 'image/webp':
+                detected_ext = '.webp'
+            elif mime_clean == 'video/mp4':
+                detected_ext = '.mp4'
+            elif mime_clean == 'application/pdf':
+                detected_ext = '.pdf'
+            else:
+                guessed = mimetypes.guess_extension(mime_clean)
+                if guessed:
+                    detected_ext = guessed
+
+        if not detected_ext and original_filename:
+            _, file_ext = os.path.splitext(original_filename)
+            if file_ext:
+                detected_ext = file_ext.lower()
+
+        if not detected_ext:
+            detected_ext = '.bin'
+
+        # Diretório da empresa
+        media_root = getattr(settings, 'MEDIA_ROOT', '/app/media')
+        company_folder = str(company_id or 'global')
+        target_dir = os.path.join(media_root, company_folder)
+        os.makedirs(target_dir, exist_ok=True)
+
+        unique_name = f"{uuid.uuid4().hex[:16]}{detected_ext}"
+        file_path = os.path.join(target_dir, unique_name)
+
+        with open(file_path, 'wb') as f:
+            f.write(raw_bytes)
+
+        return f"/media/{company_folder}/{unique_name}"
+    except Exception as e:
+        print(f"[SAVE MEDIA ERR] Erro ao salvar arquivo em disco: {e}")
+        # Em caso de qualquer falha, retorna o dado original para não perder a mensagem
+        return media_data
 
