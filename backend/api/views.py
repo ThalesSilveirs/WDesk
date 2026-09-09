@@ -46,8 +46,8 @@ import mimetypes
 import re
 import uuid
 
-# Conexão Redis para Pub/Sub
-redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
+# Conexão Redis compartilhada via pool
+from tickets.utils import redis_client
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer

@@ -29,10 +29,7 @@ class CompanySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'is_active', 'evolution_api_url', 'evolution_api_key', 'pendency_report_time', 'pendency_report_only_support']
 
 import threading
-import redis
-from django.conf import settings
-redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
-redis_conn = redis.Redis.from_url(redis_url)
+from tickets.utils import redis_client as redis_conn
 
 _local_cache = threading.local()
 
@@ -105,7 +102,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserLightSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'role')
+        fields = ('id', 'username', 'first_name', 'last_name', 'avatar', 'role')
 
 class ConnectionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -237,7 +234,7 @@ class MessageReactionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class MessageSerializer(serializers.ModelSerializer):
-    user_details = UserSerializer(source='user', read_only=True)
+    user_details = UserLightSerializer(source='user', read_only=True)
     contact_name = serializers.CharField(source='ticket.contact.name', read_only=True)
     reactions = MessageReactionSerializer(many=True, read_only=True)
     ticket_user_id = serializers.IntegerField(source='ticket.user_id', read_only=True, allow_null=True)
@@ -288,12 +285,6 @@ class AbsenceScheduleSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'company': {'read_only': True}
         }
-
-
-class UserLightSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'avatar']
 
 
 class ContactLightSerializer(serializers.ModelSerializer):

@@ -1,11 +1,55 @@
 from celery import shared_task
 from .models import Connection, Contact, Ticket, Message, Customer, CustomerContact
 import json
-import redis
 from django.conf import settings
 from api.serializers import MessageSerializer
+from tickets.utils import redis_client
 
-redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
+@shared_task(name='tickets.tasks.fetch_contact_avatar_task')
+def fetch_contact_avatar_task(contact_id, connection_id, remote_jid):
+    try:
+        import requests
+        from tickets.models import Contact, Connection
+        contact = Contact.objects.select_related('customer').filter(id=contact_id).first()
+        connection = Connection.objects.select_related('company').filter(id=connection_id).first()
+        if not contact or not connection:
+            return
+
+        evo_url = connection.company.evolution_api_url or getattr(settings, 'EVOLUTION_API_URL', 'http://evolution:8080')
+        from tickets.utils import get_evolution_token
+        evo_key = get_evolution_token(connection.instance_name)
+
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": evo_key,
+            "ApiKey": evo_key,
+            "api-key": evo_key,
+            "Authorization": f"Bearer {evo_key}",
+            "instance": connection.instance_name,
+            "instanceName": connection.instance_name
+        }
+
+        url_post = f"{evo_url}/user/avatar?instance={connection.instance_name}"
+        payload = {"number": remote_jid, "preview": False}
+        res = requests.post(url_post, json=payload, headers=headers, timeout=8)
+        url = None
+        if res.status_code == 200:
+            data_pic = res.json()
+            if isinstance(data_pic, dict):
+                url = data_pic.get('profilePictureUrl') or data_pic.get('url')
+                if not url:
+                    data_block = data_pic.get('data') or {}
+                    if isinstance(data_block, dict):
+                        url = data_block.get('url') or data_block.get('profilePictureUrl')
+
+        if url:
+            contact.profile_pic = url
+            contact.save(update_fields=['profile_pic'])
+            if contact.customer:
+                contact.customer.profile_pic = url
+                contact.customer.save(update_fields=['profile_pic'])
+    except Exception as e:
+        print(f"[ASYNC PIC TASK] Falha ao buscar avatar para {remote_jid}: {e}")
 
 @shared_task(
     bind=True,
@@ -512,114 +556,83 @@ def process_webhook_event(self, connection_id, payload):
                             
                             quoted_msg_body = quoted_body
             
-            # Cria/Recupera Contato
+            # Cria/Recupera Contato (Fast-path indexado)
             phone_number = remote_jid.split('@')[0]
             phone_digits = re.sub(r'\D', '', phone_number)
             
-            customer = Customer.objects.filter(
-                company=connection.company,
-                phone__icontains=phone_digits[-8:]
-            ).first()
-            
-            if not customer:
-                additional_contact = Contact.objects.filter(
-                    customer__company=connection.company,
-                    phone__icontains=phone_digits[-8:]
-                ).first()
-                if not additional_contact:
-                    additional_contact = Contact.objects.filter(
-                        customer__company=connection.company,
-                        whatsapp__icontains=phone_digits[-8:]
-                    ).first()
-                if additional_contact:
-                    customer = additional_contact.customer
-                    contact_name = additional_contact.name
-            
-            if from_me and not customer:
-                print(f"[WEBHOOK TASK] Ignorando mensagem fromMe para número não cadastrado: {phone_number}")
-                continue
-            
-            # Preserve manually linked customer and custom contact name
             from tickets.utils import get_br_jid_variant
-            existing_contact = Contact.objects.filter(remote_jid=remote_jid, company=connection.company).first()
+            existing_contact = Contact.objects.filter(remote_jid=remote_jid, company=connection.company).select_related('customer').first()
             if not existing_contact:
                 variant_jid = get_br_jid_variant(remote_jid)
                 if variant_jid:
-                    existing_contact = Contact.objects.filter(remote_jid=variant_jid, company=connection.company).first()
-            if not existing_contact and len(phone_digits) >= 8:
-                from django.db.models import Q
-                existing_contact = Contact.objects.filter(
-                    Q(whatsapp__icontains=phone_digits[-8:]) |
-                    Q(cellphone__icontains=phone_digits[-8:]) |
-                    Q(phone__icontains=phone_digits[-8:]),
-                    company=connection.company
-                ).first()
+                    existing_contact = Contact.objects.filter(remote_jid=variant_jid, company=connection.company).select_related('customer').first()
 
+            customer = None
             if existing_contact:
-                if existing_contact.remote_jid != remote_jid:
-                    if not Contact.objects.filter(remote_jid=remote_jid, company=connection.company).exists():
-                        existing_contact.remote_jid = remote_jid
-                        existing_contact.save()
-                if existing_contact.customer:
-                    customer = existing_contact.customer
+                customer = existing_contact.customer
                 if existing_contact.name:
                     contact_name = existing_contact.name
-            
-            contact, contact_created = Contact.objects.update_or_create(
-                remote_jid=remote_jid,
-                company=connection.company,
-                defaults={'name': contact_name, 'customer': customer}
-            )
-            
-            # --- BUSCA FOTO DE PERFIL ---
+                if existing_contact.remote_jid != remote_jid and not Contact.objects.filter(remote_jid=remote_jid, company=connection.company).exists():
+                    existing_contact.remote_jid = remote_jid
+                    existing_contact.save(update_fields=['remote_jid'])
+                contact = existing_contact
+                contact_created = False
+            else:
+                # Fallback por dígitos de telefone se não encontrado diretamente por remote_jid
+                if len(phone_digits) >= 8:
+                    customer = Customer.objects.filter(
+                        company=connection.company,
+                        phone__icontains=phone_digits[-8:]
+                    ).first()
+                    
+                    if not customer:
+                        additional_contact = Contact.objects.filter(
+                            customer__company=connection.company,
+                            phone__icontains=phone_digits[-8:]
+                        ).select_related('customer').first()
+                        if not additional_contact:
+                            additional_contact = Contact.objects.filter(
+                                customer__company=connection.company,
+                                whatsapp__icontains=phone_digits[-8:]
+                            ).select_related('customer').first()
+                        if additional_contact:
+                            customer = additional_contact.customer
+                            contact_name = additional_contact.name
+
+                    from django.db.models import Q
+                    existing_contact = Contact.objects.filter(
+                        Q(whatsapp__icontains=phone_digits[-8:]) |
+                        Q(cellphone__icontains=phone_digits[-8:]) |
+                        Q(phone__icontains=phone_digits[-8:]),
+                        company=connection.company
+                    ).select_related('customer').first()
+
+                    if existing_contact:
+                        if existing_contact.customer:
+                            customer = existing_contact.customer
+                        if existing_contact.name:
+                            contact_name = existing_contact.name
+
+                if existing_contact:
+                    contact = existing_contact
+                    contact_created = False
+                else:
+                    contact, contact_created = Contact.objects.update_or_create(
+                        remote_jid=remote_jid,
+                        company=connection.company,
+                        defaults={'name': contact_name, 'customer': customer}
+                    )
+
+            if from_me and not customer:
+                print(f"[WEBHOOK TASK] Ignorando mensagem fromMe para número não cadastrado: {phone_number}")
+                continue
+
+            # --- BUSCA FOTO DE PERFIL ASSÍNCRONA ---
             if contact_created or not contact.profile_pic:
-                # Usar cache Redis para evitar buscar foto de perfil da Evolution repetidamente
                 profile_pic_cache_key = f"contact_pic_fetch_{remote_jid}"
                 if not redis_client.get(profile_pic_cache_key):
                     redis_client.setex(profile_pic_cache_key, 86400, "1") # 24 horas de "já tentamos"
-                    try:
-                        evo_url = connection.company.evolution_api_url or settings.EVOLUTION_API_URL
-                        from tickets.utils import get_evolution_token
-                        evo_key = get_evolution_token(connection.instance_name)
-                        clean_number = remote_jid.split('@')[0]
-                        
-                        headers = {
-                            "Content-Type": "application/json",
-                            "apikey": evo_key,
-                            "ApiKey": evo_key,
-                            "api-key": evo_key,
-                            "Authorization": f"Bearer {evo_key}",
-                            "instance": connection.instance_name,
-                            "instanceName": connection.instance_name
-                        }
-                        
-                        url = None
-                        
-                        # Chamada única de busca: POST /user/avatar com JID completo
-                        try:
-                            url_post = f"{evo_url}/user/avatar?instance={connection.instance_name}"
-                            payload = {"number": remote_jid, "preview": False}
-                            res = requests.post(url_post, json=payload, headers=headers, timeout=8)
-                            if res.status_code == 200:
-                                data_pic = res.json()
-                                if isinstance(data_pic, dict):
-                                    url = data_pic.get('profilePictureUrl') or data_pic.get('url')
-                                    if not url:
-                                        data_block = data_pic.get('data') or {}
-                                        if isinstance(data_block, dict):
-                                            url = data_block.get('url') or data_block.get('profilePictureUrl')
-                        except Exception as e:
-                            print(f"[WEBHOOK PIC] Falha ao buscar avatar da Evolution API: {e}")
-                        
-                        if url:
-                            contact.profile_pic = url
-                            contact.save()
-                            
-                            if contact.customer:
-                                contact.customer.profile_pic = url
-                                contact.customer.save()
-                    except Exception as e:
-                        pass
+                    fetch_contact_avatar_task.delay(contact.id, connection.id, remote_jid)
             
             # Abre ou Recupera Ticket (Atomicamente para evitar duplicidade)
             with transaction.atomic():

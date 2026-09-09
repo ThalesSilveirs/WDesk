@@ -3,8 +3,10 @@ import psycopg2
 import redis
 from django.conf import settings
 
-# Setup Redis connection using celery broker url
-redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
+# Setup shared Redis connection pool using celery broker url
+_redis_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
+redis_pool = redis.ConnectionPool.from_url(_redis_url, max_connections=50)
+redis_client = redis.Redis(connection_pool=redis_pool)
 
 def get_evolution_token(instance_name, force_refresh=False):
     """
