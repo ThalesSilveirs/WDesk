@@ -133,6 +133,7 @@
           <table class="pendencies-table">
             <thead>
               <tr>
+                <th style="width: 44px; text-align: center;"></th>
                 <th>Título / Operação</th>
                 <th>Cliente</th>
                 <th>Responsável</th>
@@ -146,6 +147,9 @@
             </thead>
             <tbody>
               <tr v-for="n in 6" :key="'pend-skel-row-' + n">
+                <td style="width: 44px; text-align: center;">
+                  <div class="skeleton-shimmer" style="width: 16px; height: 16px; border-radius: 4px; margin: 0 auto;"></div>
+                </td>
                 <td>
                   <div style="display: flex; flex-direction: column; gap: 6px;">
                     <div class="skeleton-shimmer skeleton-text" style="width: 150px; height: 14px;"></div>
@@ -203,10 +207,18 @@
 
         <!-- Grade de Cards (Grid Mode) -->
         <div v-else-if="viewMode === 'grid'" class="pendencies-grid">
-          <div v-for="item in displayedPendencies" :key="item.id" class="pendency-card glass-effect animate-in" :class="item.priority">
+          <div v-for="item in displayedPendencies" :key="item.id" class="pendency-card glass-effect animate-in" :class="[item.priority, { 'selected-card': isItemSelected(item.id) }]">
             <!-- Header do Card -->
             <div class="card-header-new">
               <div class="card-top-row">
+                <label class="bulk-checkbox-label" @click.stop title="Selecionar para ações em massa">
+                  <input 
+                    type="checkbox" 
+                    class="bulk-checkbox" 
+                    :checked="isItemSelected(item.id)" 
+                    @change="toggleItemSelection(item.id)"
+                  />
+                </label>
                 <div class="card-actions-new">
                   <button v-if="item.status !== 'closed'" @click="openFinishModal(item)" class="icon-btn finish" title="Finalizar"><CheckCircleIcon :size="16" /></button>
                   <button @click="editPendency(item)" class="icon-btn" title="Editar"><EditIcon :size="16" /></button>
@@ -285,6 +297,15 @@
           <table class="pendencies-table">
             <thead>
               <tr>
+                <th style="width: 44px; text-align: center;">
+                  <input 
+                    type="checkbox" 
+                    class="bulk-checkbox" 
+                    :checked="areAllVisibleSelected" 
+                    @change="toggleSelectAllVisible"
+                    title="Selecionar todas as visíveis"
+                  />
+                </th>
                 <th>Título / Operação</th>
                 <th>Cliente</th>
                 <th>Responsável</th>
@@ -297,7 +318,15 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in displayedPendencies" :key="item.id" :class="item.priority">
+              <tr v-for="item in displayedPendencies" :key="item.id" :class="[item.priority, { 'selected-row': isItemSelected(item.id) }]">
+                <td style="width: 44px; text-align: center;">
+                  <input 
+                    type="checkbox" 
+                    class="bulk-checkbox" 
+                    :checked="isItemSelected(item.id)" 
+                    @change="toggleItemSelection(item.id)"
+                  />
+                </td>
                 <td>
                   <div class="title-cell">
                     <span class="tbl-title">{{ item.title }}</span>
@@ -358,6 +387,76 @@
           </button>
         </div>
       </div>
+
+      <!-- Barra Flutuante de Ações em Lote (P1 UI/UX) -->
+      <Transition name="fade">
+        <div v-if="selectedPendencyIds.length > 0" class="floating-bulk-bar">
+          <span class="bulk-count-badge">
+            <CheckSquareIcon :size="15" />
+            {{ selectedPendencyIds.length }} selecionada(s)
+          </span>
+
+          <!-- Finalizar Selecionadas -->
+          <button @click="bulkFinish" class="bulk-action-btn" :disabled="bulkProcessing" title="Finalizar selecionadas">
+            <CheckCircleIcon :size="14" style="color: #22b55f;" />
+            <span>Finalizar</span>
+          </button>
+
+          <!-- Mudar Prioridade -->
+          <select v-model="bulkPriorityTarget" @change="bulkChangePriority" class="bulk-select-input" :disabled="bulkProcessing">
+            <option value="" disabled selected>Prioridade...</option>
+            <option value="high">🔴 Alta</option>
+            <option value="medium">🟡 Média</option>
+            <option value="low">🟢 Baixa</option>
+          </select>
+
+          <!-- Reatribuir Responsável -->
+          <select v-model="bulkUserTarget" @change="bulkAssignUser" class="bulk-select-input" :disabled="bulkProcessing">
+            <option value="" disabled selected>Atribuir a...</option>
+            <option v-for="u in users" :key="u.id" :value="u.id">
+              {{ u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.username }}
+            </option>
+          </select>
+
+          <!-- Exportar CSV -->
+          <button @click="bulkExportCSV" class="bulk-action-btn" :disabled="bulkProcessing" title="Exportar selecionadas para CSV">
+            <FileSpreadsheetIcon :size="14" />
+            <span>Exportar CSV</span>
+          </button>
+
+          <!-- Excluir em Lote -->
+          <button @click="confirmBulkDelete" class="bulk-action-btn danger" :disabled="bulkProcessing" title="Excluir selecionadas">
+            <TrashIcon :size="14" />
+            <span>Excluir</span>
+          </button>
+
+          <!-- Limpar Seleção -->
+          <button @click="clearSelection" class="bulk-action-btn" title="Limpar Seleção (Esc)">
+            <XIcon :size="14" />
+          </button>
+        </div>
+      </Transition>
+
+      <!-- Modal de Confirmação de Exclusão em Lote (P1 UI/UX) -->
+      <Transition name="modal-fade">
+        <div v-if="showBulkDeleteModal" class="modal-overlay" @click="showBulkDeleteModal = false">
+          <div class="modal-content small-modal" @click.stop>
+            <h2 style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
+              <TrashIcon :size="22" />
+              Excluir Pendências em Lote
+            </h2>
+            <p style="color: var(--text-secondary); margin: 15px 0; line-height: 1.5; font-size: 0.9rem;">
+              Tem certeza que deseja excluir permanentemente as <strong>{{ selectedPendencyIds.length }}</strong> pendências selecionadas? Esta ação não pode ser desfeita.
+            </p>
+            <div class="modal-actions" style="margin-top: 20px;">
+              <button @click="showBulkDeleteModal = false" class="btn-secondary" :disabled="bulkProcessing">Cancelar (Esc)</button>
+              <button @click="executeBulkDelete" class="btn-danger" :disabled="bulkProcessing">
+                {{ bulkProcessing ? 'Excluindo...' : 'Confirmar e Excluir' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </main>
 
     <!-- Modal de Criação / Edição de Pendência Repaginado -->
@@ -959,7 +1058,9 @@ import {
   File as FileIcon,
   Archive as ArchiveIcon,
   Eye as EyeIcon,
-  ExternalLink as ExternalLinkIcon
+  ExternalLink as ExternalLinkIcon,
+  CheckSquare as CheckSquareIcon,
+  FileSpreadsheet as FileSpreadsheetIcon
 } from 'lucide-vue-next'
 import { useChatStore } from '../store/chat'
 
@@ -1172,6 +1273,206 @@ const visibleItemsLimit = ref(20)
 const displayedPendencies = computed(() => {
   return filteredPendencies.value.slice(0, visibleItemsLimit.value)
 })
+
+// =========================================================================
+// Ações em Massa (P1 UI/UX)
+// =========================================================================
+const selectedPendencyIds = ref([])
+const bulkProcessing = ref(false)
+const bulkPriorityTarget = ref('')
+const bulkUserTarget = ref('')
+const showBulkDeleteModal = ref(false)
+
+const isItemSelected = (id) => selectedPendencyIds.value.includes(id)
+
+const toggleItemSelection = (id) => {
+  const idx = selectedPendencyIds.value.indexOf(id)
+  if (idx !== -1) {
+    selectedPendencyIds.value.splice(idx, 1)
+  } else {
+    selectedPendencyIds.value.push(id)
+  }
+}
+
+const areAllVisibleSelected = computed(() => {
+  const visible = displayedPendencies.value
+  if (!visible || visible.length === 0) return false
+  return visible.every(p => selectedPendencyIds.value.includes(p.id))
+})
+
+const isIndeterminate = computed(() => {
+  const visible = displayedPendencies.value
+  if (!visible || visible.length === 0) return false
+  const count = visible.filter(p => selectedPendencyIds.value.includes(p.id)).length
+  return count > 0 && count < visible.length
+})
+
+const toggleSelectAllVisible = () => {
+  if (areAllVisibleSelected.value) {
+    const visibleIds = displayedPendencies.value.map(p => p.id)
+    selectedPendencyIds.value = selectedPendencyIds.value.filter(id => !visibleIds.includes(id))
+  } else {
+    const visibleIds = displayedPendencies.value.map(p => p.id)
+    const set = new Set([...selectedPendencyIds.value, ...visibleIds])
+    selectedPendencyIds.value = Array.from(set)
+  }
+}
+
+const clearSelection = () => {
+  selectedPendencyIds.value = []
+}
+
+const bulkFinish = async () => {
+  if (selectedPendencyIds.value.length === 0 || bulkProcessing.value) return
+  if (!confirm(`Deseja marcar como finalizadas as ${selectedPendencyIds.value.length} pendência(s) selecionada(s)?`)) return
+
+  bulkProcessing.value = true
+  const token = localStorage.getItem('token')
+  const headers = { Authorization: `Bearer ${token}` }
+
+  try {
+    await Promise.all(
+      selectedPendencyIds.value.map(id =>
+        axios.patch(`/api/v1/pendencies/${id}/`, { status: 'closed' }, { headers })
+      )
+    )
+    pendencies.value.forEach(p => {
+      if (selectedPendencyIds.value.includes(p.id)) {
+        p.status = 'closed'
+      }
+    })
+    alert(`${selectedPendencyIds.value.length} pendência(s) finalizada(s) com sucesso!`)
+    clearSelection()
+  } catch (err) {
+    console.error('Erro ao finalizar pendências em lote:', err)
+    alert('Ocorreu um erro ao finalizar algumas pendências.')
+  } finally {
+    bulkProcessing.value = false
+  }
+}
+
+const bulkChangePriority = async () => {
+  if (!bulkPriorityTarget.value || selectedPendencyIds.value.length === 0 || bulkProcessing.value) return
+  const priority = bulkPriorityTarget.value
+  bulkPriorityTarget.value = ''
+
+  bulkProcessing.value = true
+  const token = localStorage.getItem('token')
+  const headers = { Authorization: `Bearer ${token}` }
+
+  try {
+    await Promise.all(
+      selectedPendencyIds.value.map(id =>
+        axios.patch(`/api/v1/pendencies/${id}/`, { priority }, { headers })
+      )
+    )
+    pendencies.value.forEach(p => {
+      if (selectedPendencyIds.value.includes(p.id)) {
+        p.priority = priority
+      }
+    })
+    alert(`Prioridade alterada para "${priorityLabels[priority]}" em ${selectedPendencyIds.value.length} pendência(s)!`)
+    clearSelection()
+  } catch (err) {
+    console.error('Erro ao alterar prioridade em lote:', err)
+    alert('Erro ao alterar prioridade.')
+  } finally {
+    bulkProcessing.value = false
+  }
+}
+
+const bulkAssignUser = async () => {
+  if (!bulkUserTarget.value || selectedPendencyIds.value.length === 0 || bulkProcessing.value) return
+  const targetUserId = bulkUserTarget.value
+  bulkUserTarget.value = ''
+
+  const targetUserObj = users.value.find(u => u.id === targetUserId)
+  const userName = targetUserObj ? (targetUserObj.first_name ? `${targetUserObj.first_name} ${targetUserObj.last_name || ''}` : targetUserObj.username) : 'novo responsável'
+
+  bulkProcessing.value = true
+  const token = localStorage.getItem('token')
+  const headers = { Authorization: `Bearer ${token}` }
+
+  try {
+    await Promise.all(
+      selectedPendencyIds.value.map(id =>
+        axios.patch(`/api/v1/pendencies/${id}/`, { user: targetUserId }, { headers })
+      )
+    )
+    pendencies.value.forEach(p => {
+      if (selectedPendencyIds.value.includes(p.id)) {
+        p.user = targetUserId
+        p.user_details = targetUserObj
+      }
+    })
+    alert(`${selectedPendencyIds.value.length} pendência(s) reatribuída(s) para ${userName}!`)
+    clearSelection()
+  } catch (err) {
+    console.error('Erro ao reatribuir usuário em lote:', err)
+    alert('Erro ao reatribuir usuário.')
+  } finally {
+    bulkProcessing.value = false
+  }
+}
+
+const bulkExportCSV = () => {
+  if (selectedPendencyIds.value.length === 0) return
+  const selectedItems = pendencies.value.filter(p => selectedPendencyIds.value.includes(p.id))
+  if (selectedItems.length === 0) return
+
+  const headers = ['ID', 'Título', 'Tipo Operação', 'Cliente', 'Responsável', 'Prioridade', 'Status', 'Data Abertura', 'Data Previsão', 'Descrição']
+  const rows = selectedItems.map(p => [
+    p.id,
+    `"${(p.title || '').replace(/"/g, '""')}"`,
+    `"${operationTypes[p.operation_type] || p.operation_type || ''}"`,
+    `"${(p.customer_details?.name || '').replace(/"/g, '""')}"`,
+    `"${p.user_details?.first_name ? `${p.user_details.first_name} ${p.user_details.last_name || ''}` : (p.user_details?.username || '')}"`,
+    `"${priorityLabels[p.priority] || p.priority || ''}"`,
+    `"${statusLabels[p.status] || p.status || ''}"`,
+    `"${formatDateTime(p.opening_date)}"`,
+    `"${p.forecast_date ? formatDateTime(p.forecast_date) : ''}"`,
+    `"${(p.description || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+  ])
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', `pendencias_selecionadas_${new Date().toISOString().slice(0, 10)}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+const confirmBulkDelete = () => {
+  showBulkDeleteModal.value = true
+}
+
+const executeBulkDelete = async () => {
+  if (selectedPendencyIds.value.length === 0 || bulkProcessing.value) return
+  bulkProcessing.value = true
+  const token = localStorage.getItem('token')
+  const headers = { Authorization: `Bearer ${token}` }
+
+  try {
+    await Promise.all(
+      selectedPendencyIds.value.map(id =>
+        axios.delete(`/api/v1/pendencies/${id}/`, { headers })
+      )
+    )
+    pendencies.value = pendencies.value.filter(p => !selectedPendencyIds.value.includes(p.id))
+    showBulkDeleteModal.value = false
+    clearSelection()
+    alert('Pendências selecionadas foram excluídas com sucesso.')
+  } catch (err) {
+    console.error('Erro ao excluir pendências em lote:', err)
+    alert('Erro ao excluir algumas pendências.')
+  } finally {
+    bulkProcessing.value = false
+  }
+}
 
 watch(
   [search, filterCustomer, filterUser, filterOperation, filterStatus, filterStartDate, filterEndDate, filterForecastStartDate, filterForecastEndDate],
@@ -1934,10 +2235,21 @@ const sendDailyReports = async () => {
   }
 }
 
+const handleGlobalKeydown = (e) => {
+  if (e.key === 'Escape') {
+    if (showBulkDeleteModal.value) {
+      showBulkDeleteModal.value = false
+    } else if (selectedPendencyIds.value.length > 0) {
+      clearSelection()
+    }
+  }
+}
+
 // Ciclo de Vida
 onMounted(() => {
   fetchData()
   window.addEventListener('click', handleClickOutsideAutocomplete)
+  window.addEventListener('keydown', handleGlobalKeydown)
   if (mainContentEl.value) {
     mainContentEl.value.addEventListener('scroll', handleScroll)
   }
@@ -1945,6 +2257,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('click', handleClickOutsideAutocomplete)
+  window.removeEventListener('keydown', handleGlobalKeydown)
   if (mainContentEl.value) {
     mainContentEl.value.removeEventListener('scroll', handleScroll)
   }
@@ -1957,6 +2270,24 @@ onUnmounted(() => {
   height: 100vh;
   width: 100%;
   background: var(--bg-dark);
+}
+
+.selected-card {
+  border-color: rgba(34, 181, 95, 0.6) !important;
+  background: rgba(34, 181, 95, 0.05) !important;
+  box-shadow: 0 0 16px rgba(34, 181, 95, 0.15) !important;
+}
+
+.selected-row {
+  background: rgba(34, 181, 95, 0.09) !important;
+}
+
+.bulk-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 4px;
 }
 
 .main-content {

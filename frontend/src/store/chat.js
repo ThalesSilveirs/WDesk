@@ -27,10 +27,27 @@ export const useChatStore = defineStore('chat', {
     hasMoreMessages: false,
     loadingMore: false,
     mobileMenuOpen: false,
-    layoutMode: localStorage.getItem('layoutMode') || 'list'
+    layoutMode: localStorage.getItem('layoutMode') || 'list',
+    densityMode: localStorage.getItem('densityMode') || 'comfortable',
+    crmDrawerMode: localStorage.getItem('crmDrawerMode') || 'auto'
   }),
 
   actions: {
+    toggleDensityMode() {
+      this.densityMode = this.densityMode === 'comfortable' ? 'compact' : 'comfortable'
+      localStorage.setItem('densityMode', this.densityMode)
+      if (this.densityMode === 'compact') {
+        document.documentElement.classList.add('density-compact')
+      } else {
+        document.documentElement.classList.remove('density-compact')
+      }
+    },
+
+    toggleCrmDrawerMode() {
+      this.crmDrawerMode = this.crmDrawerMode === 'docked' ? 'floating' : 'docked'
+      localStorage.setItem('crmDrawerMode', this.crmDrawerMode)
+    },
+
     toggleLayoutMode() {
       this.layoutMode = this.layoutMode === 'list' ? 'grid' : 'list'
       localStorage.setItem('layoutMode', this.layoutMode)

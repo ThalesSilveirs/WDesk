@@ -761,6 +761,7 @@ onUnmounted(() => {
   display: flex;
   background: var(--bg-dark);
   position: relative;
+  overflow: hidden;
 }
 
 .empty-state {

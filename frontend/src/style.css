@@ -391,3 +391,134 @@ h1, h2, h3, .brand {
   letter-spacing: 0.2px;
 }
 
+/* ==========================================================================
+   MODO DE DENSIDADE COMPACTA (P1 UI/UX)
+   ========================================================================== */
+html.density-compact .ticket-item {
+  padding: 10px 14px !important;
+  gap: 10px !important;
+}
+
+html.density-compact .ticket-item .avatar {
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 0.85rem !important;
+}
+
+html.density-compact .ticket-item .top-row .name {
+  font-size: 0.86rem !important;
+}
+
+html.density-compact .ticket-item .bottom-row .last-msg {
+  font-size: 0.78rem !important;
+}
+
+html.density-compact .customers-table td,
+html.density-compact .pendencies-table td {
+  padding: 8px 12px !important;
+  font-size: 0.82rem !important;
+}
+
+html.density-compact .customers-table th,
+html.density-compact .pendencies-table th {
+  padding: 8px 12px !important;
+  font-size: 0.75rem !important;
+}
+
+html.density-compact .pendency-card {
+  padding: 12px 14px !important;
+  min-height: auto !important;
+}
+
+html.density-compact .customer-card {
+  padding: 14px 16px !important;
+}
+
+/* ==========================================================================
+   BARRA FLUTUANTE DE AÇÕES EM MASSA (P1 UI/UX)
+   ========================================================================== */
+.floating-bulk-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-sidebar);
+  border: 1px solid rgba(34, 181, 95, 0.35);
+  border-radius: 16px;
+  padding: 8px 16px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 181, 95, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 999;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  max-width: 95vw;
+  flex-wrap: wrap;
+}
+
+.bulk-count-badge {
+  background: rgba(34, 181, 95, 0.15);
+  color: #22b55f;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 5px 12px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(34, 181, 95, 0.25);
+  white-space: nowrap;
+}
+
+.bulk-action-btn {
+  background: var(--surface-tinted);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.bulk-action-btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.bulk-action-btn.danger {
+  color: #ef4444;
+}
+
+.bulk-action-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+.bulk-select-input {
+  background: var(--surface-tinted);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.bulk-checkbox {
+  width: 17px;
+  height: 17px;
+  accent-color: #22b55f;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+

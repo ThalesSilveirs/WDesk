@@ -126,6 +126,17 @@
         </Transition>
       </div>
 
+      <!-- Density Mode Toggle Button (P1 UI/UX) -->
+      <button 
+        @click="chatStore.toggleDensityMode()" 
+        class="header-icon-btn" 
+        :title="chatStore.densityMode === 'compact' ? 'Modo de exibição: Compacto (Clique para Confortável)' : 'Modo de exibição: Confortável (Clique para Compacto)'"
+        :class="{ active: chatStore.densityMode === 'compact' }"
+      >
+        <Minimize2Icon v-if="chatStore.densityMode === 'compact'" :size="18" />
+        <Maximize2Icon v-else :size="18" />
+      </button>
+
       <!-- Notification Bell with Dropdown -->
       <div class="notification-container">
         <button @click="toggleNotificationDropdown" class="header-icon-btn" title="Notificações">
@@ -182,7 +193,9 @@ import {
   Users as UsersIcon,
   CheckSquare as CheckSquareIcon,
   X as XIcon,
-  Menu as MenuIcon
+  Menu as MenuIcon,
+  Minimize2 as Minimize2Icon,
+  Maximize2 as Maximize2Icon
 } from 'lucide-vue-next'
 
 const route = useRoute()

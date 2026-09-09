@@ -1,11 +1,27 @@
 <template>
-  <aside v-if="showCRM" class="crm-sidebar glass-effect animate-slide-in">
-    <!-- Top Purple-Pink Gradient Banner -->
-    <div class="banner-gradient">
-      <button @click="emit('update:showCRM', false)" class="close-btn" title="Fechar Painel">
-        <XIcon :size="16" />
-      </button>
-    </div>
+  <div>
+    <!-- Backdrop para o modo Gaveta Flutuante (P1 UI/UX) -->
+    <Transition name="fade">
+      <div v-if="isFloating && showCRM" class="crm-drawer-backdrop" @click="emit('update:showCRM', false)"></div>
+    </Transition>
+
+    <aside v-if="showCRM" class="crm-sidebar glass-effect" :class="{ 'floating-drawer': isFloating, 'animate-slide-in': !isFloating }">
+      <!-- Top Gradient Banner with Dock/Float and Close Controls -->
+      <div class="banner-gradient">
+        <div class="banner-controls">
+          <button 
+            @click="toggleDrawerMode" 
+            class="banner-btn" 
+            :title="isFloating ? 'Fixar painel ao lado do chat' : 'Sobrepor como gaveta flutuante'"
+          >
+            <PanelRightCloseIcon v-if="isFloating" :size="15" />
+            <PanelRightOpenIcon v-else :size="15" />
+          </button>
+          <button @click="emit('update:showCRM', false)" class="banner-btn" title="Fechar Painel (Esc)">
+            <XIcon :size="15" />
+          </button>
+        </div>
+      </div>
 
     <!-- Contact Profile Section (Avatar overlaps banner) -->
     <div class="profile-section">
@@ -372,10 +388,11 @@
       </div>
     </div>
   </aside>
+</div>
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useChatStore } from '../../store/chat'
@@ -390,7 +407,9 @@ import {
   Languages as LanguagesIcon,
   ClipboardList as ClipboardListIcon,
   Clock as ClockIcon,
-  Lock as LockIcon
+  Lock as LockIcon,
+  PanelRightClose as PanelRightCloseIcon,
+  PanelRightOpen as PanelRightOpenIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -406,6 +425,36 @@ const emit = defineEmits(['update:showCRM', 'openHistory', 'openCreatePendency']
 const router = useRouter()
 const chatStore = useChatStore()
 const loadingCRM = ref(false)
+
+// Controle de Modo Gaveta Flutuante vs Fixado (P1 UI/UX)
+const windowWidth = ref(window.innerWidth)
+const onResize = () => {
+  windowWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  window.addEventListener('resize', onResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
+})
+
+const isFloating = computed(() => {
+  if (chatStore.crmDrawerMode === 'floating') return true
+  if (chatStore.crmDrawerMode === 'docked') return false
+  return windowWidth.value <= 1366
+})
+
+const toggleDrawerMode = () => {
+  if (isFloating.value) {
+    chatStore.crmDrawerMode = 'docked'
+    localStorage.setItem('crmDrawerMode', 'docked')
+  } else {
+    chatStore.crmDrawerMode = 'floating'
+    localStorage.setItem('crmDrawerMode', 'floating')
+  }
+}
 
 // Estados de Pendências do Cliente
 const openPendencies = ref([])
@@ -801,6 +850,41 @@ const askCopilot = async () => {
   flex-direction: column;
   background: var(--bg-sidebar);
   height: 100%;
+  position: relative;
+  z-index: 20;
+}
+
+.crm-sidebar.floating-drawer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  width: 360px;
+  max-width: 90vw;
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.55);
+  animation: slideDrawer 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDrawer {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.crm-drawer-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 40;
 }
 
 /* Banner gradient navy brand */
@@ -812,11 +896,18 @@ const askCopilot = async () => {
   flex-shrink: 0;
 }
 
-.banner-gradient .close-btn {
+.banner-controls {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+}
+
+.banner-btn {
+  background: rgba(0, 0, 0, 0.25);
   border: none;
   width: 28px;
   height: 28px;
@@ -826,12 +917,12 @@ const askCopilot = async () => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s ease;
-  z-index: 10;
+  transition: all 0.2s ease;
 }
 
-.banner-gradient .close-btn:hover {
-  background: rgba(0, 0, 0, 0.4);
+.banner-btn:hover {
+  background: rgba(0, 0, 0, 0.45);
+  transform: scale(1.06);
 }
 
 /* Profile overlaps banner */

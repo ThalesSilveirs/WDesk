@@ -34,6 +34,9 @@ const route = useRoute()
 
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', chatStore.theme)
+  if (chatStore.densityMode === 'compact') {
+    document.documentElement.classList.add('density-compact')
+  }
   chatStore.fetchCurrentUser()
 })
 </script>
