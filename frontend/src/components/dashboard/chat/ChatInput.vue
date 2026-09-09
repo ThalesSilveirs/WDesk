@@ -637,7 +637,8 @@ const applyFormatting = (prefix, suffix = prefix) => {
 
 defineExpose({
   newMessage,
-  messageInput
+  messageInput,
+  openMediaPreview
 })
 </script>
 

@@ -76,6 +76,16 @@
         <SparklesIcon :size="16" />
       </button>
 
+      <!-- In-Chat Search Button -->
+      <button 
+        class="chat-action-icon-btn" 
+        :class="{ active: isSearchActive }" 
+        @click="emit('toggleSearch')" 
+        title="Buscar na conversa (Ctrl+F)"
+      >
+        <SearchIcon :size="16" />
+      </button>
+
       <!-- More vertical menu popover container -->
       <div class="dropdown-wrapper" ref="dropdownRef">
         <button @click.stop="toggleMenu" class="more-btn" title="Opções">
@@ -92,6 +102,10 @@
             <button @click="triggerAction('openCreatePendencyModal')" class="menu-item">
               <ClipboardListIcon :size="15" />
               <span>Criar Pendência</span>
+            </button>
+            <button @click="handlePrintConversation" class="menu-item">
+              <PrinterIcon :size="15" />
+              <span>Imprimir / Exportar Histórico</span>
             </button>
             <div class="divider" v-if="activeTicket.status !== 'closed'"></div>
             <button v-if="activeTicket.status !== 'closed'" @click="triggerAction('openPriorityModal')" class="menu-item">
@@ -127,11 +141,14 @@ import {
   Trash2 as TrashIcon,
   X as XIcon,
   ClipboardList as ClipboardListIcon,
-  Lock as LockIcon
+  Lock as LockIcon,
+  Search as SearchIcon,
+  Printer as PrinterIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
-  showCRM: Boolean
+  showCRM: Boolean,
+  isSearchActive: Boolean
 })
 
 const emit = defineEmits([
@@ -142,11 +159,18 @@ const emit = defineEmits([
   'openDeleteModal',
   'openImage',
   'setCRMTab',
-  'openCreatePendencyModal'
+  'openCreatePendencyModal',
+  'toggleSearch',
+  'printConversation'
 ])
 
 const chatStore = useChatStore()
 const activeTicket = computed(() => chatStore.activeTicket || {})
+
+const handlePrintConversation = () => {
+  showMenu.value = false
+  emit('printConversation')
+}
 const isCustomerBlocked = computed(() => {
   return !!(
     activeTicket.value?.customer_details?.is_blocked ||
@@ -439,6 +463,7 @@ onUnmounted(() => {
 }
 
 .copilot-btn,
+.chat-action-icon-btn,
 .more-btn {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
@@ -453,10 +478,17 @@ onUnmounted(() => {
   transition: all 0.2s ease;
 }
 
+.chat-action-icon-btn:hover,
 .more-btn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
   transform: translateY(-1px);
+}
+
+.chat-action-icon-btn.active {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .transfer-btn,
