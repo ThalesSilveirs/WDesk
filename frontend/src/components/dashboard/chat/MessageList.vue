@@ -44,8 +44,8 @@
       <!-- Message loop with Daily Date Dividers -->
       <template v-for="(msg, index) in messages" :key="msg.id">
         <!-- Separador de Data Inteligente (Dia Novo) -->
-        <div v-if="isNewDay(index)" class="date-divider-center">
-          <span class="date-divider-badge">{{ formatDateHeader(msg.created_at) }}</span>
+        <div v-if="isNewDay(index) && formatDateHeader(msg.timestamp || msg.created_at)" class="date-divider-center">
+          <span class="date-divider-badge">{{ formatDateHeader(msg.timestamp || msg.created_at) }}</span>
         </div>
 
         <!-- Mensagem de Evento do Sistema (Centralizada) -->
@@ -141,16 +141,19 @@ const isNewDay = (index) => {
   if (index === 0) return true
   const prev = props.messages[index - 1]
   const curr = props.messages[index]
-  if (!prev?.created_at || !curr?.created_at) return false
+  const prevTime = prev?.timestamp || prev?.created_at
+  const currTime = curr?.timestamp || curr?.created_at
+  if (!prevTime || !currTime) return false
 
-  const prevDate = new Date(prev.created_at).toDateString()
-  const currDate = new Date(curr.created_at).toDateString()
+  const prevDate = new Date(prevTime).toDateString()
+  const currDate = new Date(currTime).toDateString()
   return prevDate !== currDate
 }
 
 const formatDateHeader = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return ''
   const today = new Date()
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
