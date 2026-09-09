@@ -58,7 +58,7 @@
           v-else
           :msg="msg"
           :resolved-url="resolvedUrls[msg.id]"
-          :highlighted="highlightedMessageId === msg.quoted_message_id || highlightedMessageId === msg.message_id || highlightedMessageId === msg.id"
+          :highlighted="Boolean(highlightedMessageId) && (String(msg.id) === String(highlightedMessageId) || String(msg.message_id) === String(highlightedMessageId))"
           :active-reaction-picker-id="activeReactionPickerId"
           :ticket-status="ticketStatus"
           @openImage="emit('openImage', $event)"
@@ -252,23 +252,6 @@ defineExpose({
   flex-direction: column;
   gap: 8px;
   z-index: 1;
-}
-
-.messages-wrapper::before {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background-image: url('/favicon.png');
-  background-repeat: repeat;
-  background-size: 80px;
-  opacity: var(--pattern-opacity);
-  filter: var(--pattern-filter);
-  transform: rotate(-15deg);
-  pointer-events: none;
-  z-index: 0;
 }
 
 /* Smart Daily Date Dividers */

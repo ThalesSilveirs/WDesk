@@ -533,14 +533,24 @@ const getGroupedReactions = (reactions) => {
 
 .msg-time {
   font-size: 0.7rem;
-  color: var(--text-secondary);
+  color: var(--msg-meta-received, var(--text-secondary));
   display: block;
   text-align: right;
   margin-top: 4px;
 }
 
+.message.me .msg-time {
+  color: var(--msg-meta-sent, var(--text-secondary));
+}
+
 .msg-attendant {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--msg-meta-received, var(--text-secondary));
+  font-weight: 500;
+}
+
+.message.me .msg-attendant {
+  color: var(--msg-meta-sent, var(--text-secondary));
+  font-weight: 600;
 }
 
 .message-reactions {
@@ -617,35 +627,35 @@ const getGroupedReactions = (reactions) => {
 }
 
 .message.me .msg-edited-badge {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--msg-meta-sent, var(--text-secondary));
 }
 
 .quoted-message-bubble-container {
-  background: rgba(148, 163, 184, 0.08);
+  background: rgba(0, 0, 0, 0.05);
   border-left: 4px solid var(--accent);
-  padding: 8px 10px;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
   cursor: pointer;
   max-width: 100%;
   display: block;
   text-align: left;
-  border-top-right-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
   transition: background-color 0.2s ease;
 }
 
 .quoted-message-bubble-container:hover {
-  background: rgba(148, 163, 184, 0.15);
+  background: rgba(0, 0, 0, 0.09);
 }
 
 .message.me .quoted-message-bubble-container {
-  background: rgba(255, 255, 255, 0.15);
-  border-left-color: #ffffff;
+  background: rgba(0, 0, 0, 0.05);
+  border-left-color: var(--accent);
 }
 
 .message.me .quoted-message-bubble-container:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.09);
 }
 
 .quoted-message-sender {
@@ -653,11 +663,11 @@ const getGroupedReactions = (reactions) => {
   font-weight: 700;
   color: var(--accent);
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .message.me .quoted-message-sender {
-  color: #a7f3d0;
+  color: var(--accent);
 }
 
 .quoted-message-text {
@@ -671,11 +681,11 @@ const getGroupedReactions = (reactions) => {
 }
 
 .message.me .quoted-message-text {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-secondary);
 }
 
 .message.highlight-msg .message-bubble {
-  box-shadow: 0 0 18px var(--accent);
+  box-shadow: 0 0 16px var(--accent);
   border-color: var(--accent);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }

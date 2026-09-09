@@ -172,20 +172,17 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  min-width: 270px;
+  padding: 4px 2px;
+  border-radius: 12px;
+  background: transparent;
+  min-width: 260px;
   max-width: 350px;
   width: 100%;
-  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-/* Specific theme for outbound message bubble style */
+/* Outbound audio player adjustments */
 .custom-audio-player.from-me {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: transparent;
 }
 
 .play-btn {
@@ -227,9 +224,13 @@ onUnmounted(() => {
   width: 100%;
   height: 5px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.12);
   display: flex;
   align-items: center;
+}
+
+.custom-audio-player.from-me .progress-container {
+  background: rgba(0, 0, 0, 0.14);
 }
 
 .seek-bar {
@@ -254,10 +255,6 @@ onUnmounted(() => {
   top: 0;
 }
 
-.custom-audio-player.from-me .progress-bar-fill {
-  background: #ffffff;
-}
-
 .player-meta {
   display: flex;
   justify-content: space-between;
@@ -267,13 +264,13 @@ onUnmounted(() => {
 
 .time-display {
   font-size: 0.72rem;
-  color: var(--text-secondary);
+  color: var(--msg-meta-received, var(--text-secondary));
   font-family: monospace;
   white-space: nowrap;
 }
 
 .custom-audio-player.from-me .time-display {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--msg-meta-sent, var(--text-secondary));
 }
 
 .meta-right {
@@ -285,7 +282,7 @@ onUnmounted(() => {
 .skip-btn {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--msg-meta-received, var(--text-secondary));
   font-size: 0.65rem;
   display: flex;
   align-items: center;
@@ -293,23 +290,21 @@ onUnmounted(() => {
   cursor: pointer;
   padding: 1px 4px;
   border-radius: 4px;
-  opacity: 0.75;
+  opacity: 0.8;
   transition: all 0.15s ease;
 }
 
 .skip-btn:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .custom-audio-player.from-me .skip-btn {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--msg-meta-sent, var(--text-secondary));
 }
 
 .custom-audio-player.from-me .skip-btn:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .voice-badge {
@@ -317,19 +312,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 3px;
   font-size: 0.68rem;
-  color: var(--text-secondary);
-  opacity: 0.8;
+  color: var(--msg-meta-received, var(--text-secondary));
+  opacity: 0.85;
 }
 
 .custom-audio-player.from-me .voice-badge {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--msg-meta-sent, var(--text-secondary));
 }
 
 /* Speed Pill Button */
 .speed-btn {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.06);
   border: 1px solid var(--border);
-  color: var(--text-secondary);
+  color: var(--msg-meta-received, var(--text-secondary));
   font-size: 0.75rem;
   font-weight: 700;
   padding: 4px 8px;
@@ -342,27 +337,26 @@ onUnmounted(() => {
 }
 
 .speed-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.1);
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .speed-btn.speed-active {
-  background: rgba(16, 185, 129, 0.18);
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
-}
-
-.custom-audio-player.from-me .speed-btn {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.25);
   color: #ffffff;
 }
 
+.custom-audio-player.from-me .speed-btn {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: var(--border);
+  color: var(--msg-meta-sent, var(--text-secondary));
+}
+
 .custom-audio-player.from-me .speed-btn.speed-active {
-  background: #ffffff;
-  color: #10b981;
-  border-color: #ffffff;
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
 }
 
 .hidden-audio {
