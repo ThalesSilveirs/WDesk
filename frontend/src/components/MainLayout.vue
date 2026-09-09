@@ -17,6 +17,7 @@
     
     <BroadcastModal />
     <InstanceWarningModal />
+    <GlobalCommandPalette />
   </div>
 </template>
 
@@ -28,6 +29,7 @@ import Sidebar from './Sidebar.vue'
 import GlobalHeader from './GlobalHeader.vue'
 import BroadcastModal from './dashboard/BroadcastModal.vue'
 import InstanceWarningModal from './InstanceWarningModal.vue'
+import GlobalCommandPalette from './GlobalCommandPalette.vue'
 
 const chatStore = useChatStore()
 const route = useRoute()

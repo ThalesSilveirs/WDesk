@@ -278,6 +278,8 @@ const getGroupedReactions = (reactions) => {
   width: 100%;
   position: relative;
   z-index: 1;
+  content-visibility: auto;
+  contain-intrinsic-size: 58px;
 }
 
 .message.me {

@@ -75,10 +75,10 @@
           ref="searchInputRef"
           type="text" 
           v-model="localSearchQuery" 
-          placeholder="Buscar conversas... (Alt+↓/↑ navegar)" 
+          placeholder="Filtrar conversas... (Alt+↓/↑ navegar)" 
           class="search-input"
         />
-        <span class="shortcut-badge">{{ isMac ? '⌘K' : 'Ctrl K' }}</span>
+        <span class="shortcut-badge">/</span>
       </div>
     </div>
 
@@ -277,9 +277,9 @@ watch(() => chatStore.searchQuery, (newVal) => {
   }
 })
 
-// Handle Global Keyboard Shortcuts (Ctrl+K para busca, Alt+↓ / Alt+↑ para navegação entre conversas)
+// Handle Keyboard Shortcuts (/ para busca local, Alt+↓ / Alt+↑ para navegação entre conversas)
 const handleGlobalKeydown = (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
     e.preventDefault()
     if (searchInputRef.value) {
       searchInputRef.value.focus()

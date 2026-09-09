@@ -314,6 +314,13 @@
 
           <div class="shortcuts-list" style="display: flex; flex-direction: column; gap: 10px;">
             <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
+              <span style="font-size: 0.9rem; font-weight: 600; color: var(--accent);">Barra de Comandos Global (Spotlight)</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <kbd class="kbd-badge">Ctrl</kbd> + <kbd class="kbd-badge">K</kbd>
+              </div>
+            </div>
+
+            <div class="shortcut-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-tinted); border: 1px solid var(--border); border-radius: 8px;">
               <span style="font-size: 0.9rem;">Alternar conversas na lista</span>
               <div style="display: flex; gap: 4px; align-items: center;">
                 <kbd class="kbd-badge">Alt</kbd> + <kbd class="kbd-badge">↓</kbd> / <kbd class="kbd-badge">↑</kbd>

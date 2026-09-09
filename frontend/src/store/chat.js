@@ -29,10 +29,23 @@ export const useChatStore = defineStore('chat', {
     mobileMenuOpen: false,
     layoutMode: localStorage.getItem('layoutMode') || 'list',
     densityMode: localStorage.getItem('densityMode') || 'comfortable',
-    crmDrawerMode: localStorage.getItem('crmDrawerMode') || 'auto'
+    crmDrawerMode: localStorage.getItem('crmDrawerMode') || 'auto',
+    isCommandPaletteOpen: false
   }),
 
   actions: {
+    openCommandPalette() {
+      this.isCommandPaletteOpen = true
+    },
+
+    closeCommandPalette() {
+      this.isCommandPaletteOpen = false
+    },
+
+    toggleCommandPalette() {
+      this.isCommandPaletteOpen = !this.isCommandPaletteOpen
+    },
+
     toggleDensityMode() {
       this.densityMode = this.densityMode === 'comfortable' ? 'compact' : 'comfortable'
       localStorage.setItem('densityMode', this.densityMode)

@@ -521,4 +521,24 @@ html.density-compact .customer-card {
   border-radius: 4px;
 }
 
+/* ==========================================================================
+   DOM VIRTUALIZATION & RENDERING OPTIMIZATION (P2 UI/UX)
+   ========================================================================== */
+.message {
+  content-visibility: auto;
+  contain-intrinsic-size: 58px;
+}
+
+.ticket-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 72px;
+}
+
+.customer-row,
+.pendency-table-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 52px;
+}
+
+
 
