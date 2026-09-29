@@ -357,7 +357,9 @@ export const useChatStore = defineStore('chat', {
     },
 
     initSocket() {
-      if (this.socket && this.socket.connected) return
+      // Reutiliza também uma conexão ainda em handshake; evita sockets duplicados
+      // quando a tela de Conversas e o layout montam quase ao mesmo tempo.
+      if (this.socket) return
 
       const token = localStorage.getItem('token')
       if (!token) return
