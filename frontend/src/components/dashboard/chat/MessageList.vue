@@ -257,6 +257,11 @@ defineExpose({
   z-index: 1;
 }
 
+.messages-container > * {
+  content-visibility: auto;
+  contain-intrinsic-size: 72px;
+}
+
 .messages-wrapper::before {
   content: "";
   position: absolute;

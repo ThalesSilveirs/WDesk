@@ -87,6 +87,27 @@ h1, h2, h3, .brand {
   border: 1px solid var(--border);
 }
 
+/* Evita renderização e animação excessivas em listas longas e dispositivos modestos. */
+.customer-card,
+.pendency-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 220px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 .btn-primary {
   background-color: var(--accent);
   color: white;
@@ -688,6 +709,5 @@ html.density-compact .send-circle-btn {
   content-visibility: auto;
   contain-intrinsic-size: 52px;
 }
-
 
 

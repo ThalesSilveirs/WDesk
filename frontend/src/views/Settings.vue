@@ -755,23 +755,32 @@ const currentMetrics = ref({
 const cpuHistory = ref(Array(20).fill(0))
 const ramHistory = ref(Array(20).fill(0))
 let metricsInterval = null
+let metricsRequest = null
 
 const fetchMetrics = async () => {
-  const data = await chatStore.fetchSystemMetrics()
-  if (data) {
-    currentMetrics.value = data
-    cpuHistory.value.push(data.cpu_percent)
-    if (cpuHistory.value.length > 20) cpuHistory.value.shift()
+  if (activeSettingsTab.value !== 'general' || metricsRequest || document.hidden) return
+  metricsRequest = (async () => {
+    try {
+      const data = await chatStore.fetchSystemMetrics()
+      if (data) {
+        currentMetrics.value = data
+        cpuHistory.value.push(data.cpu_percent)
+        if (cpuHistory.value.length > 20) cpuHistory.value.shift()
 
-    ramHistory.value.push(data.memory_percent)
-    if (ramHistory.value.length > 20) ramHistory.value.shift()
-  }
+        ramHistory.value.push(data.memory_percent)
+        if (ramHistory.value.length > 20) ramHistory.value.shift()
+      }
+    } finally {
+      metricsRequest = null
+    }
+  })()
+  return metricsRequest
 }
 
 const startMetricsPolling = () => {
   if (metricsInterval) clearInterval(metricsInterval)
   fetchMetrics()
-  metricsInterval = setInterval(fetchMetrics, 3000)
+  metricsInterval = setInterval(fetchMetrics, 15000)
 }
 
 const stopMetricsPolling = () => {
@@ -791,7 +800,10 @@ watch(activeSettingsTab, (newTab) => {
 
 onUnmounted(() => {
   stopMetricsPolling()
+  document.removeEventListener('visibilitychange', fetchMetrics)
 })
+
+document.addEventListener('visibilitychange', fetchMetrics)
 
 const getCpuColorClass = (val) => {
   if (val > 85) return 'danger-text'
