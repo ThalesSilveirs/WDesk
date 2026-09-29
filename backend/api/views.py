@@ -40,6 +40,7 @@ from django.utils.decorators import method_decorator
 import json
 import redis
 from django.core.cache import cache
+from django.core.paginator import Paginator
 from django.conf import settings
 import requests
 import time
@@ -75,6 +76,54 @@ class CustomerViewSet(TenantModelViewSet):
 
     def get_queryset(self):
         return super().get_queryset().select_related('city_relationship').prefetch_related('contacts')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        search = request.query_params.get('search', '').strip()
+        status_filter = request.query_params.get('status')
+        customer_type = request.query_params.get('type')
+        state = request.query_params.get('state')
+
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(fantasy_name__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(email__icontains=search) |
+                Q(cnpj__icontains=search) |
+                Q(cpf__icontains=search)
+            )
+        if status_filter == 'active':
+            queryset = queryset.filter(is_blocked=False)
+        elif status_filter == 'blocked':
+            queryset = queryset.filter(is_blocked=True)
+        if customer_type == 'pj':
+            queryset = queryset.exclude(cnpj__isnull=True).exclude(cnpj='')
+        elif customer_type == 'pf':
+            queryset = queryset.exclude(cpf__isnull=True).exclude(cpf='')
+        if state and state != 'all':
+            queryset = queryset.filter(state__iexact=state)
+
+        if not request.query_params.get('page'):
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+
+        try:
+            page_size = min(max(int(request.query_params.get('page_size', 30)), 1), 100)
+            page_number = max(int(request.query_params.get('page')), 1)
+        except (TypeError, ValueError):
+            page_size, page_number = 30, 1
+
+        page_obj = Paginator(queryset, page_size).get_page(page_number)
+        serializer = self.get_serializer(page_obj.object_list, many=True)
+        return Response({
+            'count': page_obj.paginator.count,
+            'page': page_obj.number,
+            'page_size': page_size,
+            'results': serializer.data,
+            'has_next': page_obj.has_next(),
+        })
 
     @action(detail=True, methods=['post'])
     def open_ticket(self, request, pk=None):
@@ -2339,6 +2388,28 @@ class PendencyViewSet(TenantModelViewSet):
             Prefetch('movements', queryset=PendencyMovement.objects.select_related('user'))
         )
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = request.query_params.get('page')
+        if not page:
+            return super().list(request, *args, **kwargs)
+
+        try:
+            page_size = min(max(int(request.query_params.get('page_size', 30)), 1), 100)
+            page_number = max(int(page), 1)
+        except (TypeError, ValueError):
+            page_size, page_number = 30, 1
+
+        page_obj = Paginator(queryset, page_size).get_page(page_number)
+        serializer = self.get_serializer(page_obj.object_list, many=True)
+        return Response({
+            'count': page_obj.paginator.count,
+            'page': page_obj.number,
+            'page_size': page_size,
+            'results': serializer.data,
+            'has_next': page_obj.has_next(),
+        })
+
     @action(detail=True, methods=['post'], url_path='delete-image')
     def delete_image(self, request, pk=None):
         pendency = self.get_object()
@@ -2560,8 +2631,6 @@ class TicketReminderViewSet(TenantModelViewSet):
         elif status_filter == 'sent':
             qs = qs.filter(is_sent=True)
         return qs
-
-
 
 
 

@@ -1202,10 +1202,11 @@ const toggleBlockCustomer = async (customer) => {
   }
 }
 
-const availableStates = computed(() => {
-  const states = customers.value.map(c => c.state).filter(Boolean).map(s => s.trim().toUpperCase())
-  return [...new Set(states)].sort()
-})
+const availableStates = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS',
+  'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC',
+  'SP', 'SE', 'TO'
+]
 
 const activeFiltersCount = computed(() => {
   let count = 0
@@ -1356,6 +1357,9 @@ const formatDate = (dateStr) => {
 
 const loadingList = ref(true)
 const displayLimit = ref(30)
+const loadingMoreCustomers = ref(false)
+const customerPage = ref(0)
+const hasMoreCustomers = ref(true)
 
 const filteredCustomers = computed(() => {
   return customers.value.filter(c => {
@@ -1404,12 +1408,17 @@ const handleScroll = (e) => {
   if (scrollHeight - (scrollTop + clientHeight) < 350) {
     if (displayLimit.value < filteredCustomers.value.length) {
       displayLimit.value += 30
+    } else if (hasMoreCustomers.value) {
+      fetchCustomers(true)
     }
   }
 }
 
+let customerFilterTimeout = null
 watch([search, filterStatus, filterType, filterState], () => {
   displayLimit.value = 30
+  clearTimeout(customerFilterTimeout)
+  customerFilterTimeout = setTimeout(() => fetchCustomers(), 250)
 })
 
 const clearFiltersAndSearch = () => {
@@ -1419,16 +1428,39 @@ const clearFiltersAndSearch = () => {
   filterState.value = 'all'
 }
 
-const fetchCustomers = async () => {
-  loadingList.value = true
+const fetchCustomers = async (loadMore = false) => {
+  if (loadMore && (loadingMoreCustomers.value || !hasMoreCustomers.value)) return
+  if (loadMore) loadingMoreCustomers.value = true
+  else {
+    loadingList.value = true
+    customerPage.value = 0
+    hasMoreCustomers.value = true
+  }
+
+  const params = {
+    page: customerPage.value + 1,
+    page_size: 30,
+    search: search.value.trim() || undefined,
+    status: filterStatus.value,
+    type: filterType.value,
+    state: filterState.value
+  }
+
   try {
-    const response = await axios.get(`/api/v1/customers/`)
-    customers.value = response.data
-    displayLimit.value = 30
+    const response = await axios.get('/api/v1/customers/', { params })
+    const payload = response.data
+    const results = payload.results || payload
+    customers.value = loadMore
+      ? [...customers.value, ...results.filter(item => !customers.value.some(existing => existing.id === item.id))]
+      : results
+    customerPage.value = payload.page || customerPage.value + 1
+    hasMoreCustomers.value = payload.has_next ?? false
+    displayLimit.value = Math.max(30, customers.value.length)
   } catch (e) {
     console.error("Erro ao buscar clientes", e)
   } finally {
     loadingList.value = false
+    loadingMoreCustomers.value = false
   }
 }
 
@@ -1672,6 +1704,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  clearTimeout(customerFilterTimeout)
   document.removeEventListener('click', handleDocumentClick)
   if (contentWrapperRef.value) {
     contentWrapperRef.value.removeEventListener('scroll', handleScroll)

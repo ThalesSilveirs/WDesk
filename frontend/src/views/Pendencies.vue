@@ -1116,6 +1116,9 @@ watch(() => chatStore.user, (newVal) => {
 
 // Controle de Loading
 const loadingList = ref(false)
+const loadingMorePendencies = ref(false)
+const pendencyPage = ref(0)
+const hasMorePendencies = ref(true)
 const loadingSave = ref(false)
 const loadingDelete = ref(false)
 
@@ -1478,8 +1481,12 @@ watch(
   [search, filterCustomer, filterUser, filterOperation, filterStatus, filterStartDate, filterEndDate, filterForecastStartDate, filterForecastEndDate],
   () => {
     visibleItemsLimit.value = 20
+    clearTimeout(filterFetchTimeout)
+    filterFetchTimeout = setTimeout(() => fetchData(), 250)
   }
 )
+
+let filterFetchTimeout = null
 
 const handleScroll = () => {
   if (!mainContentEl.value) return
@@ -1491,6 +1498,8 @@ const handleScroll = () => {
   if (scrollHeight - (scrollTop + clientHeight) < 150) {
     if (visibleItemsLimit.value < filteredPendencies.value.length) {
       visibleItemsLimit.value += 20
+    } else if (hasMorePendencies.value) {
+      fetchData(true)
     }
   }
 }
@@ -1560,21 +1569,52 @@ const clearFiltersAndSearch = () => {
 }
 
 // Requisições e Carregamento de Dados
-const fetchData = async () => {
-  loadingList.value = true
+const fetchData = async (loadMore = false) => {
+  if (loadMore && (loadingMorePendencies.value || !hasMorePendencies.value)) return
+  if (loadMore) loadingMorePendencies.value = true
+  else {
+    loadingList.value = true
+    pendencyPage.value = 0
+    hasMorePendencies.value = true
+  }
+
+  const params = {
+    page: pendencyPage.value + 1,
+    page_size: 30,
+    search: search.value.trim() || undefined,
+    customer: filterCustomer.value !== 'all' ? filterCustomer.value : undefined,
+    user: filterUser.value !== 'all' ? filterUser.value : undefined,
+    operation_type: filterOperation.value !== 'all' ? filterOperation.value : undefined,
+    status: filterStatus.value !== 'all' ? filterStatus.value : undefined,
+    start_date: filterStartDate.value || undefined,
+    end_date: filterEndDate.value || undefined,
+    forecast_start_date: filterForecastStartDate.value || undefined,
+    forecast_end_date: filterForecastEndDate.value || undefined
+  }
+
   try {
-    const [resPendencies, resCustomers, resUsers] = await Promise.all([
-      axios.get('/api/v1/pendencies/'),
-      axios.get('/api/v1/customers/'),
-      axios.get('/api/v1/users/')
-    ])
-    pendencies.value = resPendencies.data
-    customers.value = resCustomers.data
-    users.value = resUsers.data.filter(u => u.role !== 'system') // Ignorar usuários do sistema
+    const requests = [axios.get('/api/v1/pendencies/', { params })]
+    if (!loadMore) {
+      requests.push(axios.get('/api/v1/customers/'), axios.get('/api/v1/users/'))
+    }
+    const [resPendencies, resCustomers, resUsers] = await Promise.all(requests)
+    const payload = resPendencies.data
+    const results = payload.results || payload
+    pendencies.value = loadMore
+      ? [...pendencies.value, ...results.filter(item => !pendencies.value.some(existing => existing.id === item.id))]
+      : results
+    if (!loadMore) {
+      customers.value = resCustomers.data
+      users.value = resUsers.data.filter(u => u.role !== 'system')
+    }
+    pendencyPage.value = payload.page || pendencyPage.value + 1
+    hasMorePendencies.value = payload.has_next ?? false
+    visibleItemsLimit.value = Math.max(20, pendencies.value.length)
   } catch (error) {
     console.error('Erro ao carregar dados:', error)
   } finally {
     loadingList.value = false
+    loadingMorePendencies.value = false
   }
 }
 
@@ -2256,6 +2296,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  clearTimeout(filterFetchTimeout)
   window.removeEventListener('click', handleClickOutsideAutocomplete)
   window.removeEventListener('keydown', handleGlobalKeydown)
   if (mainContentEl.value) {
