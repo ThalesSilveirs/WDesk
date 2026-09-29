@@ -10,7 +10,7 @@
 
     <div class="header-right">
       <!-- Global Advanced Search Suite / Spotlight Trigger -->
-      <div class="header-search-container" @click="chatStore.openCommandPalette()">
+      <div class="header-search-container" @click="chatStore.openCommandPalette()" @keydown.enter="chatStore.openCommandPalette" @keydown.space.prevent="chatStore.openCommandPalette" tabindex="0" role="button" aria-label="Abrir busca global">
         <div class="header-search">
           <SearchIcon :size="18" class="search-icon" />
           <input 
@@ -37,7 +37,7 @@
 
       <!-- Notification Bell with Dropdown -->
       <div class="notification-container">
-        <button @click="toggleNotificationDropdown" class="header-icon-btn" title="Notificações">
+        <button @click="toggleNotificationDropdown" class="header-icon-btn" title="Notificações" :aria-expanded="showNotificationDropdown">
           <BellIcon :size="20" />
           <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
         </button>
@@ -352,8 +352,12 @@ onUnmounted(() => {
     color: var(--text-primary);
     cursor: pointer;
   }
-  .header-search input { width: 160px; }
-  .header-search.focused input, .header-search input:focus { width: 220px; }
-  .global-search-popover { width: 300px; }
+  .global-header { padding: 12px 16px; gap: 12px; }
+  .header-left { gap: 10px; min-width: 0; }
+  .header-left h1 { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-right { gap: 8px; }
+  .header-search-container { flex: 1; min-width: 0; }
+  .header-search input.header-search-trigger-input { width: min(38vw, 180px); padding-left: 34px; }
+  .notification-dropdown { position: fixed; top: 66px; right: 12px; width: min(320px, calc(100vw - 24px)); }
 }
 </style>

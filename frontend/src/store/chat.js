@@ -3,6 +3,7 @@ import axios from 'axios'
 import { io } from 'socket.io-client'
 
 let globalAudioCtx = null
+const pendingTicketRequests = new Map()
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -499,11 +500,16 @@ export const useChatStore = defineStore('chat', {
     async fetchTickets(filter = null) {
       if (filter) this.currentFilter = filter
 
+      const requestedFilter = this.currentFilter
+      const requestKey = `filtered:${requestedFilter}`
+      if (pendingTicketRequests.has(requestKey)) return pendingTicketRequests.get(requestKey)
+
       this.loading = true
       this.fetchError = null
-      try {
+      const request = (async () => {
+        try {
         const response = await axios.get(`/api/v1/tickets/`, {
-          params: { status_filter: this.currentFilter }
+          params: { status_filter: requestedFilter }
         })
         const uniqueTickets = []
         const seen = new Set()
@@ -513,17 +519,25 @@ export const useChatStore = defineStore('chat', {
             uniqueTickets.push(t)
           }
         }
-        this.tickets = uniqueTickets
-      } catch (e) {
-        console.error("Erro ao buscar tickets:", e)
-        this.fetchError = "Falha ao carregar lista de conversas."
-      } finally {
-        this.loading = false
-      }
+        if (this.currentFilter === requestedFilter) this.tickets = uniqueTickets
+        } catch (e) {
+          console.error("Erro ao buscar tickets:", e)
+          this.fetchError = "Falha ao carregar lista de conversas."
+        } finally {
+          this.loading = false
+          pendingTicketRequests.delete(requestKey)
+        }
+      })()
+      pendingTicketRequests.set(requestKey, request)
+      return request
     },
 
     async fetchMyTickets() {
-      try {
+      const requestKey = 'mine'
+      if (pendingTicketRequests.has(requestKey)) return pendingTicketRequests.get(requestKey)
+
+      const request = (async () => {
+        try {
         const response = await axios.get(`/api/v1/tickets/`, {
           params: { status_filter: 'mine' }
         })
@@ -536,9 +550,14 @@ export const useChatStore = defineStore('chat', {
           }
         }
         this.myTickets = uniqueTickets
-      } catch (e) {
-        console.error("Erro ao buscar meus tickets", e)
-      }
+        } catch (e) {
+          console.error("Erro ao buscar meus tickets", e)
+        } finally {
+          pendingTicketRequests.delete(requestKey)
+        }
+      })()
+      pendingTicketRequests.set(requestKey, request)
+      return request
     },
 
     async acceptTicket(ticketId) {
@@ -962,5 +981,3 @@ export const useChatStore = defineStore('chat', {
     }
   }
 })
-
-

@@ -298,13 +298,21 @@ const changeStatus = (status) => {
   showStatusMenu.value = false
 }
 
+let statsRequest = null
+
 const fetchDashboardStats = async () => {
+  if (statsRequest) return statsRequest
+  statsRequest = (async () => {
   try {
     const response = await axios.get('/api/v1/tickets/stats/')
     stats.value = response.data
   } catch (e) {
     console.error("Erro ao carregar estatísticas do dashboard", e)
+  } finally {
+    statsRequest = null
   }
+  })()
+  return statsRequest
 }
 
 const verifyInstance = async () => {
@@ -362,7 +370,7 @@ const handleStatusChange = (e) => {
 }
 
 const fetchStatsIfVisible = () => {
-  if (!document.hidden) {
+  if (!document.hidden && !statsRequest) {
     fetchDashboardStats()
   }
 }
@@ -375,7 +383,7 @@ const handleVisibilityChange = () => {
 
 onMounted(() => {
   fetchDashboardStats()
-  intervalId = setInterval(fetchStatsIfVisible, 10000)
+  intervalId = setInterval(fetchStatsIfVisible, 15000)
   window.addEventListener('user-status-changed', handleStatusChange)
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
